@@ -37,7 +37,7 @@
 
     @influxdb host influxdb.local.wywiol.eu
     handle @influxdb {
-        reverse_proxy http://influxdb:8086
+        reverse_proxy 192.168.0.107:8086
     }
 
     @redis host redis.local.wywiol.eu
@@ -58,6 +58,11 @@
 
     @sonarqube host sonarqube.local.wywiol.eu
     handle @sonarqube {
+        reverse_proxy http://sonarqube:9000
+    }
+
+    @sonarqube_prod host sonarqube.wywiol.eu
+    handle @sonarqube_prod {
         reverse_proxy http://sonarqube:9000
     }
 
@@ -84,6 +89,11 @@
     @ntfy host ntfy.local.wywiol.eu
     handle @ntfy {
         reverse_proxy http://ntfy:80
+    }
+
+    @app host app.local.wywiol.eu
+    handle @app {
+        reverse_proxy 192.168.0.50:3000
     }
 }
 
