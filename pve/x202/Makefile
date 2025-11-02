@@ -148,6 +148,15 @@ redis:
 		*) echo "Usage: make redis [up|down|restart]"; exit 1 ;; \
 	esac
 
+.PHONY: rabbitmq
+rabbitmq:
+	@case "$(word 2, $(MAKECMDGOALS))" in \
+		up) docker compose --env-file ./docker/config/rabbitmq/.env -f ./docker/config/rabbitmq/compose.yml up -d ;; \
+		down) docker compose -f ./docker/config/rabbitmq/compose.yml down ;; \
+		restart) docker compose -f ./docker/config/rabbitmq/compose.yml restart ;; \
+		*) echo "Usage: make rabbitmq [up|down|restart]"; exit 1 ;; \
+	esac
+
 .PHONY: mongo
 mongo:
 	@case "$(word 2, $(MAKECMDGOALS))" in \
