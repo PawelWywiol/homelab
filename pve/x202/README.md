@@ -34,14 +34,28 @@
 
 All via Makefile in this directory:
 
+**Generic app management** (works for any service in docker/config/):
 ```bash
-make SERVICE [up|down|restart]
-make postgres [add|remove] DB_NAME
-make glitchtip createsuperuser
-make k6-build
-make k6-grafana script.js
-make random
-make help
+make SERVICE [up|down|restart|pull]
+```
+
+**Special commands**:
+```bash
+make postgres [up|down|restart|pull|add|remove] [DB_NAME]
+make glitchtip [up|down|restart|pull|createsuperuser]
+make k6-build                    # Build k6 with extensions
+make k6-grafana script.js        # Run k6 → InfluxDB
+make k6-dashboard script.js      # Run k6 → HTML export
+make random                      # Generate 32-byte hex
+make help                        # Show all commands
+```
+
+**Examples**:
+```bash
+make caddy up           # Start Caddy reverse proxy
+make postgres add mydb  # Create PostgreSQL database
+make n8n restart        # Restart n8n workflows
+make redis pull         # Pull latest Redis image
 ```
 
 ## Structure
