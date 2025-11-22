@@ -1,0 +1,9 @@
+#!/bin/bash
+# Mock docker-compose for testing Makefile
+# Logs all commands to a file instead of executing
+
+LOGFILE="${TEST_OUTPUT_DIR:-/tmp}/docker-compose.log"
+echo "MOCK_COMPOSE_CMD: $*" >> "$LOGFILE"
+
+# Simulate successful execution
+exit 0
