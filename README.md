@@ -12,14 +12,22 @@ make SERVICE [up|down|restart]  # See CLAUDE.md for service list
 
 ## File Sync
 
-Sync configuration between local and server:
+Sync configuration between local and server using Makefile shortcuts:
 
 ```bash
-# Server → Local
-./scripts/sync-files.sh user@host ./pve/PATH
+# Pull: Server → Local
+make pull user@HOST  # e.g., make pull code@x202
 
-# Local → Server
-./scripts/sync-files.sh ./pve/PATH user@host
+# Push: Local → Server
+make push user@HOST  # e.g., make push code@x202
+```
+
+HOST must match a directory in `pve/` (x000, x201, x202, x250).
+
+**Direct script usage:**
+```bash
+./scripts/sync-files.sh user@host ./pve/PATH  # Server → Local
+./scripts/sync-files.sh ./pve/PATH user@host  # Local → Server
 ```
 
 Config: Define files in `pve/*/.envrc` `SYNC_FILES` array.
