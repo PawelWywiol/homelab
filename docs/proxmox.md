@@ -238,7 +238,7 @@ Automated VM template creation with cloud-init support:
 
 ```bash
 # 1. Download Debian cloud image
-wget https://cdimage.debian.org/images/cloud/bullseye/latest/debian-11-generic-amd64.raw
+wget https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.raw
 
 # 2. Create VM
 qm create 5001 \
@@ -249,7 +249,7 @@ qm create 5001 \
 
 # 3. Import disk
 qm set 5001 \
-  --scsi0 local-zfs:0,discard=on,ssd=1,format=raw,import-from=/root/debian-11-generic-amd64.raw
+  --scsi0 local-zfs:0,discard=on,ssd=1,format=raw,import-from=/root/debian-13-generic-amd64.raw
 
 # 4. Resize disk
 qm disk resize 5001 scsi0 8G
@@ -258,7 +258,7 @@ qm disk resize 5001 scsi0 8G
 qm set 5001 --boot order=scsi0
 
 # 6. Set CPU and RAM
-qm set 5001 --cpu host --cores 2 --memory 4096
+qm set 5001 --cpu host --cores 2 --memory 2048
 
 # 7. Configure UEFI
 qm set 5001 \
