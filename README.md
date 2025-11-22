@@ -1,25 +1,53 @@
-# Homelab
+# Homelab Infrastructure
 
-## Sync files from/to the server to/from the local machine
+Proxmox-based homelab with Docker Compose service orchestration.
 
-Edit `pve/xXXX/.envrc` file. Add required file paths to the `SYNC_FILES` array.
+## Quick Start
 
-```env
-SYNC_FILES=(
-  ".env"
-  "docker/config"
-  "Makefile"
-)
+**Primary environment** (x202):
+```bash
+cd pve/x202
+make SERVICE [up|down|restart]  # See CLAUDE.md for service list
 ```
 
-Sync files from the server to the local machine:
+## File Sync
+
+Sync configuration between local and server:
 
 ```bash
-./scripts/sync-files.sh user@host ./pve/PATH_TO_DIR
+# Server → Local
+./scripts/sync-files.sh user@host ./pve/PATH
+
+# Local → Server
+./scripts/sync-files.sh ./pve/PATH user@host
 ```
 
-Sync files from the local machine to the server:
+Config: Define files in `pve/*/.envrc` `SYNC_FILES` array.
 
-```bash
-./scripts/sync-files.sh ./pve/PATH_TO_DIR user@host
+## Environments
+
+- **x000**: Legacy services (deprecated)
+- **x201**: DNS/network services
+- **x202**: Web/application services (primary)
+- **x250**: AI/ML workloads
+- **x203**: K3s cluster (planned)
+
+## Documentation
+
+- **[CLAUDE.md](./CLAUDE.md)** - Full setup guide + commands
+- **[docs/](./docs/)** - Docker, Linux, Proxmox, WSL guides
+- **[scripts/](./scripts/)** - Init scripts + utilities
+
+## Structure
+
 ```
+pve/x202/                    # Primary environment
+├── Makefile                 # Service orchestration
+├── docker/config/SERVICE/   # Per-service configs
+│   ├── compose.yml
+│   ├── .env
+│   └── .env.example
+└── .envrc                   # Sync configuration
+```
+
+See [CLAUDE.md](./CLAUDE.md) for complete documentation.

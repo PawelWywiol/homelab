@@ -7,3 +7,5 @@
 **/.env
 
 **/docker/data
+
+repomix-output.xml

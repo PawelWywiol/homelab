@@ -1,48 +1,84 @@
 # Scripts
 
+Initialization and utility scripts for homelab setup.
+
+## Available Scripts
+
+**init-lxc.sh** - LXC container initialization
+**init-vm.sh** - VM initialization
+**sync-files.sh** - Bidirectional file sync (rsync wrapper)
+
 ## init-lxc.sh
 
-### On container
+Initialize LXC container with user setup and SSH access.
 
-Run script on container
+### On Container
 
-Reset the `code` user password
+Run the script, then reset `code` user password:
 
-```shell
+```bash
 passwd code
 ```
 
-### On local machine
+### On Local Machine
 
-Remove previous entry from `~/.ssh/known_hosts`
+**1. Remove previous SSH entry:**
 
-```shell
+```bash
 ssh-keygen -R 192.168.0.XXX
 ```
 
-Add your public key to the lxc `authorized_keys`
+**2. Add SSH key:**
 
-```shell
+```bash
 ssh-copy-id code@192.168.0.XXX
 ```
 
-Update your `~/.ssh/config`
+**3. Update SSH config:**
 
-```shell
-code ~/.ssh/config
+```bash
+nano ~/.ssh/config
 ```
 
-```shell
+```
 Host local-host
-HostName 192.168.0.XXX
-User code
+  HostName 192.168.0.XXX
+  User code
 ```
 
-```shell
-# oh my zsh
+**4. Install ZSH (optional):**
+
+```bash
+# Install Oh My Zsh
 sh -c "$(curl -fsSL https://install.ohmyz.sh)"
-git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
-git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
-git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
+
+# Install Powerlevel10k theme
+git clone --depth=1 https://github.com/romkatv/powerlevel10k.git \
+  "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
+
+# Install plugins
+git clone https://github.com/zsh-users/zsh-autosuggestions \
+  ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
+
+git clone https://github.com/zsh-users/zsh-syntax-highlighting.git \
+  ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
+
+# Reload
 source ~/.zshrc
 ```
+
+## sync-files.sh
+
+Synchronize files between local and remote systems using rsync.
+
+**Usage:**
+
+```bash
+# Server → Local
+./scripts/sync-files.sh user@host ./pve/PATH
+
+# Local → Server
+./scripts/sync-files.sh ./pve/PATH user@host
+```
+
+Files synced are defined in `.envrc` `SYNC_FILES` array per directory.
