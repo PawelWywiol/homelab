@@ -1,131 +1,214 @@
 # CLAUDE.md
 
-Guidance for Claude Code when working with this repository.
+Homelab infrastructure with Docker Compose, Ansible automation, OpenTofu IaC, and GitOps workflows.
 
-## Overview
+## Quick Start
 
-Homelab infrastructure repository with Docker Compose configs and management scripts for self-hosted services. Organized around PVE (Proxmox Virtual Environment) with different directory structures per environment.
+```bash
+# x202 (primary) - manage services
+cd pve/x202 && make SERVICE up|down|restart|logs
 
-**Environment structure**:
-- x000: Legacy services → `pve/x000/SERVICE/`
-- x201: DNS services → `pve/x201/docker/config/`
-- x202: Web/App services → `pve/x202/docker/config/SERVICE/`
-- x250: AI/ML services → `pve/x250/docker/config/`
-- x203: Future k3s cluster (planned)
+# x199 (control node) - manage automation
+cd pve/x199 && make SERVICE up|down|restart|logs
 
-**Security**: `.env` files contain secrets. Use `.env.example` for structure reference (keys only, no values).
+# File sync
+make pull user@HOST   # Server → Local
+make push user@HOST   # Local → Server
+```
 
-## Architecture
+## Environments
 
-- **Service Management**: Docker Compose with per-service config directories
-- **Environment Config**: Per-service `.env` files for environment variables
-- **File Sync**: Scripts for local ↔ server synchronization (defined in `.envrc` SYNC_FILES)
-- **Operations**: Makefile-based orchestration in `pve/x202/` (primary environment)
+| ID | Purpose | Services | Makefile |
+|----|---------|----------|----------|
+| x199 | Control node | caddy, semaphore, webhook | `pve/x199/Makefile` |
+| x201 | DNS/Network | caddy | `pve/x201/Makefile` |
+| x202 | Web/App (primary) | 16 services | `pve/x202/Makefile` |
+| x250 | AI/ML | sd-rocm | - |
+| x000 | Legacy | various | - |
 
-## Commands
+**Path patterns:**
+- x199, x201, x202: `pve/ENV/docker/config/SERVICE/`
+- x000 (legacy): `pve/x000/SERVICE/`
 
-### Service Management (x202)
+## Service Management
 
-Manage services via Makefile in `pve/x202/`:
+### x202 Services
 
 ```bash
 cd pve/x202
-make SERVICE [up|down|restart]
+make SERVICE [up|down|restart|pull|logs]
 ```
 
-**Available services**:
-- `caddy` - Reverse proxy
-- `portainer` - Container management UI
-- `n8n` - Workflow automation
-- `wakapi` - Coding activity tracker
-- `beszel` - System monitoring
-- `uptime-kuma` - Uptime monitoring
-- `ntfy` - Push notifications
-- `grafana` - Dashboards/visualization
-- `postgres` - PostgreSQL + pgAdmin
-- `redis` - Redis cache
-- `rabbitmq` - Message broker
-- `mongo` - MongoDB + Mongo Express
-- `influxdb` - Time-series DB
-- `glitchtip` - Error tracking
-- `sonarqube` - Code quality
+| Service | Description |
+|---------|-------------|
+| caddy | Reverse proxy (Cloudflare DNS) |
+| portainer | Container management UI |
+| postgres | PostgreSQL + pgAdmin |
+| redis | Redis cache |
+| mongo | MongoDB + Mongo Express |
+| rabbitmq | Message broker |
+| influxdb | Time-series DB |
+| grafana | Dashboards |
+| n8n | Workflow automation |
+| wakapi | Coding activity tracker |
+| beszel | System monitoring |
+| uptime-kuma | Uptime monitoring |
+| ntfy | Push notifications |
+| glitchtip | Error tracking |
+| sonarqube | Code quality |
+| k6 | Load testing |
 
-### Database Operations (x202)
-
-**PostgreSQL**:
+**Database operations:**
 ```bash
 make postgres add DB_NAME      # Create database + user
 make postgres remove DB_NAME   # Drop database + user
+make glitchtip createsuperuser # Create admin user
 ```
 
-**GlitchTip**:
+**K6 load testing:**
 ```bash
-make glitchtip createsuperuser  # Create Django admin user
+make k6-build              # Build with extensions
+make k6-grafana SCRIPT     # Run → InfluxDB
+make k6-dashboard SCRIPT   # Run → HTML export
 ```
 
-### File Sync
-
-Sync local ↔ server via rsync wrapper:
-
-```bash
-# Server → Local
-./scripts/sync-files.sh user@host ./pve/PATH
-
-# Local → Server
-./scripts/sync-files.sh ./pve/PATH user@host
-```
-
-Files defined in `.envrc` `SYNC_FILES` array per directory.
-
-### Performance Testing (x202)
-
-K6 load testing with extensions:
+### x199 Services (Control Node)
 
 ```bash
-cd pve/x202
-make k6-build                     # Build k6 w/ influxdb + dashboard extensions
-make k6-grafana script.js         # Run test → InfluxDB
-make k6-dashboard script.js       # Run test → HTML dashboard export
+cd pve/x199
+make SERVICE [up|down|restart|pull|logs]
 ```
 
-Script location: `./docker/config/k6/scripts/`
+| Service | Port | Description |
+|---------|------|-------------|
+| caddy | 80, 443 | Reverse proxy (Cloudflare DNS) |
+| semaphore | 3001 | Ansible automation UI |
+| webhook | 8097 | GitHub webhook handler |
 
-### Utilities
+## Control Node Setup
+
+Bootstrap fresh Debian/Ubuntu machine as x199 control node:
 
 ```bash
-cd pve/x202
-make random    # Generate 32-byte hex secret
-make help      # List all targets
+git clone https://github.com/pawelwywiol/home.git && cd home
+cp bootstrap.env.example .env
+nano .env  # Set required: CLOUDFLARE_API_TOKEN, BASE_DOMAIN, CONTROL_NODE_IP
+./bootstrap.sh
 ```
+
+**Installs:** Docker, Ansible (+collections), OpenTofu
+**Configures:** Caddy (Cloudflare DNS), Semaphore, Webhook, Docker network
+**Auto-generates:** Vault password, Semaphore credentials, webhook secret
+
+## GitOps Automation
+
+Push to `main` triggers automated deployments:
+
+```
+GitHub Push → webhook.wywiol.eu (Caddy: IP whitelist)
+           → webhook:8097 (HMAC verification)
+           → Semaphore API / OpenTofu
+           → Deploy services / Update VMs
+           → ntfy.sh notification
+```
+
+**Triggers:**
+
+| Path Change | Action |
+|-------------|--------|
+| `pve/x202/*` | Deploy x202 services (Ansible) |
+| `pve/x201/*` | Deploy x201 services (Ansible) |
+| `infra/tofu/*` | OpenTofu plan (manual apply) |
+| `ansible/*` | Syntax check |
+
+**Ansible playbooks:**
+- `deploy-service.yml` - Deploy Docker Compose services
+- `rollback-service.yml` - Rollback to previous version
+
+**Managed hosts:** x100, x199, x201, x202 (VMs) + 107, 108, 109, 111 (LXC)
+
+## File Sync
+
+```bash
+# Root Makefile shortcuts
+make pull user@HOST   # Server → Local (HOST = x199|x201|x202|x250)
+make push user@HOST   # Local → Server
+
+# Direct script
+./scripts/sync-files.sh user@host ./pve/PATH  # Server → Local
+./scripts/sync-files.sh ./pve/PATH user@host  # Local → Server
+```
+
+Files defined in `pve/ENV/.envrc` `SYNC_FILES` array.
+
+## Security
+
+**Secrets management:**
+- `.env` files contain secrets → **never commit** (gitignored)
+- `.env.example` for structure reference (keys only)
+- `ansible/group_vars/all/vault.yml` - Ansible Vault encrypted
+- `~/.ansible/vault_password` - Vault decryption key (on x199)
+
+**Access control:**
+- Caddy: GitHub IP whitelist for webhook endpoint
+- Caddy: Local network only for Semaphore UI
+- Webhook: HMAC-SHA256 signature verification
+- Proxmox: API token with minimal permissions
+
+**Backup locations:**
+- `/opt/backups/control-node/` - Control node (Ansible vault, SSH keys)
+- Proxmox Backup Server - VM/LXC snapshots
 
 ## Directory Structure
 
 ```
-pve/
-├── x000/SERVICE/              # Legacy: flat structure
-│   ├── compose.yml
-│   ├── .env
-│   └── .env.example
-├── x201/                      # DNS services
-│   ├── docker/config/
-│   └── compose.yml            # Root compose
-├── x202/                      # Main web services
-│   ├── Makefile              # Primary orchestration
-│   ├── docker/config/SERVICE/
-│   │   ├── compose.yml
-│   │   ├── .env
-│   │   └── .env.example
-│   └── .envrc                # Sync config
-├── x250/                      # AI/ML
-│   └── docker/config/
-scripts/                       # Init + sync utilities
-docs/                         # Guides (docker, linux, proxmox, wsl)
+├── bootstrap.sh              # x199 control node setup
+├── bootstrap.env.example     # Bootstrap config template
+├── Makefile                  # Root sync commands
+├── pve/
+│   ├── x199/                 # Control node
+│   │   ├── Makefile
+│   │   └── docker/config/
+│   │       ├── caddy/        # Reverse proxy
+│   │       ├── semaphore/    # Ansible UI
+│   │       └── webhook/      # GitHub webhooks
+│   ├── x201/                 # DNS services
+│   ├── x202/                 # Web services (primary)
+│   │   ├── Makefile          # Service orchestration
+│   │   └── docker/config/SERVICE/
+│   └── x250/                 # AI/ML
+├── ansible/
+│   ├── inventory/hosts.yml   # Managed hosts
+│   ├── playbooks/            # Deploy/rollback
+│   ├── group_vars/all/       # Variables + vault
+│   └── roles/                # Reusable roles
+├── infra/tofu/               # OpenTofu (Proxmox VMs)
+│   ├── vms.tf                # VM definitions
+│   └── provider.tf           # Proxmox provider
+├── scripts/
+│   ├── sync-files.sh         # Bidirectional rsync
+│   ├── backup-control-node.sh
+│   └── verify-backups.sh
+└── docs/                     # Guides
 ```
 
-## Notes
+## Contributing
 
-- **Working directory**: Run Make commands from `pve/x202/` (not service subdirs)
-- **Secrets**: Never commit `.env` files; reference `.env.example` for keys
-- **Database**: Prefer shared PostgreSQL instance (`pve/x202/docker/config/postgres/`)
-- **SSH**: File sync requires SSH key-based auth to server
-- **Path structure**: Differs by environment (see Directory Structure above)
+**Working directory:** Run Make commands from environment root (`pve/x202/`, `pve/x199/`)
+
+**Adding services:**
+1. Create `pve/ENV/docker/config/SERVICE/`
+2. Add `compose.yml`, `.env.example`
+3. Makefile auto-discovers services
+
+**Conventions:**
+- Prefer shared PostgreSQL (`pve/x202/docker/config/postgres/`)
+- Use `${PWD}/docker/config/SERVICE/` for volume paths
+- SSH key auth required for file sync
+- All secrets via environment variables
+
+**Documentation:**
+- [ansible/README.md](ansible/README.md) - Ansible setup
+- [infra/README.md](infra/README.md) - OpenTofu/Proxmox
+- [pve/x199/README.md](pve/x199/README.md) - Control node
+- [docs/automation/](docs/automation/) - GitOps workflow

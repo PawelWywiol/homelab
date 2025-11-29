@@ -1,0 +1,40 @@
+---
+# Common variables for all hosts
+
+# Timezone
+timezone: Europe/Warsaw
+
+# Docker network
+docker_network_name: homelab
+docker_network_driver: bridge
+
+# Repository
+repo_base_path: /home/code/home
+repo_url: https://github.com/PawelWywiol/home.git
+
+# Compose file locations relative to repo
+compose_paths:
+  "pve/x000": "{{ repo_base_path }}/pve/x000"
+  "pve/x201": "{{ repo_base_path }}/pve/x201"
+  "pve/x202": "{{ repo_base_path }}/pve/x202"
+  "pve/x250": "{{ repo_base_path }}/pve/x250"
+
+# Docker Compose command
+docker_compose_cmd: docker compose
+
+# Service deployment settings
+deployment_timeout: 300  # seconds
+health_check_retries: 5
+health_check_delay: 10   # seconds
+
+# Backup settings
+backup_retention_days: 30
+backup_dir: /opt/backups
+
+# Log settings
+log_level: INFO
+log_dir: /var/log/ansible
+
+# Security
+fail_on_error: true
+validate_certs: true

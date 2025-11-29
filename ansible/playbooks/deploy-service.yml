@@ -1,0 +1,68 @@
+---
+- name: Deploy Docker Compose service
+  hosts: "{{ target_host | default('all') }}"
+  become: true
+  gather_facts: true
+
+  vars:
+    service_name: "{{ service | default('') }}"
+    force_recreate: "{{ force | default(false) }}"
+
+  pre_tasks:
+    - name: Validate required variables
+      assert:
+        that:
+          - service_name is defined
+          - service_name != ''
+        fail_msg: "service_name is required. Usage: ansible-playbook deploy-service.yml -e service=SERVICE_NAME"
+
+    - name: Determine service path
+      set_fact:
+        service_base: "{{ compose_paths[compose_style] }}"
+        service_path: "{{ compose_paths[compose_style] }}/{{ service_name }}"
+
+    - name: Check if service directory exists
+      stat:
+        path: "{{ service_path }}"
+      register: service_dir
+
+    - name: Fail if service not found
+      fail:
+        msg: "Service directory not found: {{ service_path }}"
+      when: not service_dir.stat.exists
+
+  tasks:
+    - name: Pull latest repository changes
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ repo_base_path }}"
+        version: main
+        force: yes
+      become: false
+      delegate_to: localhost
+      run_once: true
+
+    - name: Deploy service using docker_compose role
+      include_role:
+        name: docker_compose
+      vars:
+        compose_file: "{{ service_path }}/compose.yml"
+        project_name: "{{ service_name }}"
+        recreate: "{{ force_recreate }}"
+
+  post_tasks:
+    - name: Wait for service to be healthy
+      command: "{{ docker_compose_cmd }} -f {{ service_path }}/compose.yml ps"
+      register: compose_status
+      retries: "{{ health_check_retries }}"
+      delay: "{{ health_check_delay }}"
+      until: compose_status.rc == 0
+      changed_when: false
+
+    - name: Display deployment summary
+      debug:
+        msg:
+          - "Service: {{ service_name }}"
+          - "Host: {{ inventory_hostname }}"
+          - "Path: {{ service_path }}"
+          - "Status: Deployed"

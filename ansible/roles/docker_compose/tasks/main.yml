@@ -1,0 +1,80 @@
+---
+# Docker Compose role - Deploy and manage Docker Compose services
+
+- name: Ensure Docker is installed
+  package:
+    name: docker.io
+    state: present
+
+- name: Ensure Docker Compose plugin is installed
+  package:
+    name: docker-compose-plugin
+    state: present
+
+- name: Ensure Docker service is running
+  service:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Add user to docker group
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+
+- name: Check if compose file exists
+  stat:
+    path: "{{ compose_file }}"
+  register: compose_file_stat
+
+- name: Fail if compose file not found
+  fail:
+    msg: "Compose file not found: {{ compose_file }}"
+  when: not compose_file_stat.stat.exists
+
+- name: Get compose file directory
+  set_fact:
+    compose_dir: "{{ compose_file | dirname }}"
+
+- name: Check for .env file
+  stat:
+    path: "{{ compose_dir }}/.env"
+  register: env_file_stat
+
+- name: Pull latest images
+  command: "{{ docker_compose_cmd }} -f {{ compose_file }} pull"
+  args:
+    chdir: "{{ compose_dir }}"
+  register: pull_result
+  changed_when: "'Pulling' in pull_result.stdout"
+
+- name: Stop existing containers (if recreate)
+  command: "{{ docker_compose_cmd }} -f {{ compose_file }} down"
+  args:
+    chdir: "{{ compose_dir }}"
+  when: recreate | default(false)
+
+- name: Start services
+  command: "{{ docker_compose_cmd }} -f {{ compose_file }} up -d --remove-orphans"
+  args:
+    chdir: "{{ compose_dir }}"
+  register: up_result
+  changed_when: "'Started' in up_result.stdout or 'Created' in up_result.stdout"
+
+- name: Wait for containers to be running
+  command: "{{ docker_compose_cmd }} -f {{ compose_file }} ps --format json"
+  args:
+    chdir: "{{ compose_dir }}"
+  register: container_status
+  retries: 10
+  delay: 5
+  until: container_status.rc == 0
+  changed_when: false
+
+- name: Display service status
+  debug:
+    msg:
+      - "Project: {{ project_name | default('unknown') }}"
+      - "Compose file: {{ compose_file }}"
+      - "Status: {{ 'Recreated' if recreate | default(false) else 'Updated' }}"

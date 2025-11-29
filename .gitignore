@@ -8,4 +8,25 @@
 
 **/docker/data
 
+# OpenTofu / Terraform
+**/.terraform/
+**/.terraform.lock.hcl
+**/*.tfstate
+**/*.tfstate.backup
+**/*.tfstate.*.backup
+**/crash.log
+**/crash.*.log
+**/terraform.tfvars
+**/.terraform.tfstate.lock.info
+
+# Ansible
+**/vault.yml
+!**/vault.yml.example
+**/retry-files/
+**/*.retry
+
+# Repomix
 repomix-output.xml
+repomix.xml
+
+node_modules/

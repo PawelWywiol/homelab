@@ -1,0 +1,100 @@
+---
+- name: Rollback Docker Compose service to previous version
+  hosts: "{{ target_host | default('all') }}"
+  become: true
+  gather_facts: true
+
+  vars:
+    service_name: "{{ service | default('') }}"
+    git_commit: "{{ commit | default('HEAD~1') }}"
+
+  pre_tasks:
+    - name: Validate required variables
+      assert:
+        that:
+          - service_name is defined
+          - service_name != ''
+        fail_msg: "service_name is required. Usage: ansible-playbook rollback-service.yml -e service=SERVICE_NAME"
+
+    - name: Determine service path
+      set_fact:
+        service_base: "{{ compose_paths[compose_style] }}"
+        service_path: "{{ compose_paths[compose_style] }}/{{ service_name }}"
+
+    - name: Check if service directory exists
+      stat:
+        path: "{{ service_path }}"
+      register: service_dir
+
+    - name: Fail if service not found
+      fail:
+        msg: "Service directory not found: {{ service_path }}"
+      when: not service_dir.stat.exists
+
+    - name: Get current git commit
+      command: git -C {{ repo_base_path }} rev-parse HEAD
+      register: current_commit
+      changed_when: false
+      become: false
+
+    - name: Display rollback information
+      debug:
+        msg:
+          - "Current commit: {{ current_commit.stdout }}"
+          - "Rolling back to: {{ git_commit }}"
+          - "Service: {{ service_name }}"
+
+  tasks:
+    - name: Stop current service
+      command: "{{ docker_compose_cmd }} -f {{ service_path }}/compose.yml down"
+      args:
+        chdir: "{{ service_path }}"
+
+    - name: Checkout previous version
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ repo_base_path }}"
+        version: "{{ git_commit }}"
+        force: yes
+      become: false
+      delegate_to: localhost
+      run_once: true
+
+    - name: Deploy previous version
+      include_role:
+        name: docker_compose
+      vars:
+        compose_file: "{{ service_path }}/compose.yml"
+        project_name: "{{ service_name }}"
+        recreate: true
+
+  post_tasks:
+    - name: Wait for service to be healthy
+      command: "{{ docker_compose_cmd }} -f {{ service_path }}/compose.yml ps"
+      register: compose_status
+      retries: "{{ health_check_retries }}"
+      delay: "{{ health_check_delay }}"
+      until: compose_status.rc == 0
+      changed_when: false
+
+    - name: Get new git commit
+      command: git -C {{ repo_base_path }} rev-parse HEAD
+      register: new_commit
+      changed_when: false
+      become: false
+
+    - name: Display rollback summary
+      debug:
+        msg:
+          - "Service: {{ service_name }}"
+          - "Host: {{ inventory_hostname }}"
+          - "Previous commit: {{ current_commit.stdout }}"
+          - "Current commit: {{ new_commit.stdout }}"
+          - "Status: Rolled back successfully"
+
+    - name: Save rollback record
+      lineinfile:
+        path: /var/log/ansible/rollbacks.log
+        line: "{{ ansible_date_time.iso8601 }} - {{ service_name }} - {{ current_commit.stdout }} -> {{ new_commit.stdout }}"
+        create: yes
+        mode: '0644'

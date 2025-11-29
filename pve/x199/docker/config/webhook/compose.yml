@@ -1,0 +1,24 @@
+---
+services:
+  webhook:
+    container_name: webhook
+    image: almir/webhook:latest
+    restart: unless-stopped
+    ports:
+      - "8097:9000"
+    volumes:
+      - ${PWD}/docker/config/webhook/hooks.yml:/etc/webhook/hooks.yml:ro
+      - ${PWD}/docker/config/webhook/scripts:/scripts:ro
+      - ${REPO_PATH:-/home/code/home}:/repo:ro
+      - ${SEMAPHORE_DIR:-/opt/semaphore}:/semaphore:ro
+    environment:
+      - TZ=${TIMEZONE:-Europe/Warsaw}
+    command: ["-verbose", "-hooks=/etc/webhook/hooks.yml", "-hotreload"]
+    networks:
+      - homelab
+    user: "${UID:-1000}:${GID:-1000}"
+
+networks:
+  homelab:
+    name: homelab
+    external: true

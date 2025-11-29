@@ -1,0 +1,22 @@
+# Proxmox Connection
+proxmox_endpoint   = "https://192.168.0.200:8006"
+proxmox_api_token  = "homelab@pve!tofu=YOUR_TOKEN_SECRET_HERE"
+proxmox_insecure   = true
+proxmox_node       = "pve"
+
+# SSH Configuration
+ssh_public_key = "ssh-ed25519 AAAA... ansible@x199"
+
+# VM Configuration
+vm_username = "code"
+vm_password = null # Optional, only for initial setup
+
+# Network Configuration
+network_bridge  = "vmbr0"
+network_gateway = "192.168.0.1"
+dns_servers     = ["192.168.0.201", "1.1.1.1"]
+search_domain   = "local"
+
+# Storage Configuration
+storage_pool = "local-lvm"
+iso_storage  = "local"

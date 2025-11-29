@@ -10,15 +10,6 @@ http:
         - https-redirectscheme
       tls: {}
       service: dev3000
-    bimagopl:
-      entryPoints:
-        - "https"
-      rule: "Host(`bimago-pl.local.wywiol.eu`)"
-      middlewares:
-        - default-headers
-        - https-redirectscheme
-      tls: {}
-      service: dev4200
     proxmox:
       entryPoints:
         - "https"

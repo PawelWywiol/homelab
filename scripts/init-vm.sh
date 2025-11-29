@@ -6,6 +6,9 @@ USERNAME="code"
 sudo apt-get update
 sudo apt-upgrade -y
 
+# Install QEMU Guest Agent
+sudo apt install -y qemu-guest-agent
+
 # Install dependencies
 sudo apt-get install ca-certificates curl sudo zsh build-essential rsync qemu-guest-agent -y
 

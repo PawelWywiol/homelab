@@ -1,0 +1,36 @@
+---
+services:
+  caddy:
+    container_name: caddy
+    build:
+      context: ${PWD}/docker/config/caddy
+      dockerfile: Caddy.Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy_config:/config
+      - caddy_data:/data
+      - ${PWD}/docker/config/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${PWD}/docker/config/caddy/index.html:/usr/share/caddy/index.html:ro
+    environment:
+      - CLOUDFLARE_EMAIL=${CLOUDFLARE_EMAIL}
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+      - ACME_AGREE=true
+    networks:
+      - homelab
+
+volumes:
+  caddy_config:
+    name: caddy_x199_config
+    driver: local
+  caddy_data:
+    name: caddy_x199_data
+    driver: local
+
+networks:
+  homelab:
+    name: homelab
+    external: true

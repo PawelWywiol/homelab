@@ -1,0 +1,11 @@
+# Environment files with secrets
+.env
+
+# OpenTofu plan files
+*.tfplan
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp

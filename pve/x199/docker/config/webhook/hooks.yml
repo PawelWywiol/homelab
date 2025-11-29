@@ -1,0 +1,177 @@
+---
+# GitHub Webhook Handlers
+# Docs: https://github.com/adnanh/webhook/blob/master/docs/Hook-Definition.md
+
+# Hook 1: Deploy x202 services (when pve/x202 configs change)
+- id: "deploy-x202-services"
+  execute-command: "/scripts/trigger-semaphore.sh"
+  command-working-directory: "/repo"
+  pass-arguments-to-command:
+    - source: "payload"
+      name: "repository.full_name"
+    - source: "payload"
+      name: "ref"
+    - source: "string"
+      name: "x202-services"
+  response-message: "x202 deployment triggered"
+  trigger-rule:
+    and:
+      # Security: GitHub signature verification
+      - match:
+          type: "payload-hmac-sha256"
+          secret: "${GITHUB_WEBHOOK_SECRET}"
+          parameter:
+            source: "header"
+            name: "X-Hub-Signature-256"
+      # Repository filter
+      - match:
+          type: "value"
+          value: "pawelwywiol/home"
+          parameter:
+            source: "payload"
+            name: "repository.full_name"
+      # Branch filter (main only)
+      - match:
+          type: "value"
+          value: "refs/heads/main"
+          parameter:
+            source: "payload"
+            name: "ref"
+      # Path filter (x202 configs)
+      - match:
+          type: "regex"
+          regex: "pve/x202/"
+          parameter:
+            source: "payload"
+            name: "commits.#.added.#"
+      - match:
+          type: "regex"
+          regex: "pve/x202/"
+          parameter:
+            source: "payload"
+            name: "commits.#.modified.#"
+
+# Hook 2: Deploy x201 services (when pve/x201 configs change)
+- id: "deploy-x201-services"
+  execute-command: "/scripts/trigger-semaphore.sh"
+  command-working-directory: "/repo"
+  pass-arguments-to-command:
+    - source: "payload"
+      name: "repository.full_name"
+    - source: "payload"
+      name: "ref"
+    - source: "string"
+      name: "x201-services"
+  response-message: "x201 deployment triggered"
+  trigger-rule:
+    and:
+      - match:
+          type: "payload-hmac-sha256"
+          secret: "${GITHUB_WEBHOOK_SECRET}"
+          parameter:
+            source: "header"
+            name: "X-Hub-Signature-256"
+      - match:
+          type: "value"
+          value: "pawelwywiol/home"
+          parameter:
+            source: "payload"
+            name: "repository.full_name"
+      - match:
+          type: "value"
+          value: "refs/heads/main"
+          parameter:
+            source: "payload"
+            name: "ref"
+      - match:
+          type: "regex"
+          regex: "pve/x201/"
+          parameter:
+            source: "payload"
+            name: "commits.#(added|modified).#"
+
+# Hook 3: Update infrastructure (when OpenTofu configs change)
+- id: "update-infrastructure"
+  execute-command: "/scripts/trigger-tofu.sh"
+  command-working-directory: "/repo"
+  pass-arguments-to-command:
+    - source: "payload"
+      name: "repository.full_name"
+    - source: "payload"
+      name: "ref"
+    - source: "payload"
+      name: "head_commit.message"
+  response-message: "Infrastructure update triggered"
+  trigger-rule:
+    and:
+      - match:
+          type: "payload-hmac-sha256"
+          secret: "${GITHUB_WEBHOOK_SECRET}"
+          parameter:
+            source: "header"
+            name: "X-Hub-Signature-256"
+      - match:
+          type: "value"
+          value: "pawelwywiol/home"
+          parameter:
+            source: "payload"
+            name: "repository.full_name"
+      - match:
+          type: "value"
+          value: "refs/heads/main"
+          parameter:
+            source: "payload"
+            name: "ref"
+      - match:
+          type: "regex"
+          regex: "infra/tofu/"
+          parameter:
+            source: "payload"
+            name: "commits.#(added|modified).#"
+
+# Hook 4: Ansible syntax check (when playbooks change)
+- id: "check-ansible"
+  execute-command: "/scripts/trigger-semaphore.sh"
+  command-working-directory: "/repo"
+  pass-arguments-to-command:
+    - source: "payload"
+      name: "repository.full_name"
+    - source: "payload"
+      name: "ref"
+    - source: "string"
+      name: "ansible-check"
+  response-message: "Ansible syntax check triggered"
+  trigger-rule:
+    and:
+      - match:
+          type: "payload-hmac-sha256"
+          secret: "${GITHUB_WEBHOOK_SECRET}"
+          parameter:
+            source: "header"
+            name: "X-Hub-Signature-256"
+      - match:
+          type: "value"
+          value: "pawelwywiol/home"
+          parameter:
+            source: "payload"
+            name: "repository.full_name"
+      - match:
+          type: "value"
+          value: "refs/heads/main"
+          parameter:
+            source: "payload"
+            name: "ref"
+      - match:
+          type: "regex"
+          regex: "ansible/"
+          parameter:
+            source: "payload"
+            name: "commits.#(added|modified).#"
+
+# Hook 5: Health check endpoint (no auth required)
+- id: "health"
+  execute-command: "echo"
+  pass-arguments-to-command:
+    - source: "string"
+      name: "OK"
+  response-message: "Webhook service healthy"

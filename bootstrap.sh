@@ -1,0 +1,573 @@
+#!/usr/bin/env bash
+#
+# Bootstrap script for x199 control node
+# Transforms a fresh Debian/Ubuntu machine into a fully configured control node
+#
+# Usage:
+#   git clone https://github.com/pawelwywiol/home.git
+#   cd home
+#   cp bootstrap.env.example .env
+#   nano .env  # Configure required values
+#   ./bootstrap.sh
+#
+# Idempotent: Safe to re-run - skips already installed components
+#
+
+set -euo pipefail
+
+# =============================================================================
+# Configuration
+# =============================================================================
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="${SCRIPT_DIR}/.env"
+X199_DIR="${SCRIPT_DIR}/pve/x199"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# =============================================================================
+# Logging
+# =============================================================================
+
+log_info()  { echo -e "${GREEN}[INFO]${NC} $1"; }
+log_warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+log_step()  { echo -e "${BLUE}[STEP]${NC} $1"; }
+log_skip()  { echo -e "${YELLOW}[SKIP]${NC} $1 (already done)"; }
+
+# =============================================================================
+# Validation
+# =============================================================================
+
+load_env() {
+    if [ ! -f "$ENV_FILE" ]; then
+        log_error ".env file not found at $ENV_FILE"
+        log_error "Create from template: cp bootstrap.env.example .env"
+        exit 1
+    fi
+
+    set -a
+    source "$ENV_FILE"
+    set +a
+
+    # Set defaults
+    REPO_PATH="${REPO_PATH:-${HOME}/home}"
+    SEMAPHORE_DATA_DIR="${SEMAPHORE_DATA_DIR:-/opt/semaphore}"
+    SEMAPHORE_ADMIN_NAME="${SEMAPHORE_ADMIN_NAME:-admin}"
+    SEMAPHORE_ADMIN_EMAIL="${SEMAPHORE_ADMIN_EMAIL:-admin@homelab.local}"
+    TIMEZONE="${TIMEZONE:-Europe/Warsaw}"
+
+    # Validate required
+    local required=(BASE_DOMAIN CONTROL_NODE_IP LOCAL_NETWORK_RANGE CLOUDFLARE_API_TOKEN)
+    for var in "${required[@]}"; do
+        if [ -z "${!var:-}" ]; then
+            log_error "Required variable $var not set in .env"
+            exit 1
+        fi
+    done
+}
+
+check_not_root() {
+    if [ "$EUID" -eq 0 ]; then
+        log_error "Do not run as root. Script uses sudo when needed."
+        exit 1
+    fi
+}
+
+detect_os() {
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS_ID="$ID"
+        OS_VERSION="$VERSION_ID"
+        log_info "Detected OS: $OS_ID $OS_VERSION"
+    else
+        log_error "Cannot detect OS. /etc/os-release not found."
+        exit 1
+    fi
+
+    if [ "$OS_ID" != "ubuntu" ] && [ "$OS_ID" != "debian" ]; then
+        log_error "Unsupported OS: $OS_ID. Supports Ubuntu/Debian only."
+        exit 1
+    fi
+}
+
+# =============================================================================
+# Installation Functions (Idempotent)
+# =============================================================================
+
+install_docker() {
+    log_step "Checking Docker..."
+
+    if command -v docker &>/dev/null; then
+        log_skip "Docker $(docker --version | cut -d' ' -f3 | tr -d ',')"
+        return 0
+    fi
+
+    log_info "Installing Docker..."
+    curl -fsSL https://get.docker.com | sudo sh
+    sudo usermod -aG docker "$USER"
+    log_warn "Added $USER to docker group. May need to re-login."
+
+    # Install docker compose plugin
+    sudo apt-get install -y docker-compose-plugin
+
+    log_info "Docker installed successfully"
+}
+
+install_base_packages() {
+    log_step "Checking base packages..."
+
+    local packages=(curl wget git jq rsync sshpass python3 python3-pip gnupg)
+    local to_install=()
+
+    for pkg in "${packages[@]}"; do
+        if ! dpkg -l "$pkg" &>/dev/null; then
+            to_install+=("$pkg")
+        fi
+    done
+
+    if [ ${#to_install[@]} -eq 0 ]; then
+        log_skip "Base packages"
+        return 0
+    fi
+
+    log_info "Installing: ${to_install[*]}"
+    sudo apt-get update
+    sudo apt-get install -y "${to_install[@]}"
+
+    if [ "$OS_ID" = "ubuntu" ]; then
+        if ! dpkg -l software-properties-common &>/dev/null; then
+            sudo apt-get install -y software-properties-common
+        fi
+    fi
+}
+
+install_ansible() {
+    log_step "Checking Ansible..."
+
+    if command -v ansible &>/dev/null; then
+        log_skip "Ansible $(ansible --version | head -n1 | awk '{print $3}')"
+
+        # Ensure collections installed
+        ansible-galaxy collection install community.docker community.general ansible.posix --force-with-deps &>/dev/null || true
+        return 0
+    fi
+
+    log_info "Installing Ansible..."
+    if [ "$OS_ID" = "ubuntu" ]; then
+        sudo add-apt-repository --yes --update ppa:ansible/ansible
+    fi
+    sudo apt-get install -y ansible
+
+    # Install collections
+    log_info "Installing Ansible collections..."
+    ansible-galaxy collection install community.docker
+    ansible-galaxy collection install community.general
+    ansible-galaxy collection install ansible.posix
+
+    log_info "Ansible installed: $(ansible --version | head -n1)"
+}
+
+install_opentofu() {
+    log_step "Checking OpenTofu..."
+
+    if command -v tofu &>/dev/null; then
+        log_skip "OpenTofu $(tofu --version | head -n1 | awk '{print $2}')"
+        return 0
+    fi
+
+    log_info "Installing OpenTofu..."
+    curl --proto '=https' --tlsv1.2 -fsSL https://get.opentofu.org/install-opentofu.sh -o /tmp/install-opentofu.sh
+    chmod +x /tmp/install-opentofu.sh
+    sudo /tmp/install-opentofu.sh --install-method deb
+    rm /tmp/install-opentofu.sh
+
+    log_info "OpenTofu installed: $(tofu --version | head -n1)"
+}
+
+# =============================================================================
+# Setup Functions (Idempotent)
+# =============================================================================
+
+setup_ansible_vault() {
+    log_step "Checking Ansible vault..."
+
+    mkdir -p ~/.ansible
+    chmod 700 ~/.ansible
+
+    if [ -f ~/.ansible/vault_password ]; then
+        log_skip "Ansible vault password"
+        return 0
+    fi
+
+    log_info "Generating Ansible vault password..."
+    openssl rand -base64 32 > ~/.ansible/vault_password
+    chmod 600 ~/.ansible/vault_password
+    log_warn "Vault password: ~/.ansible/vault_password"
+}
+
+setup_ssh_key() {
+    log_step "Checking SSH key..."
+
+    if [ -z "${SSH_KEY_NAME:-}" ]; then
+        log_skip "SSH key (SSH_KEY_NAME not set)"
+        return 0
+    fi
+
+    local key_path="$HOME/.ssh/$SSH_KEY_NAME"
+
+    if [ -f "$key_path" ]; then
+        log_skip "SSH key $key_path"
+        return 0
+    fi
+
+    log_info "Generating SSH key..."
+    mkdir -p ~/.ssh
+    chmod 700 ~/.ssh
+    ssh-keygen -t ed25519 -C "ansible@$(hostname)" -f "$key_path" -N ""
+    chmod 600 "$key_path"
+    chmod 644 "${key_path}.pub"
+
+    log_warn "SSH public key for managed nodes:"
+    cat "${key_path}.pub"
+}
+
+setup_docker_network() {
+    log_step "Checking Docker network..."
+
+    if docker network inspect homelab &>/dev/null; then
+        log_skip "Docker network 'homelab'"
+        return 0
+    fi
+
+    log_info "Creating Docker network 'homelab'..."
+    docker network create homelab
+}
+
+generate_secrets() {
+    log_step "Generating secrets..."
+
+    # Semaphore secrets
+    if [ -z "${SEMAPHORE_ACCESS_KEY:-}" ]; then
+        SEMAPHORE_ACCESS_KEY=$(openssl rand -base64 32)
+        log_info "Generated SEMAPHORE_ACCESS_KEY"
+    fi
+
+    if [ -z "${SEMAPHORE_ADMIN_PASSWORD:-}" ]; then
+        SEMAPHORE_ADMIN_PASSWORD=$(openssl rand -base64 16)
+        log_info "Generated SEMAPHORE_ADMIN_PASSWORD"
+    fi
+
+    # Webhook secret
+    if [ -z "${GITHUB_WEBHOOK_SECRET:-}" ]; then
+        GITHUB_WEBHOOK_SECRET=$(openssl rand -hex 32)
+        log_info "Generated GITHUB_WEBHOOK_SECRET"
+    fi
+}
+
+setup_semaphore() {
+    log_step "Setting up Semaphore..."
+
+    # Create data directories
+    if [ ! -d "$SEMAPHORE_DATA_DIR" ]; then
+        log_info "Creating Semaphore data directory..."
+        sudo mkdir -p "${SEMAPHORE_DATA_DIR}"/{config,tmp}
+        sudo chown -R 1001:1001 "${SEMAPHORE_DATA_DIR}"
+        sudo chmod -R 755 "${SEMAPHORE_DATA_DIR}"
+    else
+        log_skip "Semaphore data directory"
+    fi
+
+    # Create .env file
+    local env_file="${X199_DIR}/docker/config/semaphore/.env"
+    if [ -f "$env_file" ]; then
+        log_skip "Semaphore .env"
+    else
+        log_info "Creating Semaphore .env..."
+        cat > "$env_file" <<EOF
+# Semaphore Configuration - Generated by bootstrap.sh
+SEMAPHORE_ADMIN_NAME=${SEMAPHORE_ADMIN_NAME}
+SEMAPHORE_ADMIN_EMAIL=${SEMAPHORE_ADMIN_EMAIL}
+SEMAPHORE_ADMIN_PASSWORD=${SEMAPHORE_ADMIN_PASSWORD}
+SEMAPHORE_ACCESS_KEY=${SEMAPHORE_ACCESS_KEY}
+SEMAPHORE_WEB_HOST=http://${CONTROL_NODE_IP}:3001
+SEMAPHORE_DATA_DIR=${SEMAPHORE_DATA_DIR}
+REPO_PATH=${REPO_PATH}
+TIMEZONE=${TIMEZONE}
+EOF
+        chmod 600 "$env_file"
+    fi
+}
+
+setup_caddy() {
+    log_step "Setting up Caddy..."
+
+    local caddy_dir="${X199_DIR}/docker/config/caddy"
+
+    # Create .env file
+    local env_file="${caddy_dir}/.env"
+    if [ -f "$env_file" ]; then
+        log_skip "Caddy .env"
+    else
+        log_info "Creating Caddy .env..."
+        cat > "$env_file" <<EOF
+# Caddy Configuration - Generated by bootstrap.sh
+CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+CLOUDFLARE_EMAIL=${CLOUDFLARE_EMAIL:-}
+BASE_DOMAIN=${BASE_DOMAIN}
+SEMAPHORE_SUBDOMAIN=${SEMAPHORE_SUBDOMAIN:-semaphore.local}
+WEBHOOK_SUBDOMAIN=${WEBHOOK_SUBDOMAIN:-webhook}
+LOCAL_NETWORK_RANGE=${LOCAL_NETWORK_RANGE}
+EOF
+        chmod 600 "$env_file"
+    fi
+
+    # Generate Caddyfile from template
+    local caddyfile="${caddy_dir}/Caddyfile"
+    if [ -f "$caddyfile" ]; then
+        log_skip "Caddyfile"
+    else
+        log_info "Generating Caddyfile from template..."
+        local sem_sub="${SEMAPHORE_SUBDOMAIN:-semaphore.local}"
+        local wh_sub="${WEBHOOK_SUBDOMAIN:-webhook}"
+
+        cat > "$caddyfile" <<'CADDYEOF'
+# Caddy configuration for x199 control node
+# Generated by bootstrap.sh - regenerate with: ./bootstrap.sh --regenerate-caddy
+
+{
+    admin 0.0.0.0:2019
+}
+
+CADDYEOF
+        cat >> "$caddyfile" <<EOF
+# Wildcard cert for control node subdomains
+*.${BASE_DOMAIN} {
+    tls {
+        dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+        propagation_delay 2m
+        resolvers 1.1.1.1
+    }
+
+    # Semaphore UI (local network only)
+    @semaphore host ${sem_sub}.${BASE_DOMAIN}
+    handle @semaphore {
+        @local remote_ip ${LOCAL_NETWORK_RANGE}
+        handle @local {
+            reverse_proxy localhost:3001
+        }
+        respond "Access denied" 403
+    }
+
+    # Webhook endpoint (GitHub IPs only)
+    @webhook host ${wh_sub}.${BASE_DOMAIN}
+    handle @webhook {
+        @github remote_ip 140.82.112.0/20 185.199.108.0/22 192.30.252.0/22
+        handle @github {
+            reverse_proxy localhost:8097
+        }
+        respond "Access denied" 403
+    }
+
+    # Default handler
+    handle {
+        respond "x199 Control Node" 200
+    }
+}
+
+# Base domain
+${BASE_DOMAIN} {
+    tls {
+        dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+        propagation_delay 2m
+        resolvers 1.1.1.1
+    }
+    respond "x199 Control Node" 200
+}
+EOF
+    fi
+}
+
+setup_webhook() {
+    log_step "Setting up Webhook..."
+
+    local webhook_dir="${X199_DIR}/docker/config/webhook"
+
+    # Ensure scripts are executable
+    chmod +x "${webhook_dir}"/scripts/*.sh 2>/dev/null || true
+
+    # Create .env file
+    local env_file="${webhook_dir}/.env"
+    if [ -f "$env_file" ]; then
+        log_skip "Webhook .env"
+    else
+        log_info "Creating Webhook .env..."
+        cat > "$env_file" <<EOF
+# Webhook Configuration - Generated by bootstrap.sh
+GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
+REPO_PATH=${REPO_PATH}
+SEMAPHORE_DIR=${SEMAPHORE_DATA_DIR}
+SEMAPHORE_URL=http://localhost:3001
+SEMAPHORE_API_TOKEN=CHANGE_ME_AFTER_SEMAPHORE_SETUP
+SEMAPHORE_PROJECT_ID=1
+SEMAPHORE_TEMPLATE_X202=1
+SEMAPHORE_TEMPLATE_X201=2
+SEMAPHORE_TEMPLATE_ANSIBLE_CHECK=3
+TOFU_AUTO_APPLY=false
+TOFU_WORKING_DIR=${REPO_PATH}/infra/tofu
+NTFY_ENABLED=true
+NTFY_URL=https://ntfy.sh
+NTFY_TOPIC=homelab-wh-$(openssl rand -hex 4)
+UID=$(id -u)
+GID=$(id -g)
+TIMEZONE=${TIMEZONE}
+LOG_LEVEL=info
+EOF
+        chmod 600 "$env_file"
+    fi
+}
+
+# =============================================================================
+# Service Management
+# =============================================================================
+
+start_services() {
+    log_step "Starting services..."
+
+    cd "$X199_DIR"
+
+    log_info "Starting Caddy..."
+    make caddy up
+
+    log_info "Starting Semaphore..."
+    make semaphore up
+
+    log_info "Starting Webhook..."
+    make webhook up
+
+    cd "$SCRIPT_DIR"
+}
+
+# =============================================================================
+# Summary
+# =============================================================================
+
+print_summary() {
+    local sem_sub="${SEMAPHORE_SUBDOMAIN:-semaphore.local}"
+    local wh_sub="${WEBHOOK_SUBDOMAIN:-webhook}"
+
+    echo ""
+    echo "============================================================================="
+    log_info "Bootstrap complete!"
+    echo "============================================================================="
+    echo ""
+    log_info "Services running:"
+    echo "  - Caddy (reverse proxy)"
+    echo "  - Semaphore (Ansible UI)"
+    echo "  - Webhook (GitHub handler)"
+    echo ""
+    log_info "Installed tools:"
+    echo "  - Docker: $(docker --version | cut -d' ' -f3 | tr -d ',')"
+    echo "  - Ansible: $(ansible --version | head -n1 | awk '{print $3}')"
+    echo "  - OpenTofu: $(tofu --version | head -n1 | awk '{print $2}')"
+    echo ""
+    log_warn "Next steps:"
+    echo ""
+    echo "  1. Configure DNS:"
+    echo "     ${sem_sub}.${BASE_DOMAIN} → ${CONTROL_NODE_IP}"
+    echo "     ${wh_sub}.${BASE_DOMAIN} → ${CONTROL_NODE_IP}"
+    echo "     ${BASE_DOMAIN} → ${CONTROL_NODE_IP}"
+    echo ""
+    echo "  2. Access Semaphore:"
+    echo "     URL: http://${CONTROL_NODE_IP}:3001"
+    echo "     User: ${SEMAPHORE_ADMIN_NAME}"
+    echo "     Pass: ${SEMAPHORE_ADMIN_PASSWORD}"
+    echo ""
+    echo "  3. Create Semaphore API token:"
+    echo "     User Settings → API Tokens → Create"
+    echo "     Then update: pve/x199/docker/config/webhook/.env"
+    echo "     Set: SEMAPHORE_API_TOKEN=<your-token>"
+    echo "     Restart: cd pve/x199 && make webhook restart"
+    echo ""
+    echo "  4. Configure GitHub webhook:"
+    echo "     URL: https://${wh_sub}.${BASE_DOMAIN}/hooks/deploy-x202-services"
+    echo "     Secret: ${GITHUB_WEBHOOK_SECRET}"
+    echo "     Events: Push"
+    echo ""
+
+    if [ -n "${SSH_KEY_NAME:-}" ]; then
+        echo "  5. Distribute SSH key to managed nodes:"
+        if [ -n "${MANAGED_NODES:-}" ]; then
+            for node in ${MANAGED_NODES}; do
+                echo "     ssh-copy-id -i ~/.ssh/${SSH_KEY_NAME}.pub \$USER@${node}"
+            done
+        else
+            echo "     ssh-copy-id -i ~/.ssh/${SSH_KEY_NAME}.pub \$USER@<node-ip>"
+        fi
+        echo ""
+    fi
+
+    log_warn "Save these credentials:"
+    echo "  - Vault password: ~/.ansible/vault_password"
+    echo "  - Semaphore password: ${SEMAPHORE_ADMIN_PASSWORD}"
+    echo "  - Webhook secret: ${GITHUB_WEBHOOK_SECRET}"
+    echo ""
+    log_info "Manage services:"
+    echo "  cd pve/x199"
+    echo "  make caddy|semaphore|webhook [up|down|restart|logs]"
+    echo ""
+}
+
+# =============================================================================
+# Main
+# =============================================================================
+
+main() {
+    echo ""
+    echo "============================================================================="
+    log_info "x199 Control Node Bootstrap"
+    echo "============================================================================="
+    echo ""
+
+    # Validation
+    check_not_root
+    load_env
+    detect_os
+
+    # Install tools
+    install_docker
+    install_base_packages
+    install_ansible
+    install_opentofu
+
+    # Setup
+    setup_ansible_vault
+    setup_ssh_key
+    setup_docker_network
+    generate_secrets
+    setup_semaphore
+    setup_caddy
+    setup_webhook
+
+    # Start
+    start_services
+
+    # Done
+    print_summary
+}
+
+# Handle --regenerate-caddy flag
+if [ "${1:-}" = "--regenerate-caddy" ]; then
+    load_env
+    rm -f "${X199_DIR}/docker/config/caddy/Caddyfile"
+    setup_caddy
+    log_info "Caddyfile regenerated. Restart Caddy: cd pve/x199 && make caddy restart"
+    exit 0
+fi
+
+main "$@"

@@ -97,20 +97,3 @@
     }
 }
 
-*.bimago.local.wywiol.eu {
-    tls {
-        dns cloudflare {env.CLOUDFLARE_API_TOKEN}
-        propagation_delay 2m
-        resolvers 1.1.1.1
-    }
-
-    @cms host cms.bimago.local.wywiol.eu
-    handle @cms {
-        reverse_proxy 192.168.0.50:3000
-    }
-
-    @pl host pl.bimago.local.wywiol.eu
-    handle @pl {
-        reverse_proxy 192.168.0.50:4200
-    }
-}
