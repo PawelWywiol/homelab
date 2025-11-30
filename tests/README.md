@@ -27,7 +27,7 @@ Tests for root-level Makefile sync commands.
 ### Running Tests
 
 ```bash
-cd /Users/pawel/code/pawelwywiol/home
+# From repo root
 ./tests/test-sync-makefile.sh
 ```
 

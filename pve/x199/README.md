@@ -15,8 +15,8 @@ Automation and orchestration services for the homelab infrastructure.
 Bootstrap a fresh machine as control node:
 
 ```bash
-git clone https://github.com/pawelwywiol/home.git
-cd home
+git clone https://github.com/PawelWywiol/homelab.git
+cd homelab
 cp bootstrap.env.example .env
 nano .env  # Configure required values
 ./bootstrap.sh

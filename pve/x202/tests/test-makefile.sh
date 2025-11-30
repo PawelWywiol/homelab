@@ -3,6 +3,10 @@
 
 set -e
 
+# Get script location and x202 directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+X202_DIR="$(dirname "$SCRIPT_DIR")"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -47,10 +51,10 @@ EOF
     chmod +x "$TEST_DIR/docker/config/postgres/remove-db.sh"
 
     # Copy Makefile to test directory
-    cp /Users/pawel/code/pawelwywiol/home/pve/x202/Makefile "$TEST_DIR/Makefile"
+    cp "$X202_DIR/Makefile" "$TEST_DIR/Makefile"
 
     # Add mock docker-compose to PATH
-    export PATH="/Users/pawel/code/pawelwywiol/home/pve/x202/tests:$PATH"
+    export PATH="$SCRIPT_DIR:$PATH"
 
     # Create mock docker executable that calls our mock script
     mkdir -p "$TEST_DIR/bin"
