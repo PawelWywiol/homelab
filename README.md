@@ -51,8 +51,8 @@ Push to `main` branch triggers automated deployments:
 GitHub Push → webhook.wywiol.eu → x199 webhook handler → {
   pve/x202/* → Ansible deployment (x202 services)
   pve/x201/* → Ansible deployment (x201 services)
-  infra/tofu/* → OpenTofu plan (infrastructure updates)
-  ansible/* → Syntax check
+  pve/x199/infra/tofu/* → OpenTofu plan (infrastructure updates)
+  pve/x199/ansible/* → Syntax check
 }
 ```
 
@@ -68,8 +68,8 @@ GitHub Push → webhook.wywiol.eu → x199 webhook handler → {
 
 - **[CLAUDE.md](./CLAUDE.md)** - Service management commands
 - **[docs/automation/](./docs/automation/)** - GitOps automation (Ansible + OpenTofu + webhooks)
-- **[ansible/README.md](./ansible/README.md)** - Ansible playbooks + vault
-- **[infra/README.md](./infra/README.md)** - OpenTofu VM management
+- **[pve/x199/ansible/README.md](./pve/x199/ansible/README.md)** - Ansible playbooks + vault
+- **[pve/x199/infra/README.md](./pve/x199/infra/README.md)** - OpenTofu VM management
 - **[pve/x199/docker/config/webhook/README.md](./pve/x199/docker/config/webhook/README.md)** - Webhook handler setup
 - **[docs/](./docs/)** - Docker, Linux, Proxmox, WSL guides
 - **[scripts/](./scripts/)** - Init + setup scripts
@@ -78,26 +78,21 @@ GitHub Push → webhook.wywiol.eu → x199 webhook handler → {
 
 ```
 ├── pve/                     # Proxmox environments
-│   ├── x199/                # Control node (Ansible/Semaphore/webhook)
-│   │   └── docker/config/webhook/
+│   ├── x199/                # Control node (all automation)
+│   │   ├── Makefile         # Service + bootstrap commands
+│   │   ├── bootstrap.sh     # Control node setup
+│   │   ├── ansible/         # Ansible playbooks + vault
+│   │   ├── infra/tofu/      # OpenTofu VM management
+│   │   └── docker/config/   # Caddy, Semaphore, webhook
 │   ├── x201/                # DNS services
 │   ├── x202/                # Web services (primary)
 │   │   ├── Makefile         # Service orchestration
 │   │   └── docker/config/SERVICE/
 │   └── x250/                # AI/ML workloads
-├── ansible/                 # Ansible automation
-│   ├── inventory/           # Managed hosts
-│   ├── playbooks/           # Deploy/rollback playbooks
-│   ├── group_vars/          # Variables + vault
-│   └── roles/               # Reusable roles
-├── infra/tofu/              # OpenTofu (Terraform) IaC
-│   ├── vms.tf               # VM definitions
-│   └── provider.tf          # Proxmox provider
-├── bootstrap.sh             # x199 control node setup
 ├── scripts/                 # Utility scripts
-│   ├── backup-control-node.sh  # Control node backup
-│   ├── verify-backups.sh    # Backup verification
-│   └── sync-files.sh        # Local ↔ server sync
+│   ├── sync-files.sh        # Local ↔ server sync
+│   ├── init-vm.sh           # VM initialization
+│   └── init-lxc.sh          # LXC initialization
 └── docs/                    # Documentation
     ├── automation/          # GitOps automation guide
     └── plans/archive/       # Historical planning docs
