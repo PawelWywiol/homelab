@@ -86,10 +86,47 @@ GitHub Push (main) → webhook.wywiol.eu (Caddy: GitHub IP whitelist)
    wywiol.eu                  → 192.168.0.199
    ```
 
-2. **Proxmox API Token**:
-   - Datacenter → Permissions → API Tokens
-   - Create: `homelab@pve!tofu`
-   - Privileges: VM.Allocate, VM.Config.*, Datastore.*
+2. **Proxmox API Token** (Proxmox VE 8.x / 9.x):
+
+   **Option A: Web UI (recommended)**
+   1. Login to Proxmox web interface (`https://PROXMOX_IP:8006`)
+   2. Navigate: Datacenter → Permissions → API Tokens
+   3. Click "Add"
+   4. Configure:
+      - User: `root@pam` (or dedicated user like `homelab@pve`)
+      - Token ID: `tofu` (any alphanumeric name)
+      - Privilege Separation: **Unchecked** (inherit user permissions)
+      - Expire: Never (or set expiration date)
+   5. Click "Add" and **copy the token value immediately** (shown only once)
+   6. Token format: `USER@REALM!TOKENID=UUID`
+      - Example: `root@pam!tofu=dc9c9547-5aef-4142-882f-7e141b1c7f57`
+
+   **Option B: CLI**
+   ```bash
+   # SSH to Proxmox host
+   ssh root@192.168.0.200
+
+   # Create token (copy the output - shown only once!)
+   pveum user token add root@pam tofu --privsep 0
+
+   # Verify token exists
+   pveum user token list root@pam
+   ```
+
+   **Required Permissions** (if using dedicated user with privsep=1):
+   ```bash
+   # Grant permissions to token
+   pveum acl modify / -token 'homelab@pve!tofu' -role Administrator
+   # Or minimal permissions:
+   pveum acl modify /vms -token 'homelab@pve!tofu' -role PVEVMAdmin
+   pveum acl modify /storage -token 'homelab@pve!tofu' -role PVEDatastoreAdmin
+   ```
+
+   **Test API Token** (use single quotes to avoid bash `!` expansion):
+   ```bash
+   curl -k -H 'Authorization: PVEAPIToken=root@pam!tofu=YOUR-UUID-HERE' \
+     'https://192.168.0.200:8006/api2/json/cluster/resources?type=vm'
+   ```
 
 3. **GitHub Personal Access Token** (for Semaphore):
    - Settings → Developer Settings → Personal Access Tokens
@@ -163,10 +200,10 @@ Import existing VMs:
 ```bash
 tofu init
 tofu validate
-tofu import proxmox_virtual_environment_vm.x100 100
-tofu import proxmox_virtual_environment_vm.x199 199
-tofu import proxmox_virtual_environment_vm.x201 201
-tofu import proxmox_virtual_environment_vm.x202 202
+tofu import proxmox_virtual_environment_vm.x100 pve/100
+tofu import proxmox_virtual_environment_vm.x199 pve/199
+tofu import proxmox_virtual_environment_vm.x201 pve/201
+tofu import proxmox_virtual_environment_vm.x202 pve/202
 tofu plan
 # Only apply if changes look correct
 tofu apply
@@ -543,8 +580,8 @@ tofu plan
 # Apply changes
 tofu apply
 
-# Import existing VM
-tofu import proxmox_virtual_environment_vm.x199 199
+# Import existing VM (format: node/vmid)
+tofu import proxmox_virtual_environment_vm.x199 pve/199
 
 # Show current state
 tofu show
@@ -1124,8 +1161,8 @@ tofu apply -refresh-only
 # Verify VM ID exists in Proxmox
 pvesh get /cluster/resources --type vm
 
-# Import with correct ID
-tofu import proxmox_virtual_environment_vm.x199 199
+# Import with correct ID (format: node/vmid)
+tofu import proxmox_virtual_environment_vm.x199 pve/199
 
 # Check for existing state
 tofu state list
@@ -1397,7 +1434,7 @@ ansible-inventory --list                     # List inventory
 tofu init                                    # Initialize
 tofu plan                                    # Preview changes
 tofu apply                                   # Apply changes
-tofu import proxmox_virtual_environment_vm.x199 199  # Import VM
+tofu import proxmox_virtual_environment_vm.x199 pve/199  # Import VM
 tofu show                                    # Show state
 ```
 
