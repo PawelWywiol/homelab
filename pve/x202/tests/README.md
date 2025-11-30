@@ -23,9 +23,8 @@ Comprehensive tests for the refactored Makefile.
 ## Running Tests
 
 ```bash
-# Run all tests
-cd /Users/pawel/code/pawelwywiol/homelab/pve/x202/tests
-./test-makefile.sh
+# Run from tests directory
+./pve/x202/tests/test-makefile.sh
 ```
 
 ## Test Structure

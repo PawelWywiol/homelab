@@ -3,6 +3,10 @@
 
 set -e
 
+# Get script location and repo root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -36,10 +40,10 @@ EOF
     chmod +x "$TEST_DIR/scripts/sync-files.sh"
 
     # Copy Makefile to test directory
-    if [ -f "/Users/pawel/code/pawelwywiol/homelab/Makefile" ]; then
-        cp /Users/pawel/code/pawelwywiol/homelab/Makefile "$TEST_DIR/Makefile"
+    if [ -f "$REPO_ROOT/Makefile" ]; then
+        cp "$REPO_ROOT/Makefile" "$TEST_DIR/Makefile"
     else
-        echo -e "${RED}ERROR: Makefile not found at /Users/pawel/code/pawelwywiol/homelab/Makefile${NC}"
+        echo -e "${RED}ERROR: Makefile not found at $REPO_ROOT/Makefile${NC}"
         exit 1
     fi
 
