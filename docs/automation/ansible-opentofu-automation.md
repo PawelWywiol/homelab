@@ -104,8 +104,8 @@ GitHub Push (main) → webhook.wywiol.eu (Caddy: GitHub IP whitelist)
 ssh code@192.168.0.199
 
 # Clone repository
-git clone https://github.com/pawelwywiol/home.git
-cd home
+git clone https://github.com/PawelWywiol/homelab.git
+cd homelab
 
 # Configure and run bootstrap
 cp bootstrap.env.example .env
@@ -366,7 +366,7 @@ pvesh create /cluster/backup \
 **Security Layers**:
 1. Caddy IP whitelist (GitHub IP ranges)
 2. HMAC-SHA256 signature verification
-3. Repository filter (`pawelwywiol/home` only)
+3. Repository filter (`PawelWywiol/homelab` only)
 4. Branch filter (`main` only)
 5. Path-based selective routing
 
@@ -926,7 +926,7 @@ pct restore <ctid> <backup-file>
 
 **Layer 2: Application (Webhook)**
 - HMAC-SHA256 signature verification
-- Repository filtering (`pawelwywiol/home` only)
+- Repository filtering (`PawelWywiol/homelab` only)
 - Branch filtering (`main` only)
 - Path-based selective triggers
 

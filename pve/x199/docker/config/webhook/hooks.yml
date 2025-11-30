@@ -26,7 +26,7 @@
       # Repository filter
       - match:
           type: "value"
-          value: "pawelwywiol/home"
+          value: "PawelWywiol/homelab"
           parameter:
             source: "payload"
             name: "repository.full_name"
@@ -73,7 +73,7 @@
             name: "X-Hub-Signature-256"
       - match:
           type: "value"
-          value: "pawelwywiol/home"
+          value: "PawelWywiol/homelab"
           parameter:
             source: "payload"
             name: "repository.full_name"
@@ -112,7 +112,7 @@
             name: "X-Hub-Signature-256"
       - match:
           type: "value"
-          value: "pawelwywiol/home"
+          value: "PawelWywiol/homelab"
           parameter:
             source: "payload"
             name: "repository.full_name"
@@ -151,7 +151,7 @@
             name: "X-Hub-Signature-256"
       - match:
           type: "value"
-          value: "pawelwywiol/home"
+          value: "PawelWywiol/homelab"
           parameter:
             source: "payload"
             name: "repository.full_name"

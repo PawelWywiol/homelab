@@ -4,8 +4,8 @@
 # Transforms a fresh Debian/Ubuntu machine into a fully configured control node
 #
 # Usage:
-#   git clone https://github.com/pawelwywiol/home.git
-#   cd home
+#   git clone https://github.com/PawelWywiol/homelab.git
+#   cd homelab
 #   cp bootstrap.env.example .env
 #   nano .env  # Configure required values
 #   ./bootstrap.sh
@@ -56,7 +56,7 @@ load_env() {
     set +a
 
     # Set defaults
-    REPO_PATH="${REPO_PATH:-${HOME}/home}"
+    REPO_PATH="${REPO_PATH:-${HOME}/homelab}"
     SEMAPHORE_DATA_DIR="${SEMAPHORE_DATA_DIR:-/opt/semaphore}"
     SEMAPHORE_ADMIN_NAME="${SEMAPHORE_ADMIN_NAME:-admin}"
     SEMAPHORE_ADMIN_EMAIL="${SEMAPHORE_ADMIN_EMAIL:-admin@homelab.local}"

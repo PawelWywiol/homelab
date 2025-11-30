@@ -90,7 +90,7 @@ make SERVICE [up|down|restart|pull|logs]
 Bootstrap fresh Debian/Ubuntu machine as x199 control node:
 
 ```bash
-git clone https://github.com/pawelwywiol/home.git && cd home
+git clone https://github.com/PawelWywiol/homelab.git && cd homelab
 cp bootstrap.env.example .env
 nano .env  # Set required: CLOUDFLARE_API_TOKEN, BASE_DOMAIN, CONTROL_NODE_IP
 ./bootstrap.sh

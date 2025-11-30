@@ -16,7 +16,7 @@ GitHub Push → webhook.wywiol.eu (Caddy) → webhook:8097 (adnanh/webhook) → 
 
 1. **GitHub IP Whitelist** (Caddy) - 140.82.112.0/20, 185.199.108.0/22, 192.30.252.0/22
 2. **HMAC-SHA256 Signature** (webhook) - Verifies GitHub authenticity
-3. **Repository Filter** - Only allows `pawelwywiol/home`
+3. **Repository Filter** - Only allows `PawelWywiol/homelab`
 4. **Branch Filter** - Only triggers on `main` branch
 5. **Path-based Routing** - Selective triggers based on changed files
 
@@ -93,7 +93,7 @@ SEMAPHORE_TEMPLATE_ANSIBLE_CHECK=3
 
 ### 4. Configure GitHub Webhook
 
-In your GitHub repository (`pawelwywiol/home`):
+In your GitHub repository (`PawelWywiol/homelab`):
 
 1. Go to **Settings** → **Webhooks** → **Add webhook**
 

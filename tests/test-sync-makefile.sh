@@ -36,10 +36,10 @@ EOF
     chmod +x "$TEST_DIR/scripts/sync-files.sh"
 
     # Copy Makefile to test directory
-    if [ -f "/Users/pawel/code/pawelwywiol/home/Makefile" ]; then
-        cp /Users/pawel/code/pawelwywiol/home/Makefile "$TEST_DIR/Makefile"
+    if [ -f "/Users/pawel/code/pawelwywiol/homelab/Makefile" ]; then
+        cp /Users/pawel/code/pawelwywiol/homelab/Makefile "$TEST_DIR/Makefile"
     else
-        echo -e "${RED}ERROR: Makefile not found at /Users/pawel/code/pawelwywiol/home/Makefile${NC}"
+        echo -e "${RED}ERROR: Makefile not found at /Users/pawel/code/pawelwywiol/homelab/Makefile${NC}"
         exit 1
     fi
 

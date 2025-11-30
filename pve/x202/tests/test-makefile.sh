@@ -47,10 +47,10 @@ EOF
     chmod +x "$TEST_DIR/docker/config/postgres/remove-db.sh"
 
     # Copy Makefile to test directory
-    cp /Users/pawel/code/pawelwywiol/home/pve/x202/Makefile "$TEST_DIR/Makefile"
+    cp /Users/pawel/code/pawelwywiol/homelab/pve/x202/Makefile "$TEST_DIR/Makefile"
 
     # Add mock docker-compose to PATH
-    export PATH="/Users/pawel/code/pawelwywiol/home/pve/x202/tests:$PATH"
+    export PATH="/Users/pawel/code/pawelwywiol/homelab/pve/x202/tests:$PATH"
 
     # Create mock docker executable that calls our mock script
     mkdir -p "$TEST_DIR/bin"

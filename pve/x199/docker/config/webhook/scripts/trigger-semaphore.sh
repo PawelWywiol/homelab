@@ -4,7 +4,7 @@
 # Called by webhook handler when repository changes are detected
 #
 # Arguments:
-#   $1 - repository.full_name (e.g., "pawelwywiol/home")
+#   $1 - repository.full_name (e.g., "PawelWywiol/homelab")
 #   $2 - ref (e.g., "refs/heads/main")
 #   $3 - action (e.g., "x202-services", "x201-services", "ansible-check")
 #

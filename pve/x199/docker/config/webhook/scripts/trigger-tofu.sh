@@ -4,7 +4,7 @@
 # Called by webhook handler when infra/tofu changes are detected
 #
 # Arguments:
-#   $1 - repository.full_name (e.g., "pawelwywiol/home")
+#   $1 - repository.full_name (e.g., "PawelWywiol/homelab")
 #   $2 - ref (e.g., "refs/heads/main")
 #   $3 - commit_message (optional)
 #
