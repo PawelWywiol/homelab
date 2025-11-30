@@ -41,8 +41,6 @@ output "ansible_inventory_hint" {
       children:
         vms:
           hosts:
-            x100:
-              ansible_host: 192.168.0.100
             x199:
               ansible_host: 192.168.0.199
             x201:
