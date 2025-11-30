@@ -62,7 +62,7 @@ fi
 
 # Backup Semaphore database
 log_info "Backing up Semaphore database..."
-SEMAPHORE_CONFIG="${SEMAPHORE_DIR:-/home/code/semaphore}/config"
+SEMAPHORE_CONFIG="${SEMAPHORE_DIR:-${HOME}/.semaphore}/config"
 if [ -d "${SEMAPHORE_CONFIG}" ]; then
     tar czf "${BACKUP_DIR}/semaphore-config.tar.gz" -C "$(dirname ${SEMAPHORE_CONFIG})" config
 else
@@ -80,7 +80,7 @@ fi
 
 # Backup OpenTofu state (if local)
 log_info "Backing up OpenTofu state..."
-TOFU_DIR="/home/code/home/infra/tofu"
+TOFU_DIR="${HOME}/infra/tofu"
 if [ -f "${TOFU_DIR}/terraform.tfstate" ]; then
     cp "${TOFU_DIR}/terraform.tfstate" "${BACKUP_DIR}/terraform.tfstate"
     # Also backup tfvars (contains secrets)

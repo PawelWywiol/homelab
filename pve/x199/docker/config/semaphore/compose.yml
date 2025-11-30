@@ -17,8 +17,8 @@ services:
       SEMAPHORE_WEB_HOST: ${SEMAPHORE_WEB_HOST}
       TZ: ${TIMEZONE:-Europe/Warsaw}
     volumes:
-      - ${SEMAPHORE_DATA_DIR:-/opt/semaphore}/config:/etc/semaphore:z
-      - ${SEMAPHORE_DATA_DIR:-/opt/semaphore}/tmp:/tmp/semaphore:z
+      - ${SEMAPHORE_DATA_DIR}/.semaphore/config:/etc/semaphore:z
+      - ${SEMAPHORE_DATA_DIR}/.semaphore/tmp:/tmp/semaphore:z
       - ${REPO_PATH}:/repo:ro
     networks:
       - homelab

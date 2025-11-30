@@ -124,7 +124,7 @@
             name: "ref"
       - match:
           type: "regex"
-          regex: "infra/tofu/"
+          regex: "pve/x199/infra/tofu/"
           parameter:
             source: "payload"
             name: "commits.#(added|modified).#"
@@ -163,7 +163,7 @@
             name: "ref"
       - match:
           type: "regex"
-          regex: "ansible/"
+          regex: "pve/x199/ansible/"
           parameter:
             source: "payload"
             name: "commits.#(added|modified).#"

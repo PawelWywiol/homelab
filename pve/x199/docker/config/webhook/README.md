@@ -26,8 +26,8 @@ GitHub Push → webhook.wywiol.eu (Caddy) → webhook:8097 (adnanh/webhook) → 
 |----------|---------|--------|
 | `/hooks/deploy-x202-services` | Changes in `pve/x202/` | Deploy x202 services via Semaphore |
 | `/hooks/deploy-x201-services` | Changes in `pve/x201/` | Deploy x201 services via Semaphore |
-| `/hooks/update-infrastructure` | Changes in `infra/tofu/` | Run OpenTofu plan (+ optional apply) |
-| `/hooks/check-ansible` | Changes in `ansible/` | Ansible syntax check via Semaphore |
+| `/hooks/update-infrastructure` | Changes in `pve/x199/infra/tofu/` | Run OpenTofu plan (+ optional apply) |
+| `/hooks/check-ansible` | Changes in `pve/x199/ansible/` | Ansible syntax check via Semaphore |
 | `/hooks/health` | Anytime | Health check (no auth) |
 
 ## Setup Instructions
@@ -55,14 +55,13 @@ Update webhook configuration:
 
 ```bash
 # Edit .env file
-nano ~/docker/config/webhook/.env
+nano docker/config/webhook/.env
 
 # Update:
 SEMAPHORE_API_TOKEN=your-actual-token-here
 
 # Restart webhook service
-cd ~/docker/config/webhook
-docker compose restart
+make webhook restart
 ```
 
 ### 3. Create Semaphore Projects & Templates
@@ -125,8 +124,7 @@ curl https://webhook.wywiol.eu/hooks/health
 
 **Check webhook logs:**
 ```bash
-cd ~/docker/config/webhook
-docker compose logs -f webhook
+make webhook logs
 ```
 
 **Check Semaphore for triggered tasks:**
@@ -183,7 +181,7 @@ docker compose restart
 With auto-apply disabled (default), you'll receive notifications to manually apply:
 
 ```bash
-cd /home/code/home/infra/tofu
+cd ~/infra/tofu
 tofu apply /tmp/tofu-plan-*.tfplan
 ```
 
@@ -205,8 +203,7 @@ tofu apply /tmp/tofu-plan-*.tfplan
 ### Check Webhook Logs
 
 ```bash
-cd ~/docker/config/webhook
-docker compose logs -f webhook
+make webhook logs
 ```
 
 ### Check Semaphore API
@@ -215,7 +212,7 @@ Test Semaphore API manually:
 
 ```bash
 # Get API token from .env
-source ~/docker/config/webhook/.env
+source docker/config/webhook/.env
 
 # Test API connection
 curl -H "Authorization: Bearer $SEMAPHORE_API_TOKEN" \
@@ -234,11 +231,10 @@ NEW_SECRET=$(openssl rand -hex 32)
 
 # Update .env
 sed -i "s/GITHUB_WEBHOOK_SECRET=.*/GITHUB_WEBHOOK_SECRET=$NEW_SECRET/" \
-  ~/docker/config/webhook/.env
+  docker/config/webhook/.env
 
 # Restart webhook
-cd ~/docker/config/webhook
-docker compose restart
+make webhook restart
 
 # Update GitHub webhook with new secret
 echo "New secret: $NEW_SECRET"
@@ -249,7 +245,7 @@ echo "New secret: $NEW_SECRET"
 **Check OpenTofu state:**
 
 ```bash
-cd /home/code/home/infra/tofu
+cd ~/infra/tofu
 tofu init
 tofu validate
 tofu plan
@@ -279,9 +275,7 @@ curl -d "Test notification" https://ntfy.sh/homelab-webhooks
 ### Update Webhook Service
 
 ```bash
-cd ~/docker/config/webhook
-docker compose pull
-docker compose up -d
+make webhook pull && make webhook up
 ```
 
 ### Rotate Secrets
@@ -293,17 +287,17 @@ docker compose up -d
 openssl rand -hex 32
 
 # Update in:
-# 1. ~/docker/config/webhook/.env (GITHUB_WEBHOOK_SECRET)
+# 1. docker/config/webhook/.env (GITHUB_WEBHOOK_SECRET)
 # 2. GitHub repo webhook settings (Secret field)
-# 3. Restart: docker compose restart
+# 3. Restart: make webhook restart
 ```
 
 **Semaphore API token:**
 
 ```bash
 # Generate new token in Semaphore UI
-# Update ~/docker/config/webhook/.env (SEMAPHORE_API_TOKEN)
-# Restart: docker compose restart
+# Update docker/config/webhook/.env (SEMAPHORE_API_TOKEN)
+# Restart: make webhook restart
 ```
 
 ### View Webhook Statistics
@@ -322,7 +316,7 @@ docker compose logs -f webhook
 ### Backup Configuration
 
 **Automated** (included in `backup-control-node.sh`):
-- `/opt/semaphore/config/` (Semaphore database)
+- `~/.semaphore/config/` (Semaphore database)
 - `~/docker/config/webhook/.env` (webhook secrets)
 
 **Manual backup:**
@@ -330,18 +324,18 @@ docker compose logs -f webhook
 ```bash
 # Backup webhook config
 tar -czf webhook-config-backup-$(date +%Y%m%d).tar.gz \
-  ~/docker/config/webhook/.env \
-  ~/docker/config/webhook/hooks.yml
+  docker/config/webhook/.env \
+  docker/config/webhook/hooks.yml
 
-# Backup to PBS
-/home/code/scripts/backup-control-node.sh
+# Backup control node
+make backup
 ```
 
 ## Advanced Configuration
 
 ### Custom Hook Rules
 
-Edit `~/docker/config/webhook/hooks.yml` to add custom triggers:
+Edit `docker/config/webhook/hooks.yml` to add custom triggers:
 
 ```yaml
 - id: "custom-hook"

@@ -90,10 +90,15 @@ make SERVICE [up|down|restart|pull|logs]
 Bootstrap fresh Debian/Ubuntu machine as x199 control node:
 
 ```bash
+# On local machine
 git clone https://github.com/PawelWywiol/homelab.git && cd homelab
+make push code@x199
+
+# On x199 server
+ssh code@x199
 cp bootstrap.env.example .env
 nano .env  # Set required: CLOUDFLARE_API_TOKEN, BASE_DOMAIN, CONTROL_NODE_IP
-./bootstrap.sh
+make bootstrap
 ```
 
 **Installs:** Docker, Ansible (+collections), OpenTofu
@@ -118,8 +123,8 @@ GitHub Push → webhook.wywiol.eu (Caddy: IP whitelist)
 |-------------|--------|
 | `pve/x202/*` | Deploy x202 services (Ansible) |
 | `pve/x201/*` | Deploy x201 services (Ansible) |
-| `infra/tofu/*` | OpenTofu plan (manual apply) |
-| `ansible/*` | Syntax check |
+| `pve/x199/infra/tofu/*` | OpenTofu plan (manual apply) |
+| `pve/x199/ansible/*` | Syntax check |
 
 **Ansible playbooks:**
 - `deploy-service.yml` - Deploy Docker Compose services
@@ -146,8 +151,9 @@ Files defined in `pve/ENV/.envrc` `SYNC_FILES` array.
 **Secrets management:**
 - `.env` files contain secrets → **never commit** (gitignored)
 - `.env.example` for structure reference (keys only)
-- `ansible/group_vars/all/vault.yml` - Ansible Vault encrypted
+- `pve/x199/ansible/group_vars/all/vault.yml` - Ansible Vault encrypted
 - `~/.ansible/vault_password` - Vault decryption key (on x199)
+- `~/.semaphore/` - Semaphore data (on x199)
 
 **Access control:**
 - Caddy: GitHub IP whitelist for webhook endpoint
@@ -162,12 +168,22 @@ Files defined in `pve/ENV/.envrc` `SYNC_FILES` array.
 ## Directory Structure
 
 ```
-├── bootstrap.sh              # x199 control node setup
-├── bootstrap.env.example     # Bootstrap config template
-├── Makefile                  # Root sync commands
+├── Makefile                  # Root sync commands (push/pull)
 ├── pve/
-│   ├── x199/                 # Control node
-│   │   ├── Makefile
+│   ├── x199/                 # Control node (all automation)
+│   │   ├── Makefile          # Service + bootstrap commands
+│   │   ├── bootstrap.sh      # Control node setup
+│   │   ├── bootstrap.env.example
+│   │   ├── backup-control-node.sh
+│   │   ├── verify-backups.sh
+│   │   ├── ansible/          # Ansible configuration
+│   │   │   ├── inventory/hosts.yml
+│   │   │   ├── playbooks/
+│   │   │   ├── group_vars/all/
+│   │   │   └── roles/
+│   │   ├── infra/tofu/       # OpenTofu (Proxmox VMs)
+│   │   │   ├── vms.tf
+│   │   │   └── provider.tf
 │   │   └── docker/config/
 │   │       ├── caddy/        # Reverse proxy
 │   │       ├── semaphore/    # Ansible UI
@@ -177,18 +193,10 @@ Files defined in `pve/ENV/.envrc` `SYNC_FILES` array.
 │   │   ├── Makefile          # Service orchestration
 │   │   └── docker/config/SERVICE/
 │   └── x250/                 # AI/ML
-├── ansible/
-│   ├── inventory/hosts.yml   # Managed hosts
-│   ├── playbooks/            # Deploy/rollback
-│   ├── group_vars/all/       # Variables + vault
-│   └── roles/                # Reusable roles
-├── infra/tofu/               # OpenTofu (Proxmox VMs)
-│   ├── vms.tf                # VM definitions
-│   └── provider.tf           # Proxmox provider
 ├── scripts/
 │   ├── sync-files.sh         # Bidirectional rsync
-│   ├── backup-control-node.sh
-│   └── verify-backups.sh
+│   ├── init-vm.sh            # VM initialization
+│   └── init-lxc.sh           # LXC initialization
 └── docs/                     # Guides
 ```
 
@@ -208,7 +216,7 @@ Files defined in `pve/ENV/.envrc` `SYNC_FILES` array.
 - All secrets via environment variables
 
 **Documentation:**
-- [ansible/README.md](ansible/README.md) - Ansible setup
-- [infra/README.md](infra/README.md) - OpenTofu/Proxmox
+- [pve/x199/ansible/README.md](pve/x199/ansible/README.md) - Ansible setup
+- [pve/x199/infra/README.md](pve/x199/infra/README.md) - OpenTofu/Proxmox
 - [pve/x199/README.md](pve/x199/README.md) - Control node
 - [docs/automation/](docs/automation/) - GitOps workflow

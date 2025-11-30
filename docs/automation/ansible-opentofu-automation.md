@@ -100,17 +100,17 @@ GitHub Push (main) → webhook.wywiol.eu (Caddy: GitHub IP whitelist)
 **Step 1: Bootstrap Control Node x199**
 
 ```bash
-# SSH to x199
-ssh code@192.168.0.199
+# On local machine - clone and push to x199
+git clone https://github.com/PawelWywiol/homelab.git && cd homelab
+make push code@x199
 
-# Clone repository
-git clone https://github.com/PawelWywiol/homelab.git
-cd homelab
+# SSH to x199
+ssh code@x199
 
 # Configure and run bootstrap
 cp bootstrap.env.example .env
 nano .env  # Set: CLOUDFLARE_API_TOKEN, BASE_DOMAIN, CONTROL_NODE_IP, LOCAL_NETWORK_RANGE
-./bootstrap.sh
+make bootstrap
 ```
 
 **CRITICAL**: Save credentials from output:
@@ -135,7 +135,7 @@ ssh-copy-id -i ~/.ssh/id_ed25519.pub code@192.168.0.109
 ssh-copy-id -i ~/.ssh/id_ed25519.pub code@192.168.0.111
 
 # Test connectivity
-cd /home/code/home/ansible
+cd ~/ansible
 ansible all -m ping
 ```
 
@@ -143,7 +143,7 @@ ansible all -m ping
 
 ```bash
 # On x199
-cd /home/code/home/infra/tofu
+cd ~/infra/tofu
 
 # Create terraform.tfvars from example
 cp terraform.tfvars.example terraform.tfvars
@@ -176,8 +176,7 @@ tofu apply
 
 1. Start Semaphore:
    ```bash
-   cd ~/docker/config/semaphoreui
-   docker compose up -d
+   make semaphore up
    ```
 
 2. Access: `http://semaphore.local.wywiol.eu` (from local network)
@@ -245,7 +244,7 @@ tofu apply
 
 Update webhook config with Semaphore API token:
 ```bash
-nano ~/docker/config/webhook/.env
+nano docker/config/webhook/.env
 ```
 
 Update:
@@ -259,8 +258,7 @@ SEMAPHORE_TEMPLATE_ANSIBLE_CHECK=3
 
 Restart webhook:
 ```bash
-cd ~/docker/config/webhook
-docker compose restart
+make webhook restart
 ```
 
 **Step 6: Configure GitHub Webhook**
@@ -294,10 +292,10 @@ crontab -e
 Add:
 ```cron
 # Daily control node backup at 3 AM
-0 3 * * * /home/code/home/scripts/backup-control-node.sh /opt/backups/control-node
+0 3 * * * /home/code/backup-control-node.sh /opt/backups/control-node
 
 # Verify backups at 4 AM
-0 4 * * * /home/code/home/scripts/verify-backups.sh /opt/backups/control-node
+0 4 * * * /home/code/verify-backups.sh /opt/backups/control-node
 ```
 
 Proxmox VM/LXC backups:
@@ -327,7 +325,7 @@ pvesh create /cluster/backup \
 
 ### Webhook System
 
-**Location**: `pve/x199/docker/config/webhook/`
+**Location**: `~/docker/config/webhook/` (on x199)
 
 **Service**: adnanh/webhook (Go-based, lightweight)
 
@@ -390,7 +388,7 @@ LOG_LEVEL=info
 
 ### Ansible Configuration
 
-**Location**: `ansible/`
+**Location**: `~/ansible/` (on x199), `pve/x199/ansible/` (in repo)
 
 **Structure**:
 ```
@@ -471,7 +469,7 @@ ansible-playbook ansible/playbooks/deploy-service.yml \
 
 ### OpenTofu Infrastructure
 
-**Location**: `infra/tofu/`
+**Location**: `~/infra/tofu/` (on x199), `pve/x199/infra/tofu/` (in repo)
 
 **Files**:
 - `provider.tf`: Proxmox provider configuration
@@ -629,12 +627,12 @@ docker compose exec caddy caddy reload --force
 
 ### Semaphore UI
 
-**Location**: `~/docker/config/semaphoreui/` (on x199)
+**Location**: `~/docker/config/semaphore/` (on x199)
 
 **Configuration**:
 - `compose.yml`: Docker service
 - `.env`: Environment variables
-- `/opt/semaphore/config/`: BoltDB database
+- `~/.semaphore/config/`: BoltDB database
 
 **Features**:
 - Web UI for Ansible
@@ -646,7 +644,7 @@ docker compose exec caddy caddy reload --force
 
 **Database**:
 - BoltDB (embedded)
-- Location: `/opt/semaphore/config/database.boltdb`
+- Location: `~/.semaphore/config/database.boltdb`
 - Backup: Included in control node backups
 
 **API Usage**:
@@ -669,16 +667,16 @@ curl -H "Authorization: Bearer $TOKEN" \
 **Management**:
 ```bash
 # View logs
-docker compose logs -f semaphore
+make semaphore logs
 
 # Restart
-docker compose restart
+make semaphore restart
 
 # Backup database
-cp /opt/semaphore/config/database.boltdb /opt/backups/
+cp ~/.semaphore/config/database.boltdb /opt/backups/
 
 # Reset admin password
-docker compose exec semaphore semaphore user change-by-login \
+docker compose -f docker/config/semaphore/compose.yml exec semaphore semaphore user change-by-login \
   --admin --login admin --password NEW_PASSWORD
 ```
 
@@ -711,7 +709,7 @@ docker compose exec semaphore semaphore user change-by-login \
 ssh code@192.168.0.199
 
 # Run playbook directly
-cd /home/code/home/ansible
+cd ~/ansible
 ansible-playbook playbooks/deploy-service.yml \
   -e "target_host=x202" \
   -e "service_name=caddy"
@@ -734,7 +732,7 @@ ansible-playbook playbooks/deploy-service.yml \
 ```bash
 # SSH to x199
 ssh code@192.168.0.199
-cd /home/code/home/ansible
+cd ~/ansible
 
 # Rollback specific service
 ansible-playbook playbooks/rollback-service.yml \
@@ -766,19 +764,13 @@ curl --proto '=https' --tlsv1.2 -fsSL \
   https://get.opentofu.org/install-opentofu.sh | sudo bash
 
 # Semaphore
-cd ~/docker/config/semaphoreui
-docker compose pull
-docker compose up -d
+make semaphore pull && make semaphore up
 
 # Caddy
-cd ~/docker/config/caddy
-docker compose pull
-docker compose up -d
+make caddy pull && make caddy up
 
 # Webhook
-cd ~/docker/config/webhook
-docker compose pull
-docker compose up -d
+make webhook pull && make webhook up
 ```
 
 **Update managed services** (automatic via git push):
@@ -801,18 +793,17 @@ ansible all -m shell -a "docker ps"
 **Logs**:
 ```bash
 # Webhook logs
-docker compose -f ~/docker/config/webhook/compose.yml logs -f
+make webhook logs
 
 # Semaphore logs
-docker compose -f ~/docker/config/semaphoreui/compose.yml logs -f
+make semaphore logs
 
 # Caddy logs
-docker compose -f ~/docker/config/caddy/compose.yml logs -f
+make caddy logs
 
 # Service logs on x202
 ssh code@192.168.0.202
-cd pve/x202
-docker compose logs -f caddy
+docker compose -f docker/config/caddy/compose.yml logs -f
 ```
 
 **Notifications**:
@@ -848,12 +839,16 @@ curl https://wywiol.eu
 
 **Manual backup**:
 ```bash
-/home/code/home/scripts/backup-control-node.sh /opt/backups/control-node
+make backup
+# Or with custom destination:
+./backup-control-node.sh /opt/backups/control-node
 ```
 
 **Verify backups**:
 ```bash
-/home/code/home/scripts/verify-backups.sh /opt/backups/control-node
+make verify
+# Or with custom path:
+./verify-backups.sh /opt/backups/control-node
 ```
 
 **Restore procedure**:
@@ -874,8 +869,8 @@ chmod 644 ~/.ssh/id_ed25519.pub
 
 # Restore Semaphore
 tar xzf /opt/backups/control-node/YYYYMMDD-HHMMSS/semaphore-config.tar.gz \
-  -C /opt/semaphore/
-sudo chown -R 1001:1001 /opt/semaphore/config
+  -C ~/.semaphore/
+sudo chown -R 1001:1001 ~/.semaphore/config
 
 # Restore Caddy
 tar xzf /opt/backups/control-node/YYYYMMDD-HHMMSS/caddy-data.tar.gz \
@@ -883,14 +878,14 @@ tar xzf /opt/backups/control-node/YYYYMMDD-HHMMSS/caddy-data.tar.gz \
 
 # Restore OpenTofu state
 cp /opt/backups/control-node/YYYYMMDD-HHMMSS/terraform.tfstate \
-   /home/code/home/infra/tofu/
+   ~/infra/tofu/
 gpg --decrypt /opt/backups/control-node/YYYYMMDD-HHMMSS/terraform.tfvars.gpg \
-  > /home/code/home/infra/tofu/terraform.tfvars
-chmod 600 /home/code/home/infra/tofu/terraform.tfvars
+  > ~/infra/tofu/terraform.tfvars
+chmod 600 ~/infra/tofu/terraform.tfvars
 
 # Restart services
-cd ~/docker/config/semaphoreui && docker compose restart
-cd ~/docker/config/caddy && docker compose restart
+make semaphore restart
+make caddy restart
 ```
 
 **VM/LXC Backups** (Proxmox Backup Server):
@@ -1169,15 +1164,15 @@ docker compose -f ~/docker/config/semaphoreui/compose.yml restart
 **Database errors**:
 ```bash
 # Check database file
-ls -lh /opt/semaphore/config/database.boltdb
+ls -lh ~/.semaphore/config/database.boltdb
 
 # Check permissions
-sudo chown -R 1001:1001 /opt/semaphore/config
-sudo chmod -R 755 /opt/semaphore/config
+sudo chown -R 1001:1001 ~/.semaphore/config
+sudo chmod -R 755 ~/.semaphore/config
 
 # Restore from backup if corrupted
 cp /opt/backups/control-node/latest/semaphore-config.tar.gz .
-tar xzf semaphore-config.tar.gz -C /opt/semaphore/
+tar xzf semaphore-config.tar.gz -C ~/.semaphore/
 ```
 
 **Task execution failures**:
@@ -1269,10 +1264,10 @@ docker ps
 # Semaphore UI → Tasks
 
 # Check webhook activity
-docker compose -f ~/docker/config/webhook/compose.yml logs --tail=50
+make webhook logs
 
 # Verify backups
-/home/code/home/scripts/verify-backups.sh
+make verify
 ```
 
 ### Weekly Tasks
@@ -1298,9 +1293,9 @@ du -sh /opt/backups/control-node/*
 ansible all -m apt -a "update_cache=yes upgrade=dist" -b
 
 # Update Docker images
-cd ~/docker/config/semaphoreui && docker compose pull && docker compose up -d
-cd ~/docker/config/caddy && docker compose pull && docker compose up -d
-cd ~/docker/config/webhook && docker compose pull && docker compose up -d
+make semaphore pull && make semaphore up
+make caddy pull && make caddy up
+make webhook pull && make webhook up
 
 # Review security logs
 # Check for failed SSH attempts
@@ -1358,22 +1353,34 @@ ssh-keygen -t ed25519 -C "ansible@x199" -f ~/.ssh/id_ed25519_new
 
 ### File Locations
 
+**In repository (pve/x199/):**
+
 | Purpose | Location |
 |---------|----------|
-| Bootstrap script | `bootstrap.sh` |
-| Backup script | `scripts/backup-control-node.sh` |
-| Verify script | `scripts/verify-backups.sh` |
-| x199 services | `pve/x199/docker/config/` |
+| Bootstrap script | `pve/x199/bootstrap.sh` |
+| Backup script | `pve/x199/backup-control-node.sh` |
+| Verify script | `pve/x199/verify-backups.sh` |
+| Docker services | `pve/x199/docker/config/` |
 | Webhook config | `pve/x199/docker/config/webhook/` |
 | Caddy config | `pve/x199/docker/config/caddy/` |
 | Semaphore config | `pve/x199/docker/config/semaphore/` |
-| Ansible config | `ansible/ansible.cfg` |
-| Ansible inventory | `ansible/inventory/hosts.yml` |
-| Ansible playbooks | `ansible/playbooks/` |
-| OpenTofu config | `infra/tofu/` |
-| Vault password | `~/.ansible/vault_password` (on x199) |
-| SSH keys | `~/.ssh/id_ed25519` (on x199) |
-| Backups | `/opt/backups/control-node/` (on x199) |
+| Ansible config | `pve/x199/ansible/ansible.cfg` |
+| Ansible inventory | `pve/x199/ansible/inventory/hosts.yml` |
+| Ansible playbooks | `pve/x199/ansible/playbooks/` |
+| OpenTofu config | `pve/x199/infra/tofu/` |
+
+**On x199 server (after sync):**
+
+| Purpose | Location |
+|---------|----------|
+| Bootstrap script | `~/bootstrap.sh` |
+| Docker services | `~/docker/config/` |
+| Ansible config | `~/ansible/` |
+| OpenTofu config | `~/infra/tofu/` |
+| Semaphore data | `~/.semaphore/` |
+| Vault password | `~/.ansible/vault_password` |
+| SSH keys | `~/.ssh/id_ed25519` |
+| Backups | `/opt/backups/control-node/` |
 
 ### Key Commands
 

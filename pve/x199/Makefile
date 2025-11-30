@@ -16,6 +16,11 @@ help:
 	@echo "  make semaphore up"
 	@echo "  make webhook logs"
 	@echo " "
+	@echo "Setup:"
+	@echo "  make bootstrap - Run control node bootstrap"
+	@echo "  make backup    - Backup control node"
+	@echo "  make verify    - Verify backups"
+	@echo " "
 	@echo "Tools:"
 	@echo "  make random - Generate random hex string"
 	@echo " "
@@ -23,6 +28,18 @@ help:
 .PHONY: random
 random:
 	@echo $(shell openssl rand -hex 32)
+
+.PHONY: bootstrap
+bootstrap:
+	./bootstrap.sh
+
+.PHONY: backup
+backup:
+	./backup-control-node.sh
+
+.PHONY: verify
+verify:
+	./verify-backups.sh
 
 # Prevent action words from being treated as targets
 .PHONY: up down restart pull logs

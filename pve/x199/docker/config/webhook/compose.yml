@@ -9,8 +9,8 @@ services:
     volumes:
       - ${PWD}/docker/config/webhook/hooks.yml:/etc/webhook/hooks.yml:ro
       - ${PWD}/docker/config/webhook/scripts:/scripts:ro
-      - ${REPO_PATH:-/home/code/home}:/repo:ro
-      - ${SEMAPHORE_DIR:-/opt/semaphore}:/semaphore:ro
+      - ${REPO_PATH:-/home/code}:/repo:ro
+      - ${SEMAPHORE_DIR}/.semaphore:/semaphore:ro
     environment:
       - TZ=${TIMEZONE:-Europe/Warsaw}
     command: ["-verbose", "-hooks=/etc/webhook/hooks.yml", "-hotreload"]
