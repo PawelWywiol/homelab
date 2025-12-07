@@ -5,45 +5,30 @@ help:
 	@echo "File Sync Makefile"
 	@echo " "
 	@echo "Usage:"
-	@echo "  make pull USER@HOST - Pull files from remote server to ./pve/HOST"
-	@echo "  make push USER@HOST - Push files from ./pve/HOST to remote server"
+	@echo "  make pull NAME - Pull files from remote server to ./pve/NAME"
+	@echo "  make push NAME - Push files from ./pve/NAME to remote server"
 	@echo " "
 	@echo "Examples:"
-	@echo "  make pull code@x202  - Pulls from code@x202 to ./pve/x202"
-	@echo "  make push code@x202  - Pushes from ./pve/x202 to code@x202"
+	@echo "  make pull x202  - Pulls from remote to ./pve/x202"
+	@echo "  make push x202  - Pushes from ./pve/x202 to remote"
 	@echo " "
-	@echo "Note: HOST must match an existing directory in ./pve/"
+	@echo "Note: NAME must match an existing directory in ./pve/"
+	@echo "      Remote host is configured in ./pve/NAME/.envrc"
 	@echo " "
 
 pull:
 	@if [ -z "$(word 2, $(MAKECMDGOALS))" ]; then \
-		echo "Usage: make pull USER@HOST"; \
+		echo "Usage: make pull NAME"; \
 		exit 1; \
 	fi; \
-	TARGET="$(word 2, $(MAKECMDGOALS))"; \
-	HOST=$${TARGET##*@}; \
-	if [ ! -d "./pve/$$HOST" ]; then \
-		echo "Error: Host '$$HOST' not found in ./pve/"; \
-		echo "Available hosts:"; \
-		ls -1 ./pve/ 2>/dev/null | grep -v '^\.' || echo "  (none)"; \
-		exit 1; \
-	fi; \
-	./scripts/sync-files.sh "$$TARGET" "./pve/$$HOST"
+	./scripts/sync-files.sh pull "$(word 2, $(MAKECMDGOALS))"
 
 push:
 	@if [ -z "$(word 2, $(MAKECMDGOALS))" ]; then \
-		echo "Usage: make push USER@HOST"; \
+		echo "Usage: make push NAME"; \
 		exit 1; \
 	fi; \
-	TARGET="$(word 2, $(MAKECMDGOALS))"; \
-	HOST=$${TARGET##*@}; \
-	if [ ! -d "./pve/$$HOST" ]; then \
-		echo "Error: Host '$$HOST' not found in ./pve/"; \
-		echo "Available hosts:"; \
-		ls -1 ./pve/ 2>/dev/null | grep -v '^\.' || echo "  (none)"; \
-		exit 1; \
-	fi; \
-	./scripts/sync-files.sh "./pve/$$HOST" "$$TARGET"
+	./scripts/sync-files.sh push "$(word 2, $(MAKECMDGOALS))"
 
 # Prevent arguments from being treated as targets
 %:

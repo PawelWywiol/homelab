@@ -8,6 +8,36 @@ Initialization and utility scripts for homelab setup.
 **init-vm.sh** - VM initialization
 **sync-files.sh** - Bidirectional file sync (rsync wrapper)
 
+## sync-files.sh
+
+Synchronize files between local and remote systems using rsync.
+
+**Usage:**
+
+```bash
+# Pull: Server -> Local
+./scripts/sync-files.sh pull NAME
+
+# Push: Local -> Server
+./scripts/sync-files.sh push NAME
+```
+
+NAME must match a directory in `pve/` (x199, x201, x202, x250).
+
+**Configuration:**
+
+Each `pve/NAME/` directory must have a `.envrc` file with:
+
+```bash
+REMOTE_HOST="user@hostname"
+REMOTE_FILES=(
+  "file1"
+  "dir/file2"
+)
+```
+
+Copy `.envrc.example` to `.envrc` and set `REMOTE_HOST`.
+
 ## init-lxc.sh
 
 Initialize LXC container with user setup and SSH access.
@@ -67,18 +97,10 @@ git clone https://github.com/zsh-users/zsh-syntax-highlighting.git \
 source ~/.zshrc
 ```
 
-## sync-files.sh
+## Tests
 
-Synchronize files between local and remote systems using rsync.
-
-**Usage:**
+Test suite is located in `scripts/tests/`:
 
 ```bash
-# Server → Local
-./scripts/sync-files.sh user@host ./pve/PATH
-
-# Local → Server
-./scripts/sync-files.sh ./pve/PATH user@host
+./scripts/tests/test-sync-makefile.sh
 ```
-
-Files synced are defined in `.envrc` `SYNC_FILES` array per directory.
