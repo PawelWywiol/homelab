@@ -1,0 +1,10 @@
+# Remote sync configuration for x201
+# Copy this file to .envrc and fill in REMOTE_HOST
+
+REMOTE_HOST=""
+REMOTE_FILES=(
+  ".env"
+  "docker/config"
+  "Caddy.Dockerfile"
+  "compose.yml"
+)

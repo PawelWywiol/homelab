@@ -12,8 +12,8 @@ cd pve/x202 && make SERVICE up|down|restart|logs
 cd pve/x199 && make SERVICE up|down|restart|logs
 
 # File sync
-make pull user@HOST   # Server → Local
-make push user@HOST   # Local → Server
+make pull NAME   # Server -> Local
+make push NAME   # Local -> Server
 ```
 
 ## Environments
@@ -92,7 +92,7 @@ Bootstrap fresh Debian/Ubuntu machine as x199 control node:
 ```bash
 # On local machine
 git clone https://github.com/PawelWywiol/homelab.git && cd homelab
-make push code@x199
+make push x199
 
 # On x199 server
 ssh code@x199
@@ -136,15 +136,15 @@ GitHub Push → webhook.wywiol.eu (Caddy: IP whitelist)
 
 ```bash
 # Root Makefile shortcuts
-make pull user@HOST   # Server → Local (HOST = x199|x201|x202|x250)
-make push user@HOST   # Local → Server
+make pull NAME   # Server -> Local (NAME = x199|x201|x202|x250)
+make push NAME   # Local -> Server
 
 # Direct script
-./scripts/sync-files.sh user@host ./pve/PATH  # Server → Local
-./scripts/sync-files.sh ./pve/PATH user@host  # Local → Server
+./scripts/sync-files.sh pull NAME  # Server -> Local
+./scripts/sync-files.sh push NAME  # Local -> Server
 ```
 
-Files defined in `pve/ENV/.envrc` `SYNC_FILES` array.
+Config: Copy `pve/NAME/.envrc.example` to `.envrc` and set `REMOTE_HOST`.
 
 ## Security
 
@@ -195,6 +195,7 @@ Files defined in `pve/ENV/.envrc` `SYNC_FILES` array.
 │   └── x250/                 # AI/ML
 ├── scripts/
 │   ├── sync-files.sh         # Bidirectional rsync
+│   ├── tests/                # Test suite
 │   ├── init-host.sh          # Universal host init (VM/LXC/RPi)
 │   ├── .env.example          # init-host.sh config template
 │   ├── init-vm.sh            # VM initialization (legacy)
