@@ -195,8 +195,10 @@ Files defined in `pve/ENV/.envrc` `SYNC_FILES` array.
 │   └── x250/                 # AI/ML
 ├── scripts/
 │   ├── sync-files.sh         # Bidirectional rsync
-│   ├── init-vm.sh            # VM initialization
-│   └── init-lxc.sh           # LXC initialization
+│   ├── init-host.sh          # Universal host init (VM/LXC/RPi)
+│   ├── .env.example          # init-host.sh config template
+│   ├── init-vm.sh            # VM initialization (legacy)
+│   └── init-lxc.sh           # LXC initialization (legacy)
 └── docs/                     # Guides
 ```
 
