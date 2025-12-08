@@ -24,10 +24,10 @@ services:
 
 volumes:
   caddy_config:
-    name: caddy_x199_config
+    name: caddy_x000_config
     driver: local
   caddy_data:
-    name: caddy_x199_data
+    name: caddy_x000_data
     driver: local
 
 networks:

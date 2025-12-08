@@ -1,6 +1,6 @@
 # Ansible + OpenTofu Automation
 
-**Control Node**: x199 (192.168.0.199)
+**Control Node**: x000
 **Base Domain**: wywiol.eu
 **Status**: Production-ready
 
@@ -24,7 +24,7 @@ GitOps automation for homelab infrastructure using Ansible, OpenTofu, Semaphore 
 ```
 GitHub Push (main) → webhook.wywiol.eu (Caddy: GitHub IP whitelist)
                               ↓
-                      x199:8097 (adnanh/webhook: HMAC verification)
+                      x000:8097 (adnanh/webhook: HMAC verification)
                               ↓
                     ┌─────────┴─────────┐
                     ↓                   ↓
@@ -46,7 +46,7 @@ GitHub Push (main) → webhook.wywiol.eu (Caddy: GitHub IP whitelist)
 
 | Component | Technology | Purpose |
 |-----------|-----------|---------|
-| **Control Node** | x199 (Debian) | Orchestration hub |
+| **Control Node** | x000 | Orchestration hub |
 | **Ansible** | 2.16+ | Configuration management |
 | **OpenTofu** | 1.8+ | VM provisioning |
 | **Semaphore UI** | Docker | Ansible web interface |
@@ -56,9 +56,12 @@ GitHub Push (main) → webhook.wywiol.eu (Caddy: GitHub IP whitelist)
 
 ### Managed Infrastructure
 
+**Control Node**:
+- x000: Control node (4GB RAM, external to Proxmox)
+
 **VMs (OpenTofu)**:
 - x100: Development (2x2 cores, 12GB RAM, 64GB disk)
-- x199: Control node (2 cores, 4GB RAM, 64GB disk)
+- x199: Legacy VM (2 cores, 4GB RAM, 64GB disk)
 - x201: DNS services (2 cores, 2GB RAM, 64GB disk)
 - x202: Web services (4 cores, 12GB RAM, 128GB disk)
 
@@ -81,9 +84,9 @@ GitHub Push (main) → webhook.wywiol.eu (Caddy: GitHub IP whitelist)
 1. **DNS Configuration**:
    ```
    A records:
-   semaphore.local.wywiol.eu  → 192.168.0.199
-   webhook.wywiol.eu          → 192.168.0.199
-   wywiol.eu                  → 192.168.0.199
+   semaphore.local.wywiol.eu  → 192.168.0.2
+   webhook.wywiol.eu          → 192.168.0.2
+   wywiol.eu                  → 192.168.0.2
    ```
 
 2. **Proxmox API Token** (Proxmox VE 8.x / 9.x):
@@ -134,15 +137,15 @@ GitHub Push (main) → webhook.wywiol.eu (Caddy: GitHub IP whitelist)
 
 ### Installation
 
-**Step 1: Bootstrap Control Node x199**
+**Step 1: Bootstrap Control Node x000**
 
 ```bash
-# On local machine - clone and push to x199
+# On local machine - clone and push to x000
 git clone https://github.com/PawelWywiol/homelab.git && cd homelab
-make push code@x199
+make push x000
 
-# SSH to x199
-ssh code@x199
+# SSH to x000
+ssh code@x000
 
 # Configure and run bootstrap
 cp bootstrap.env.example .env
@@ -159,7 +162,7 @@ make bootstrap
 **Step 2: Distribute SSH Keys**
 
 ```bash
-# On x199
+# On x000
 # VMs
 ssh-copy-id -i ~/.ssh/id_ed25519.pub code@192.168.0.100
 ssh-copy-id -i ~/.ssh/id_ed25519.pub code@192.168.0.201
@@ -179,7 +182,7 @@ ansible all -m ping
 **Step 3: Configure OpenTofu**
 
 ```bash
-# On x199
+# On x000
 cd ~/infra/tofu
 
 # Create terraform.tfvars from example
@@ -192,7 +195,7 @@ Add your values:
 proxmox_endpoint   = "https://192.168.0.200:8006"
 proxmox_api_token  = "homelab@pve!tofu=YOUR_TOKEN_HERE"
 proxmox_insecure   = true
-ssh_public_key     = "ssh-ed25519 AAAA... ansible@x199"
+ssh_public_key     = "ssh-ed25519 AAAA... ansible@x000"
 proxmox_node       = "pve"
 ```
 
@@ -362,7 +365,7 @@ pvesh create /cluster/backup \
 
 ### Webhook System
 
-**Location**: `~/docker/config/webhook/` (on x199)
+**Location**: `~/docker/config/webhook/`
 
 **Service**: adnanh/webhook (Go-based, lightweight)
 
@@ -421,11 +424,11 @@ NTFY_TOPIC=homelab-webhooks
 LOG_LEVEL=info
 ```
 
-**Documentation**: See `pve/x199/docker/config/webhook/README.md` for full details.
+**Documentation**: See `pve/x000/docker/config/webhook/README.md` for full details.
 
 ### Ansible Configuration
 
-**Location**: `~/ansible/` (on x199), `pve/x199/ansible/` (in repo)
+**Location**: `~/ansible/` (on x000), `pve/x000/ansible/` (in repo)
 
 **Structure**:
 ```
@@ -452,14 +455,14 @@ ansible/
 - `dns_vms`: DNS services (x201)
 - `web_vms`: Web services (x202)
 - `dev_vms`: Development (x100)
-- `control_nodes`: Control node (x199)
+- `control_nodes`: Control node (x000)
 
 **Host Variables**:
 - `ansible_host`: IP address
 - `ansible_user`: SSH user (code)
 - `ansible_ssh_private_key_file`: SSH key path
 - `compose_project_path`: Docker Compose file location
-- `compose_style`: Project structure (x000/x201/x202)
+- `compose_style`: Project structure (legacy/x201/x202)
 
 **Playbook Features**:
 - Idempotent deployments
@@ -506,7 +509,7 @@ ansible-playbook ansible/playbooks/deploy-service.yml \
 
 ### OpenTofu Infrastructure
 
-**Location**: `~/infra/tofu/` (on x199), `pve/x199/infra/tofu/` (in repo)
+**Location**: `~/infra/tofu/` (on x000), `pve/x000/infra/tofu/` (in repo)
 
 **Files**:
 - `provider.tf`: Proxmox provider configuration
@@ -603,7 +606,7 @@ tofu apply -target=proxmox_virtual_environment_vm.x202
 
 ### Caddy Reverse Proxy
 
-**Location**: `~/docker/config/caddy/` (on x199)
+**Location**: `~/docker/config/caddy/` (on x000)
 
 **Configuration**:
 - `compose.yml`: Docker service
@@ -664,7 +667,7 @@ docker compose exec caddy caddy reload --force
 
 ### Semaphore UI
 
-**Location**: `~/docker/config/semaphore/` (on x199)
+**Location**: `~/docker/config/semaphore/` (on x000)
 
 **Configuration**:
 - `compose.yml`: Docker service
@@ -742,8 +745,8 @@ docker compose -f docker/config/semaphore/compose.yml exec semaphore semaphore u
 
 **Manual (via CLI)**:
 ```bash
-# SSH to x199
-ssh code@192.168.0.199
+# SSH to x000
+ssh code@192.168.0.2
 
 # Run playbook directly
 cd ~/ansible
@@ -767,8 +770,8 @@ ansible-playbook playbooks/deploy-service.yml \
 
 **Manual rollback via CLI**:
 ```bash
-# SSH to x199
-ssh code@192.168.0.199
+# SSH to x000
+ssh code@192.168.0.2
 cd ~/ansible
 
 # Rollback specific service
@@ -1192,7 +1195,7 @@ docker compose -f ~/docker/config/semaphoreui/compose.yml ps
 docker compose -f ~/docker/config/semaphoreui/compose.yml logs -f
 
 # Verify network access (from local machine)
-curl http://192.168.0.199:3001/api/ping
+curl http://192.168.0.2:3001/api/ping
 
 # Restart service
 docker compose -f ~/docker/config/semaphoreui/compose.yml restart
@@ -1364,7 +1367,7 @@ make webhook pull && make webhook up
 ansible-vault rekey ansible/group_vars/all/vault.yml
 
 # Rotate SSH keys
-ssh-keygen -t ed25519 -C "ansible@x199" -f ~/.ssh/id_ed25519_new
+ssh-keygen -t ed25519 -C "ansible@x000" -f ~/.ssh/id_ed25519_new
 # Distribute new key
 # Update Ansible configuration
 # Remove old key
@@ -1390,23 +1393,23 @@ ssh-keygen -t ed25519 -C "ansible@x199" -f ~/.ssh/id_ed25519_new
 
 ### File Locations
 
-**In repository (pve/x199/):**
+**In repository (pve/x000/):**
 
 | Purpose | Location |
 |---------|----------|
-| Bootstrap script | `pve/x199/bootstrap.sh` |
-| Backup script | `pve/x199/backup-control-node.sh` |
-| Verify script | `pve/x199/verify-backups.sh` |
-| Docker services | `pve/x199/docker/config/` |
-| Webhook config | `pve/x199/docker/config/webhook/` |
-| Caddy config | `pve/x199/docker/config/caddy/` |
-| Semaphore config | `pve/x199/docker/config/semaphore/` |
-| Ansible config | `pve/x199/ansible/ansible.cfg` |
-| Ansible inventory | `pve/x199/ansible/inventory/hosts.yml` |
-| Ansible playbooks | `pve/x199/ansible/playbooks/` |
-| OpenTofu config | `pve/x199/infra/tofu/` |
+| Bootstrap script | `pve/x000/bootstrap.sh` |
+| Backup script | `pve/x000/backup-control-node.sh` |
+| Verify script | `pve/x000/verify-backups.sh` |
+| Docker services | `pve/x000/docker/config/` |
+| Webhook config | `pve/x000/docker/config/webhook/` |
+| Caddy config | `pve/x000/docker/config/caddy/` |
+| Semaphore config | `pve/x000/docker/config/semaphore/` |
+| Ansible config | `pve/x000/ansible/ansible.cfg` |
+| Ansible inventory | `pve/x000/ansible/inventory/hosts.yml` |
+| Ansible playbooks | `pve/x000/ansible/playbooks/` |
+| OpenTofu config | `pve/x000/infra/tofu/` |
 
-**On x199 server (after sync):**
+**On x000 (after sync):**
 
 | Purpose | Location |
 |---------|----------|
@@ -1434,7 +1437,7 @@ ansible-inventory --list                     # List inventory
 tofu init                                    # Initialize
 tofu plan                                    # Preview changes
 tofu apply                                   # Apply changes
-tofu import proxmox_virtual_environment_vm.x199 pve/199  # Import VM
+tofu import proxmox_virtual_environment_vm.x202 pve/202  # Import VM
 tofu show                                    # Show state
 ```
 

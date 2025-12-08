@@ -15,6 +15,7 @@ repo_url: https://github.com/PawelWywiol/home.git
 # Compose file locations relative to repo
 compose_paths:
   "pve/x000": "{{ repo_base_path }}/pve/x000"
+  "pve/legacy": "{{ repo_base_path }}/pve/legacy"
   "pve/x201": "{{ repo_base_path }}/pve/x201"
   "pve/x202": "{{ repo_base_path }}/pve/x202"
   "pve/x250": "{{ repo_base_path }}/pve/x250"

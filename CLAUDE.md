@@ -8,8 +8,8 @@ Homelab infrastructure with Docker Compose, Ansible automation, OpenTofu IaC, an
 # x202 (primary) - manage services
 cd pve/x202 && make SERVICE up|down|restart|logs
 
-# x199 (control node) - manage automation
-cd pve/x199 && make SERVICE up|down|restart|logs
+# x000 (control node) - manage automation
+cd pve/x000 && make SERVICE up|down|restart|logs
 
 # File sync
 make pull NAME   # Server -> Local
@@ -20,15 +20,15 @@ make push NAME   # Local -> Server
 
 | ID | Purpose | Services | Makefile |
 |----|---------|----------|----------|
-| x199 | Control node | caddy, semaphore, webhook | `pve/x199/Makefile` |
+| x000 | Control node | caddy, semaphore, webhook, portainer, cloudflared, pihole | `pve/x000/Makefile` |
 | x201 | DNS/Network | caddy | `pve/x201/Makefile` |
 | x202 | Web/App (primary) | 16 services | `pve/x202/Makefile` |
 | x250 | AI/ML | sd-rocm | - |
-| x000 | Legacy | various | - |
+| legacy | Legacy | various | - |
 
 **Path patterns:**
-- x199, x201, x202: `pve/ENV/docker/config/SERVICE/`
-- x000 (legacy): `pve/x000/SERVICE/`
+- x000, x201, x202: `pve/ENV/docker/config/SERVICE/`
+- legacy: `pve/legacy/SERVICE/`
 
 ## Service Management
 
@@ -72,10 +72,10 @@ make k6-grafana SCRIPT     # Run → InfluxDB
 make k6-dashboard SCRIPT   # Run → HTML export
 ```
 
-### x199 Services (Control Node)
+### x000 Services (Control Node)
 
 ```bash
-cd pve/x199
+cd pve/x000
 make SERVICE [up|down|restart|pull|logs]
 ```
 
@@ -84,18 +84,21 @@ make SERVICE [up|down|restart|pull|logs]
 | caddy | 80, 443 | Reverse proxy (Cloudflare DNS) |
 | semaphore | 3001 | Ansible automation UI |
 | webhook | 8097 | GitHub webhook handler |
+| portainer | 9443 | Container management UI |
+| cloudflared | - | Cloudflare Tunnel |
+| pihole | 53, 5080 | DNS + ad-blocking |
 
 ## Control Node Setup
 
-Bootstrap fresh Debian/Ubuntu machine as x199 control node:
+Bootstrap control node:
 
 ```bash
 # On local machine
 git clone https://github.com/PawelWywiol/homelab.git && cd homelab
-make push x199
+make push x000
 
-# On x199 server
-ssh code@x199
+# On x000
+ssh code@x000
 cp bootstrap.env.example .env
 nano .env  # Set required: CLOUDFLARE_API_TOKEN, BASE_DOMAIN, CONTROL_NODE_IP
 make bootstrap
@@ -123,20 +126,20 @@ GitHub Push → webhook.wywiol.eu (Caddy: IP whitelist)
 |-------------|--------|
 | `pve/x202/*` | Deploy x202 services (Ansible) |
 | `pve/x201/*` | Deploy x201 services (Ansible) |
-| `pve/x199/infra/tofu/*` | OpenTofu plan (manual apply) |
-| `pve/x199/ansible/*` | Syntax check |
+| `pve/x000/infra/tofu/*` | OpenTofu plan (manual apply) |
+| `pve/x000/ansible/*` | Syntax check |
 
 **Ansible playbooks:**
 - `deploy-service.yml` - Deploy Docker Compose services
 - `rollback-service.yml` - Rollback to previous version
 
-**Managed hosts:** x100, x199, x201, x202 (VMs) + 107, 108, 109, 111 (LXC)
+**Managed hosts:** x000, x100, x199, x201, x202 (VMs) + 107, 108, 109, 111 (LXC)
 
 ## File Sync
 
 ```bash
 # Root Makefile shortcuts
-make pull NAME   # Server -> Local (NAME = x199|x201|x202|x250)
+make pull NAME   # Server -> Local (NAME = x000|x201|x202|x250)
 make push NAME   # Local -> Server
 
 # Direct script
@@ -151,9 +154,9 @@ Config: Copy `pve/NAME/.envrc.example` to `.envrc` and set `REMOTE_HOST`.
 **Secrets management:**
 - `.env` files contain secrets → **never commit** (gitignored)
 - `.env.example` for structure reference (keys only)
-- `pve/x199/ansible/group_vars/all/vault.yml` - Ansible Vault encrypted
-- `~/.ansible/vault_password` - Vault decryption key (on x199)
-- `~/.semaphore/` - Semaphore data (on x199)
+- `pve/x000/ansible/group_vars/all/vault.yml` - Ansible Vault encrypted
+- `~/.ansible/vault_password` - Vault decryption key (on x000)
+- `~/.semaphore/` - Semaphore data (on x000)
 
 **Access control:**
 - Caddy: GitHub IP whitelist for webhook endpoint
@@ -170,7 +173,7 @@ Config: Copy `pve/NAME/.envrc.example` to `.envrc` and set `REMOTE_HOST`.
 ```
 ├── Makefile                  # Root sync commands (push/pull)
 ├── pve/
-│   ├── x199/                 # Control node (all automation)
+│   ├── x000/                 # Control node
 │   │   ├── Makefile          # Service + bootstrap commands
 │   │   ├── bootstrap.sh      # Control node setup
 │   │   ├── bootstrap.env.example
@@ -187,9 +190,13 @@ Config: Copy `pve/NAME/.envrc.example` to `.envrc` and set `REMOTE_HOST`.
 │   │   └── docker/config/
 │   │       ├── caddy/        # Reverse proxy
 │   │       ├── semaphore/    # Ansible UI
-│   │       └── webhook/      # GitHub webhooks
-│   ├── x201/                 # DNS services
-│   ├── x202/                 # Web services (primary)
+│   │       ├── webhook/      # GitHub webhooks
+│   │       ├── portainer/    # Container management
+│   │       ├── cloudflared/  # Cloudflare tunnel
+│   │       └── pihole/       # DNS + ad-blocking
+│   ├── legacy/               # Legacy services (deprecated)
+│   ├── x201/                 # DNS services (VM)
+│   ├── x202/                 # Web services (primary VM)
 │   │   ├── Makefile          # Service orchestration
 │   │   └── docker/config/SERVICE/
 │   └── x250/                 # AI/ML
@@ -205,7 +212,7 @@ Config: Copy `pve/NAME/.envrc.example` to `.envrc` and set `REMOTE_HOST`.
 
 ## Contributing
 
-**Working directory:** Run Make commands from environment root (`pve/x202/`, `pve/x199/`)
+**Working directory:** Run Make commands from environment root (`pve/x202/`, `pve/x000/`)
 
 **Adding services:**
 1. Create `pve/ENV/docker/config/SERVICE/`
@@ -219,7 +226,7 @@ Config: Copy `pve/NAME/.envrc.example` to `.envrc` and set `REMOTE_HOST`.
 - All secrets via environment variables
 
 **Documentation:**
-- [pve/x199/ansible/README.md](pve/x199/ansible/README.md) - Ansible setup
-- [pve/x199/infra/README.md](pve/x199/infra/README.md) - OpenTofu/Proxmox
-- [pve/x199/README.md](pve/x199/README.md) - Control node
+- [pve/x000/ansible/README.md](pve/x000/ansible/README.md) - Ansible setup
+- [pve/x000/infra/README.md](pve/x000/infra/README.md) - OpenTofu/Proxmox
+- [pve/x000/README.md](pve/x000/README.md) - Control node
 - [docs/automation/](docs/automation/) - GitOps workflow

@@ -1,0 +1,29 @@
+services:
+  pihole:
+    container_name: pihole
+    image: pihole/pihole:2025.04.0
+    env_file: .env
+    environment:
+      TZ: ${TZ}
+      FTLCONF_webserver_api_password: ${PIHOLE_WEBSERVER_API_PASSWORD}
+      FTLCONF_dns_listeningMode: ${PIHOLE_DNS_LISTENING_MODE}
+    volumes:
+      - ${PWD}/docker/data/pihole:/etc/pihole
+      - ${PWD}/docker/data/pihole/etc-dnsmasq.d:/etc/dnsmasq.d
+    ports:
+      - 53:53/tcp
+      - 53:53/udp
+      - 5080:80/tcp
+      - 5443:443/tcp
+    cap_add:
+      - NET_ADMIN
+      - CAP_SYS_NICE
+    restart: unless-stopped
+    depends_on:
+      - cloudflared
+    networks:
+      - homelab
+
+networks:
+  homelab:
+    external: true

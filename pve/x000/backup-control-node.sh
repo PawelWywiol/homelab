@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Backup script for x199 control node
+# Backup script for x000 control node
 # Backs up: Ansible vault, SSH keys, Semaphore DB, Caddy certs, OpenTofu state
 #
 # Usage: ./backup-control-node.sh [backup-destination]
@@ -12,7 +12,7 @@ set -euo pipefail
 BACKUP_DEST="${1:-/opt/backups/control-node}"
 BACKUP_DATE=$(date +%Y%m%d-%H%M%S)
 BACKUP_DIR="${BACKUP_DEST}/${BACKUP_DATE}"
-GPG_RECIPIENT="${GPG_RECIPIENT:-code@x199}"
+GPG_RECIPIENT="${GPG_RECIPIENT:-code@x000}"
 
 # Colors
 RED='\033[0;31m'
@@ -33,8 +33,8 @@ log_error() {
 }
 
 # Check if running on control node
-if [ "$(hostname)" != "x199" ]; then
-    log_warn "This script is designed to run on x199 control node"
+if [ "$(hostname)" != "x000" ]; then
+    log_warn "This script is designed to run on x000 control node"
 fi
 
 # Create backup directory
