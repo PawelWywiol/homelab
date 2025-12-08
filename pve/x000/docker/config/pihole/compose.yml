@@ -19,11 +19,10 @@ services:
       - NET_ADMIN
       - CAP_SYS_NICE
     restart: unless-stopped
-    depends_on:
-      - cloudflared
     networks:
       - homelab
 
 networks:
   homelab:
+    name: homelab
     external: true
