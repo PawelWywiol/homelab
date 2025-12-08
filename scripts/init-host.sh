@@ -108,6 +108,17 @@ install_base_packages() {
     apt-get autoremove -y
 }
 
+install_kitty_terminfo() {
+    echo "==> Installing kitty terminal compatibility..."
+    if infocmp xterm-kitty &>/dev/null; then
+        echo "    kitty terminfo already installed"
+        return
+    fi
+
+    curl -fsSL https://raw.githubusercontent.com/kovidgoyal/kitty/master/terminfo/kitty.terminfo | tic -x -
+    echo "    kitty terminfo installed"
+}
+
 install_qemu_guest_agent() {
     local env=$1
     if [[ "$env" == "vm" ]]; then
@@ -313,6 +324,7 @@ main() {
     echo ""
 
     install_base_packages
+    install_kitty_terminfo
     install_qemu_guest_agent "$env"
     install_docker
     setup_user
