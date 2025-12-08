@@ -24,9 +24,11 @@ infra/
 | VM | ID | IP | vCPUs | RAM | Disk | Purpose |
 |----|----|----|-------|-----|------|---------|
 | x100 | 100 | 192.168.0.100 | 2 | 12GB | 64GB | Development/test |
-| x199 | 199 | 192.168.0.199 | 2 | 4GB | 64GB | Control node (Ansible/Semaphore) |
+| x199 | 199 | 192.168.0.199 | 2 | 4GB | 64GB | Legacy VM |
 | x201 | 201 | 192.168.0.201 | 2 | 2GB | 64GB | DNS services |
 | x202 | 202 | 192.168.0.202 | 4 | 12GB | 128GB | Web/application services |
+
+**Note:** Control node (x000), not managed by OpenTofu.
 
 ## Prerequisites
 
@@ -38,7 +40,7 @@ infra/
 
 **OpenTofu installed:**
 ```bash
-# Installed by bootstrap.sh on x199
+# Installed by bootstrap.sh on x000 (control node)
 tofu --version
 ```
 
@@ -204,11 +206,11 @@ Infrastructure changes trigger automatically via GitHub webhook:
 5. Notification sent via ntfy.sh
 6. Manual approval required (unless `TOFU_AUTO_APPLY=true`)
 
-**Configuration:** `pve/x199/docker/config/webhook/.env`
+**Configuration:** `pve/x000/docker/config/webhook/.env`
 
 **Auto-apply:** Disabled by default for safety
 
-See: `pve/x199/docker/config/webhook/README.md`
+See: `pve/x000/docker/config/webhook/README.md`
 
 ## State Management
 
@@ -409,7 +411,7 @@ module "x202" {
 - ✅ Minimal Proxmox permissions (PVEVMAdmin only)
 
 **Access control:**
-- Only x199 control node has API access
+- Only x000 control node has API access
 - Token-based auth (no passwords)
 - Audit trail via git commits
 - Webhook HMAC verification for remote triggers

@@ -1,6 +1,6 @@
 # GitHub Webhook Handler
 
-Lightweight webhook service for triggering Ansible deployments and OpenTofu infrastructure updates on x199 control node.
+Lightweight webhook service for triggering Ansible deployments and OpenTofu infrastructure updates on x000 control node.
 
 ## Architecture
 
@@ -26,8 +26,8 @@ GitHub Push → webhook.wywiol.eu (Caddy) → webhook:8097 (adnanh/webhook) → 
 |----------|---------|--------|
 | `/hooks/deploy-x202-services` | Changes in `pve/x202/` | Deploy x202 services via Semaphore |
 | `/hooks/deploy-x201-services` | Changes in `pve/x201/` | Deploy x201 services via Semaphore |
-| `/hooks/update-infrastructure` | Changes in `pve/x199/infra/tofu/` | Run OpenTofu plan (+ optional apply) |
-| `/hooks/check-ansible` | Changes in `pve/x199/ansible/` | Ansible syntax check via Semaphore |
+| `/hooks/update-infrastructure` | Changes in `pve/x000/infra/tofu/` | Run OpenTofu plan (+ optional apply) |
+| `/hooks/check-ansible` | Changes in `pve/x000/ansible/` | Ansible syntax check via Semaphore |
 | `/hooks/health` | Anytime | Health check (no auth) |
 
 ## Setup Instructions

@@ -4,7 +4,7 @@ Ansible automation for homelab infrastructure management.
 
 ## Overview
 
-Manages deployment and configuration of services across VMs (x100, x199, x201, x202) and LXC containers (107, 108, 109, 111).
+Manages deployment and configuration of services across (x000), VMs (x100, x199, x201, x202) and LXC containers (107, 108, 109, 111).
 
 ## Structure
 
@@ -28,9 +28,12 @@ ansible/
 
 ## Inventory
 
+**Control node:**
+- x000 (192.168.0.2) - Control node (Ansible, Semaphore, DNS)
+
 **VMs managed:**
 - x100 (192.168.0.100) - Development/test
-- x199 (192.168.0.199) - Control node
+- x199 (192.168.0.199) - Legacy VM
 - x201 (192.168.0.201) - DNS services
 - x202 (192.168.0.202) - Web/app services
 
@@ -55,7 +58,7 @@ ansible-vault edit ansible/group_vars/all/vault.yml
 ansible-vault encrypt ansible/group_vars/all/vault.yml
 ```
 
-**Vault password location:** `~/.ansible/vault_password` (on x199)
+**Vault password location:** `~/.ansible/vault_password` (on x000)
 
 **Secrets stored:**
 - Proxmox API tokens
@@ -153,7 +156,7 @@ Playbooks are triggered via Semaphore UI or webhook handler:
 - Push to `pve/x201/*` → Deploy x201 services
 - Push to `ansible/*` → Syntax check
 
-See: `pve/x199/docker/config/webhook/README.md`
+See: `pve/x000/docker/config/webhook/README.md`
 
 ## Configuration
 
@@ -174,10 +177,10 @@ control_path = /tmp/ansible-ssh-%%h-%%p-%%r
 
 ### SSH Key Setup
 
-**On x199 control node:**
+**On x000 control node:**
 ```bash
 # Generate SSH key (done by setup script)
-ssh-keygen -t ed25519 -C "ansible@x199" -f ~/.ssh/ansible_ed25519
+ssh-keygen -t ed25519 -C "ansible@x000" -f ~/.ssh/ansible_ed25519
 
 # Distribute to managed hosts
 ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.100

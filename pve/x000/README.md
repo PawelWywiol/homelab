@@ -1,21 +1,107 @@
-# x000 - Legacy Services
+# x000 - Control Node
 
-**Status**: Deprecated - migrate to x202
+Automation and orchestration hub for the homelab infrastructure. Runs on a standalone machine.
 
-Legacy flat-structure services. Each service in own directory with compose.yml.
+## Quick Start
 
-**Services**:
-- cloudflared - Cloudflare Tunnel
-- emulatorjs - Retro game emulation
-- glitchtip - Error tracking
-- k6 - Load testing
-- marqo - Vector search
-- passbolt - Password manager
-- qbittorrent - Torrent client w/ VPN
-- romm - ROM manager
-- samba - File sharing
-- sitespeed - Performance monitoring
-- traefik - Reverse proxy
-- wakapi - Activity tracking
+```bash
+# On local machine
+git clone https://github.com/PawelWywiol/homelab.git && cd homelab
+make push x000
 
-**Migration**: Move services to x202 structure when updating.
+# On x000 (192.168.0.2)
+ssh code@x000
+cp bootstrap.env.example .env
+nano .env  # Set: CLOUDFLARE_API_TOKEN, BASE_DOMAIN, CONTROL_NODE_IP
+make bootstrap
+```
+
+## Services
+
+| Service | Port | Description |
+|---------|------|-------------|
+| caddy | 80, 443 | Reverse proxy with auto-HTTPS |
+| semaphore | 3001 | Ansible automation UI |
+| webhook | 8097 | GitHub webhook handler |
+| portainer | 9443 | Container management UI |
+| cloudflared | - | Cloudflare Tunnel |
+| pihole | 53, 5080 | DNS + ad-blocking |
+
+## Usage
+
+```bash
+# Manage services
+make caddy up|down|restart|pull|logs
+make semaphore up|down|restart|pull|logs
+make webhook up|down|restart|pull|logs
+make portainer up|down|restart|pull|logs
+make cloudflared up|down|restart|pull|logs
+make pihole up|down|restart|pull|logs
+
+# Setup
+make bootstrap   # Run control node bootstrap
+make backup      # Backup control node
+make verify      # Verify backups
+
+# Tools
+make random      # Generate random secret
+make help        # Show help
+```
+
+## Structure
+
+**In repository (pve/x000/):**
+```
+pve/x000/
+├── Makefile              # Service + setup commands
+├── bootstrap.sh          # Control node setup
+├── bootstrap.env.example
+├── backup-control-node.sh
+├── verify-backups.sh
+├── .envrc                # Sync config
+├── ansible/              # Ansible configuration
+│   ├── ansible.cfg
+│   ├── inventory/hosts.yml
+│   ├── playbooks/
+│   ├── group_vars/all/
+│   └── roles/
+├── infra/tofu/           # OpenTofu (Proxmox VMs)
+│   ├── provider.tf
+│   ├── variables.tf
+│   ├── vms.tf
+│   └── terraform.tfvars.example
+└── docker/config/
+    ├── caddy/            # Reverse proxy
+    ├── semaphore/        # Ansible UI
+    ├── webhook/          # GitHub webhooks
+    ├── portainer/        # Container management
+    ├── cloudflared/      # Cloudflare tunnel
+    └── pihole/           # DNS + ad-blocking
+```
+
+**On x000 (after sync):**
+```
+~/
+├── Makefile
+├── bootstrap.sh
+├── ansible/
+├── infra/tofu/
+├── docker/config/
+└── .semaphore/           # Semaphore data (created by bootstrap)
+```
+
+## GitOps Triggers
+
+| Path Change | Action |
+|-------------|--------|
+| `pve/x202/*` | Deploy x202 services |
+| `pve/x201/*` | Deploy x201 services |
+| `pve/x000/infra/tofu/*` | OpenTofu plan |
+| `pve/x000/ansible/*` | Ansible syntax check |
+
+## Documentation
+
+- [Webhook Service](docker/config/webhook/README.md) - GitHub webhook configuration
+- [Automation Guide](../../docs/automation/ansible-opentofu-automation.md) - Full automation setup
+- [Ansible README](ansible/README.md) - Ansible playbooks and vault
+- [OpenTofu README](infra/README.md) - Proxmox VM management

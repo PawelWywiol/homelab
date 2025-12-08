@@ -23,15 +23,6 @@ output "vm_names" {
   value       = ["x100", "x199", "x201", "x202"]
 }
 
-output "control_node" {
-  description = "Control node details"
-  value = {
-    name = proxmox_virtual_environment_vm.x199.name
-    id   = proxmox_virtual_environment_vm.x199.vm_id
-    ip   = "192.168.0.199"
-  }
-}
-
 output "ansible_inventory_hint" {
   description = "Hint for generating Ansible inventory"
   value       = <<-EOT

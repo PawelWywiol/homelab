@@ -1,4 +1,4 @@
-# Remote sync configuration for x199
+# Remote sync configuration for x000
 # Copy this file to .envrc and fill in REMOTE_HOST
 
 REMOTE_HOST=""

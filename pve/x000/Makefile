@@ -1,7 +1,7 @@
 .PHONY: help
 help:
 	@echo " "
-	@echo "Makefile for x199 control node services"
+	@echo "Makefile for x000 control node services"
 	@echo " "
 	@echo "Usage:"
 	@echo "  make APP [up|down|restart|pull|logs]"
