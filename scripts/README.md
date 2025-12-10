@@ -4,15 +4,68 @@ Initialization and utility scripts for homelab setup.
 
 ## Available Scripts
 
-**init-lxc.sh** - LXC container initialization
-**init-vm.sh** - VM initialization
-**sync-files.sh** - Bidirectional file sync (rsync wrapper)
+| Script | Purpose |
+|--------|---------|
+| `init-host.sh` | Universal host initialization (VM, LXC, RPi, bare metal) |
+| `sync-files.sh` | Bidirectional file sync (rsync wrapper) |
+
+## init-host.sh
+
+Universal initialization script supporting Ubuntu, Debian, and Raspberry Pi OS across VMs, LXC containers, and bare metal.
+
+### Features
+
+- Auto-detects environment (LXC, VM, RPi, bare metal)
+- Auto-detects OS via `/etc/os-release`
+- Installs base packages: ca-certificates, curl, sudo, zsh, rsync, build-essential
+- Configures passwordless sudo for Ansible compatibility
+- Docker installation via get.docker.com
+- User creation with SSH key setup
+- QEMU guest agent (VMs only)
+- Kitty terminal compatibility fix
+
+### Usage
+
+```bash
+# Basic usage (as root)
+curl -fsSL https://raw.githubusercontent.com/PawelWywiol/homelab/main/scripts/init-host.sh | bash
+
+# Or download and run with options
+./init-host.sh [OPTIONS]
+
+# Options:
+#   --disable-dns-stub   Disable systemd-resolved DNSStubListener (for local DNS)
+#   --skip-docker        Skip Docker installation
+#   --skip-user          Skip user creation
+```
+
+### Configuration
+
+Create `.env` file in same directory (optional):
+
+```bash
+# Username to create (default: code)
+USERNAME="code"
+
+# SSH public key(s) for authorized_keys
+AUTHORIZED_KEYS="ssh-ed25519 AAAA... user@host"
+```
+
+See `.env.example` for template.
+
+### What it configures
+
+1. **Base packages** - Essential tools for management
+2. **Sudo** - Passwordless sudo for created user (required by Ansible)
+3. **Docker** - Docker Engine + Compose plugin
+4. **User** - Non-root user with docker group membership
+5. **SSH** - Authorized keys from config or generates new keypair
 
 ## sync-files.sh
 
 Synchronize files between local and remote systems using rsync.
 
-**Usage:**
+### Usage
 
 ```bash
 # Pull: Server -> Local
@@ -24,9 +77,9 @@ Synchronize files between local and remote systems using rsync.
 
 NAME must match a directory in `pve/` (x000, x201, x202, x250).
 
-**Configuration:**
+### Configuration
 
-Each `pve/NAME/` directory must have a `.envrc` file with:
+Each `pve/NAME/` directory must have a `.envrc` file:
 
 ```bash
 REMOTE_HOST="user@hostname"
@@ -38,68 +91,9 @@ REMOTE_FILES=(
 
 Copy `.envrc.example` to `.envrc` and set `REMOTE_HOST`.
 
-## init-lxc.sh
-
-Initialize LXC container with user setup and SSH access.
-
-### On Container
-
-Run the script, then reset `code` user password:
-
-```bash
-passwd code
-```
-
-### On Local Machine
-
-**1. Remove previous SSH entry:**
-
-```bash
-ssh-keygen -R 192.168.0.XXX
-```
-
-**2. Add SSH key:**
-
-```bash
-ssh-copy-id code@192.168.0.XXX
-```
-
-**3. Update SSH config:**
-
-```bash
-nano ~/.ssh/config
-```
-
-```
-Host local-host
-  HostName 192.168.0.XXX
-  User code
-```
-
-**4. Install ZSH (optional):**
-
-```bash
-# Install Oh My Zsh
-sh -c "$(curl -fsSL https://install.ohmyz.sh)"
-
-# Install Powerlevel10k theme
-git clone --depth=1 https://github.com/romkatv/powerlevel10k.git \
-  "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
-
-# Install plugins
-git clone https://github.com/zsh-users/zsh-autosuggestions \
-  ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
-
-git clone https://github.com/zsh-users/zsh-syntax-highlighting.git \
-  ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
-
-# Reload
-source ~/.zshrc
-```
-
 ## Tests
 
-Test suite is located in `scripts/tests/`:
+Test suite located in `scripts/tests/`:
 
 ```bash
 ./scripts/tests/test-sync-makefile.sh
