@@ -179,6 +179,19 @@ cd ~/ansible
 ansible all -m ping
 ```
 
+**Note: Sudo Requirements**
+
+Ansible requires passwordless sudo on all managed hosts. The `init-host.sh` script configures this automatically. For existing hosts, ensure:
+
+```bash
+# On each managed host (as root)
+apt install -y sudo  # if not installed (common on minimal LXC)
+echo "code ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/code
+chmod 440 /etc/sudoers.d/code
+```
+
+Without this, Ansible fails with `Missing sudo password` or `sudo: not found`.
+
 **Step 3: Configure OpenTofu**
 
 ```bash
