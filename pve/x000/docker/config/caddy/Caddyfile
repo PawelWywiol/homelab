@@ -1,0 +1,116 @@
+{
+  admin 0.0.0.0:2019
+}
+
+*.local.wywiol.eu {
+    tls {
+        dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+        propagation_delay 2m
+        resolvers 1.1.1.1
+    }
+
+    @portainer host portainer.local.wywiol.eu
+    handle @portainer {
+        @local remote_ip 192.168.0.0/24
+        handle @local {
+          reverse_proxy https://portainer:9443 {
+              transport http {
+                  tls
+                  tls_insecure_skip_verify
+              }
+          }
+        }
+        respond "Access denied" 403
+    }
+
+    @semaphore host semaphore.local.wywiol.eu
+    handle @semaphore {
+        @local remote_ip 192.168.0.0/24
+        handle @local {
+            reverse_proxy semaphore:3000
+        }
+        respond "Access denied" 403
+    }
+
+    @webhook host webhook.wywiol.eu
+    handle @webhook {
+        @github remote_ip 140.82.112.0/20 185.199.108.0/22 192.30.252.0/22
+        handle @github {
+            reverse_proxy webhook:9000
+        }
+        respond "Access denied" 403
+    }
+
+    @pihole host pihole.local.wywiol.eu
+    handle @pihole {
+        @local remote_ip 192.168.0.0/24
+        handle @local {
+            reverse_proxy http://pihole:80
+        }
+        respond "Access denied" 403
+    }
+
+    @glitchtip host glitchtip.local.wywiol.eu
+    handle @glitchtip {
+        @local remote_ip 192.168.0.0/24
+        handle @local {
+            reverse_proxy 192.168.0.105:8000
+        }
+        respond "Access denied" 403
+    }
+
+    @passbolt host passbolt.local.wywiol.eu
+    handle @passbolt {
+        @local remote_ip 192.168.0.0/24
+        handle @local {
+            reverse_proxy 192.168.0.108:80
+        }
+        respond "Access denied" 403
+    }
+
+    @proxmox host proxmox.local.wywiol.eu
+    handle @proxmox {
+        @local remote_ip 192.168.0.0/24
+        handle @local {
+          reverse_proxy https://192.168.0.200:8006 {
+              transport http {
+                  tls
+                  tls_insecure_skip_verify
+              }
+          }
+        }
+        respond "Access denied" 403
+    }
+
+    @retro host retro.local.wywiol.eu
+    handle @retro {
+        @local remote_ip 192.168.0.0/24
+        handle @local {
+            reverse_proxy 192.168.0.111:80
+        }
+        respond "Access denied" 403
+    }
+
+    @sitespeed host sitespeed.local.wywiol.eu
+    handle @sitespeed {
+        @local remote_ip 192.168.0.0/24
+        handle @local {
+            reverse_proxy 192.168.0.107:3000
+        }
+        respond "Access denied" 403
+    }
+
+    @wakapi host wakapi.local.wywiol.eu
+    handle @wakapi {
+        @local remote_ip 192.168.0.0/24
+        handle @local {
+            reverse_proxy 192.168.0.104:3000
+        }
+        respond "Access denied" 403
+    }
+
+    handle {
+        respond "x000 Control Node" 200
+    }
+}
+

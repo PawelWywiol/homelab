@@ -14,7 +14,6 @@ services:
       - caddy_config:/config
       - caddy_data:/data
       - ${PWD}/docker/config/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ${PWD}/docker/config/caddy/Caddyfile.template:/etc/caddy/Caddyfile.template:ro
       - ${PWD}/docker/config/caddy/index.html:/usr/share/caddy/index.html:ro
     environment:
       - CLOUDFLARE_EMAIL=${CLOUDFLARE_EMAIL}
