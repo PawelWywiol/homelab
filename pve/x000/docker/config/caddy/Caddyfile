@@ -2,6 +2,23 @@
   admin 0.0.0.0:2019
 }
 
+*.wywiol.eu {
+    tls {
+        dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+        propagation_delay 2m
+        resolvers 1.1.1.1
+    }
+
+    @webhook host webhook.wywiol.eu
+    handle @webhook {
+        @github remote_ip 140.82.112.0/20 185.199.108.0/22 192.30.252.0/22
+        handle @github {
+            reverse_proxy webhook:9000
+        }
+        respond "Access denied" 403
+    }
+}
+
 *.local.wywiol.eu {
     tls {
         dns cloudflare {env.CLOUDFLARE_API_TOKEN}
@@ -28,15 +45,6 @@
         @local remote_ip 192.168.0.0/24
         handle @local {
             reverse_proxy semaphore:3000
-        }
-        respond "Access denied" 403
-    }
-
-    @webhook host webhook.wywiol.eu
-    handle @webhook {
-        @github remote_ip 140.82.112.0/20 185.199.108.0/22 192.30.252.0/22
-        handle @github {
-            reverse_proxy webhook:9000
         }
         respond "Access denied" 403
     }
