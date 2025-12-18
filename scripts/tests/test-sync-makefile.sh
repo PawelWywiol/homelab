@@ -64,6 +64,33 @@ REMOTE_FILES=(
 )
 EOF
 
+    # pathabs: .envrc with absolute path
+    mkdir -p "$TEST_DIR/pve/pathabs"
+    cat > "$TEST_DIR/pve/pathabs/.envrc" <<'EOF'
+REMOTE_HOST="code@server:/opt/data/"
+REMOTE_FILES=(
+  "config"
+)
+EOF
+
+    # pathrel: .envrc with home-relative path
+    mkdir -p "$TEST_DIR/pve/pathrel"
+    cat > "$TEST_DIR/pve/pathrel/.envrc" <<'EOF'
+REMOTE_HOST="code@server:~/projects/"
+REMOTE_FILES=(
+  "app"
+)
+EOF
+
+    # pathempty: .envrc with empty path after colon
+    mkdir -p "$TEST_DIR/pve/pathempty"
+    cat > "$TEST_DIR/pve/pathempty/.envrc" <<'EOF'
+REMOTE_HOST="code@server:"
+REMOTE_FILES=(
+  "data"
+)
+EOF
+
     # Copy sync-files.sh to test directory (real script, mocked rsync)
     mkdir -p "$TEST_DIR/scripts"
     cp "$REPO_ROOT/scripts/sync-files.sh" "$TEST_DIR/scripts/sync-files.sh"
@@ -272,9 +299,41 @@ run_test "make push without target" \
     "Usage: make push NAME" \
     true
 
+echo -e "\n${YELLOW}=== Path Format Tests ===${NC}"
+
+# Test 15: push with absolute path
+run_test "sync-files.sh push with absolute path" \
+    "./scripts/sync-files.sh push pathabs" \
+    "code@server:/opt/data/"
+
+# Test 16: pull with absolute path
+run_test "sync-files.sh pull with absolute path" \
+    "./scripts/sync-files.sh pull pathabs" \
+    "code@server:/opt/data/"
+
+# Test 17: push with home-relative path
+run_test "sync-files.sh push with ~/path" \
+    "./scripts/sync-files.sh push pathrel" \
+    "code@server:~/projects/"
+
+# Test 18: pull with home-relative path
+run_test "sync-files.sh pull with ~/path" \
+    "./scripts/sync-files.sh pull pathrel" \
+    "code@server:~/projects/"
+
+# Test 19: push with empty path after colon
+run_test "sync-files.sh push with empty path (user@host:)" \
+    "./scripts/sync-files.sh push pathempty" \
+    "code@server:"
+
+# Test 20: pull with empty path after colon
+run_test "sync-files.sh pull with empty path (user@host:)" \
+    "./scripts/sync-files.sh pull pathempty" \
+    "code@server:"
+
 echo -e "\n${YELLOW}=== Help Command ===${NC}"
 
-# Test 15: help command
+# Test 21: help command
 TESTS_TOTAL=$((TESTS_TOTAL + 1))
 echo -n "Test $TESTS_TOTAL: help shows usage with NAME ... "
 cd "$TEST_DIR"

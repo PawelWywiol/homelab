@@ -60,15 +60,35 @@ if [ -z "${REMOTE_FILES[*]}" ]; then
     exit 1
 fi
 
-echo "Syncing $NAME ($ACTION) with $REMOTE_HOST..."
+# Parse REMOTE_HOST to extract user@host and optional path
+# Formats: user@host, user@host:, user@host:/path, user@host:~/path
+if [[ "$REMOTE_HOST" =~ ^([^@]+@[^:]+):?(.*)$ ]]; then
+    USER_HOST="${BASH_REMATCH[1]}"
+    REMOTE_PATH="${BASH_REMATCH[2]}"
+else
+    echo "Error: Invalid REMOTE_HOST format '$REMOTE_HOST'"
+    echo "Expected: user@host, user@host:, user@host:/path, or user@host:~/path"
+    exit 1
+fi
+
+# Build remote destination (empty path = home directory)
+if [ -n "$REMOTE_PATH" ]; then
+    # Ensure path ends with / for proper rsync behavior
+    REMOTE_PATH="${REMOTE_PATH%/}/"
+    REMOTE_DEST="$USER_HOST:$REMOTE_PATH"
+else
+    REMOTE_DEST="$USER_HOST:"
+fi
+
+echo "Syncing $NAME ($ACTION) with $USER_HOST (path: ${REMOTE_PATH:-~/})..."
 
 for item in "${REMOTE_FILES[@]}"; do
     if [ "$ACTION" = "pull" ]; then
         # Pull: remote -> local
-        rsync -avPL --no-perms --no-owner --no-group --update --checksum --relative "$REMOTE_HOST:./$item" "$LOCAL_PATH/"
+        rsync -avPL --no-perms --no-owner --no-group --update --checksum --mkpath --relative "$USER_HOST:${REMOTE_PATH:+$REMOTE_PATH}./$item" "$LOCAL_PATH/"
     else
         # Push: local -> remote
-        rsync -avPL --no-perms --no-owner --no-group --update --checksum --relative "$LOCAL_PATH/./$item" "$REMOTE_HOST:~/"
+        rsync -avPL --no-perms --no-owner --no-group --update --checksum --mkpath --relative "$LOCAL_PATH/./$item" "$REMOTE_DEST"
     fi
     echo "Synchronized: $item"
 done

@@ -1,12 +1,12 @@
 #!/bin/bash
-# Test suite for init-development-host.sh
+# Test suite for init-host.sh
 # Tests idempotency, CLI flags, and installation functions
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
-SCRIPT_UNDER_TEST="$REPO_ROOT/scripts/init-development-host.sh"
+SCRIPT_UNDER_TEST="$REPO_ROOT/scripts/init-host.sh"
 
 # Colors
 RED='\033[0;31m'
@@ -34,8 +34,8 @@ setup_test_env() {
     # Copy script to test directory
     mkdir -p "$TEST_DIR/scripts"
     if [[ -f "$SCRIPT_UNDER_TEST" ]]; then
-        cp "$SCRIPT_UNDER_TEST" "$TEST_DIR/scripts/init-development-host.sh"
-        chmod +x "$TEST_DIR/scripts/init-development-host.sh"
+        cp "$SCRIPT_UNDER_TEST" "$TEST_DIR/scripts/init-host.sh"
+        chmod +x "$TEST_DIR/scripts/init-host.sh"
     fi
 
     # Create mock commands directory
@@ -48,14 +48,6 @@ echo "APT: $@" >> "$MOCK_LOG"
 exit 0
 EOF
     chmod +x "$TEST_DIR/mocks/apt-get"
-
-    # Mock apt-add-repository
-    cat > "$TEST_DIR/mocks/apt-add-repository" <<'EOF'
-#!/bin/bash
-echo "APT-ADD-REPO: $@" >> "$MOCK_LOG"
-exit 0
-EOF
-    chmod +x "$TEST_DIR/mocks/apt-add-repository"
 
     # Mock curl - handles different URLs
     cat > "$TEST_DIR/mocks/curl" <<'EOF'
@@ -106,22 +98,6 @@ echo "CHSH: $@" >> "$MOCK_LOG"
 exit 0
 EOF
     chmod +x "$TEST_DIR/mocks/chsh"
-
-    # Mock update-alternatives
-    cat > "$TEST_DIR/mocks/update-alternatives" <<'EOF'
-#!/bin/bash
-echo "UPDATE-ALTERNATIVES: $@" >> "$MOCK_LOG"
-exit 0
-EOF
-    chmod +x "$TEST_DIR/mocks/update-alternatives"
-
-    # Mock fnm
-    cat > "$TEST_DIR/mocks/fnm" <<'EOF'
-#!/bin/bash
-echo "FNM: $@" >> "$MOCK_LOG"
-exit 0
-EOF
-    chmod +x "$TEST_DIR/mocks/fnm"
 
     # Mock infocmp - simulate kitty not installed
     cat > "$TEST_DIR/mocks/infocmp" <<'EOF'
@@ -180,14 +156,29 @@ exit 0
 EOF
     chmod +x "$TEST_DIR/mocks/which"
 
-    # Mock command - for checking if commands exist
-    # This is tricky since 'command' is a shell builtin
+    # Mock gpg
+    cat > "$TEST_DIR/mocks/gpg" <<'EOF'
+#!/bin/bash
+echo "GPG: $@" >> "$MOCK_LOG"
+exit 0
+EOF
+    chmod +x "$TEST_DIR/mocks/gpg"
+
+    # Mock dpkg
+    cat > "$TEST_DIR/mocks/dpkg" <<'EOF'
+#!/bin/bash
+echo "DPKG: $@" >> "$MOCK_LOG"
+echo "amd64"
+exit 0
+EOF
+    chmod +x "$TEST_DIR/mocks/dpkg"
 
     # Create fake /etc/os-release
     mkdir -p "$TEST_DIR/etc"
     cat > "$TEST_DIR/etc/os-release" <<'EOF'
 ID=ubuntu
 VERSION_ID="22.04"
+VERSION_CODENAME=jammy
 EOF
 
     echo -e "${GREEN}Test environment ready at: $TEST_DIR${NC}"
@@ -283,7 +274,7 @@ run_test() {
 # Test suite
 # =============================================================================
 
-echo -e "${YELLOW}=== init-development-host.sh Test Suite ===${NC}\n"
+echo -e "${YELLOW}=== init-host.sh Test Suite ===${NC}\n"
 
 # Check if script exists
 if [[ ! -f "$SCRIPT_UNDER_TEST" ]]; then
@@ -303,25 +294,49 @@ echo -e "\n${YELLOW}=== CLI Flag Tests ===${NC}"
 
 # Test: --help flag
 run_test "--help shows usage" \
-    "./scripts/init-development-host.sh --help" \
+    "./scripts/init-host.sh --help" \
     "Usage:" \
+    false true
+
+# Test: --help shows --disable-dns-stub option
+run_test "--help shows --disable-dns-stub option" \
+    "./scripts/init-host.sh --help" \
+    "--disable-dns-stub" \
+    false true
+
+# Test: --help shows --skip-docker option
+run_test "--help shows --skip-docker option" \
+    "./scripts/init-host.sh --help" \
+    "--skip-docker" \
+    false true
+
+# Test: --help shows --skip-user option
+run_test "--help shows --skip-user option" \
+    "./scripts/init-host.sh --help" \
+    "--skip-user" \
     false true
 
 # Test: --help shows --install-php option
 run_test "--help shows --install-php option" \
-    "./scripts/init-development-host.sh --help" \
+    "./scripts/init-host.sh --help" \
     "--install-php" \
     false true
 
-# Test: --help shows --skip-node option
-run_test "--help shows --skip-node option" \
-    "./scripts/init-development-host.sh --help" \
-    "--skip-node" \
+# Test: --help shows --install-node option
+run_test "--help shows --install-node option" \
+    "./scripts/init-host.sh --help" \
+    "--install-node" \
+    false true
+
+# Test: --help shows --install-fortivpn option
+run_test "--help shows --install-fortivpn option" \
+    "./scripts/init-host.sh --help" \
+    "--install-fortivpn" \
     false true
 
 # Test: unknown flag
 run_test "unknown flag shows error" \
-    "./scripts/init-development-host.sh --unknown-flag" \
+    "./scripts/init-host.sh --unknown-flag" \
     "Unknown option" \
     true
 
@@ -332,31 +347,15 @@ echo -e "\n${YELLOW}=== Configuration Tests ===${NC}"
 # Test: loads .env file
 cat > "$TEST_DIR/scripts/.env" <<'EOF'
 USERNAME="testuser"
-SKIP_NODE=true
+SKIP_DOCKER=true
 EOF
 
 run_test "loads config from .env" \
-    "./scripts/init-development-host.sh --help" \
+    "./scripts/init-host.sh --help" \
     "testuser|\.env" \
     false true
 
 rm -f "$TEST_DIR/scripts/.env"
-
-# =============================================================================
-echo -e "\n${YELLOW}=== Default Settings Tests ===${NC}"
-# =============================================================================
-
-# Test: PHP skipped by default (SKIP_PHP=true)
-run_test "PHP skipped by default (SKIP_PHP=true)" \
-    "./scripts/init-development-host.sh --help" \
-    "SKIP_PHP=true" \
-    false true
-
-# Test: Node installed by default (SKIP_NODE=false)
-run_test "Node installed by default (SKIP_NODE=false)" \
-    "./scripts/init-development-host.sh --help" \
-    "SKIP_NODE=false" \
-    false true
 
 # =============================================================================
 echo -e "\n${YELLOW}=== Script Structure Tests ===${NC}"
@@ -364,151 +363,228 @@ echo -e "\n${YELLOW}=== Script Structure Tests ===${NC}"
 
 # Test: script contains homebrew install function
 run_test "script has install_homebrew function" \
-    "grep -q 'install_homebrew()' ./scripts/init-development-host.sh && echo found" \
+    "grep -q 'install_homebrew()' ./scripts/init-host.sh && echo found" \
     "found" \
     false true
 
 # Test: script contains brew packages function
 run_test "script has install_brew_packages function" \
-    "grep -q 'install_brew_packages()' ./scripts/init-development-host.sh && echo found" \
+    "grep -q 'install_brew_packages()' ./scripts/init-host.sh && echo found" \
     "found" \
     false true
 
 # Test: script contains zsh stack function
 run_test "script has install_zsh_stack function" \
-    "grep -q 'install_zsh_stack()' ./scripts/init-development-host.sh && echo found" \
+    "grep -q 'install_zsh_stack()' ./scripts/init-host.sh && echo found" \
     "found" \
     false true
 
-# Test: script contains php stack function
-run_test "script has install_php_stack function" \
-    "grep -q 'install_php_stack()' ./scripts/init-development-host.sh && echo found" \
-    "found" \
-    false true
-
-# Test: script contains node stack function
-run_test "script has install_node_stack function" \
-    "grep -q 'install_node_stack()' ./scripts/init-development-host.sh && echo found" \
-    "found" \
-    false true
-
-# Test: script installs openfortivpn
-run_test "script installs openfortivpn" \
-    "grep -q 'openfortivpn' ./scripts/init-development-host.sh && echo found" \
+# Test: script contains setup_zshrc function
+run_test "script has setup_zshrc function" \
+    "grep -q 'setup_zshrc()' ./scripts/init-host.sh && echo found" \
     "found" \
     false true
 
 # Test: script installs neovim via brew
 run_test "script installs neovim via brew" \
-    "grep -q 'neovim' ./scripts/init-development-host.sh && echo found" \
+    "grep -q 'neovim' ./scripts/init-host.sh && echo found" \
     "found" \
     false true
 
 # Test: script installs lazygit via brew
 run_test "script installs lazygit via brew" \
-    "grep -q 'lazygit' ./scripts/init-development-host.sh && echo found" \
-    "found" \
-    false true
-
-# Test: script installs fnm for node version management
-run_test "script installs fnm" \
-    "grep -q 'fnm' ./scripts/init-development-host.sh && echo found" \
+    "grep -q 'lazygit' ./scripts/init-host.sh && echo found" \
     "found" \
     false true
 
 # Test: script has install_lazyvim function
 run_test "script has install_lazyvim function" \
-    "grep -q 'install_lazyvim()' ./scripts/init-development-host.sh && echo found" \
+    "grep -q 'install_lazyvim()' ./scripts/init-host.sh && echo found" \
     "found" \
     false true
 
 # Test: script clones LazyVim starter
 run_test "script clones LazyVim starter" \
-    "grep -q 'LazyVim/starter' ./scripts/init-development-host.sh && echo found" \
+    "grep -q 'LazyVim/starter' ./scripts/init-host.sh && echo found" \
     "found" \
     false true
 
 # Test: script installs powerlevel10k
 run_test "script installs powerlevel10k" \
-    "grep -q 'powerlevel10k' ./scripts/init-development-host.sh && echo found" \
+    "grep -q 'powerlevel10k' ./scripts/init-host.sh && echo found" \
     "found" \
     false true
 
 # Test: script installs oh-my-zsh
 run_test "script installs oh-my-zsh" \
-    "grep -q 'ohmyzsh\|oh-my-zsh' ./scripts/init-development-host.sh && echo found" \
+    "grep -q 'ohmyzsh\|oh-my-zsh' ./scripts/init-host.sh && echo found" \
     "found" \
     false true
 
 # Test: script has run_as_user_with_brew helper for PATH issues
 run_test "script has run_as_user_with_brew helper" \
-    "grep -q 'run_as_user_with_brew()' ./scripts/init-development-host.sh && echo found" \
+    "grep -q 'run_as_user_with_brew()' ./scripts/init-host.sh && echo found" \
     "found" \
     false true
 
 # Test: script uses .zprofile for zsh compatibility
 run_test "script uses .zprofile for brew PATH" \
-    "grep -q '.zprofile' ./scripts/init-development-host.sh && echo found" \
+    "grep -q '.zprofile' ./scripts/init-host.sh && echo found" \
     "found" \
     false true
 
 # Test: script has install_docker function
 run_test "script has install_docker function" \
-    "grep -q 'install_docker()' ./scripts/init-development-host.sh && echo found" \
+    "grep -q 'install_docker()' ./scripts/init-host.sh && echo found" \
     "found" \
     false true
 
 # Test: script installs docker-ce
 run_test "script installs docker-ce" \
-    "grep -q 'docker-ce' ./scripts/init-development-host.sh && echo found" \
+    "grep -q 'docker-ce' ./scripts/init-host.sh && echo found" \
     "found" \
     false true
 
 # Test: script installs docker-compose-plugin
 run_test "script installs docker-compose-plugin" \
-    "grep -q 'docker-compose-plugin' ./scripts/init-development-host.sh && echo found" \
-    "found" \
-    false true
-
-# Test: --help shows --skip-docker option
-run_test "--help shows --skip-docker option" \
-    "./scripts/init-development-host.sh --help" \
-    "--skip-docker" \
-    false true
-
-# Test: Docker installed by default (SKIP_DOCKER=false)
-run_test "Docker installed by default (SKIP_DOCKER=false)" \
-    "./scripts/init-development-host.sh --help" \
-    "SKIP_DOCKER=false" \
-    false true
-
-# Test: script installs PHP 7.4 and 8.3
-run_test "script installs PHP 7.4" \
-    "grep -q 'php7.4' ./scripts/init-development-host.sh && echo found" \
-    "found" \
-    false true
-
-run_test "script installs PHP 8.3" \
-    "grep -q 'php8.3' ./scripts/init-development-host.sh && echo found" \
-    "found" \
-    false true
-
-# Test: script installs composer
-run_test "script installs composer" \
-    "grep -q 'composer' ./scripts/init-development-host.sh && echo found" \
+    "grep -q 'docker-compose-plugin' ./scripts/init-host.sh && echo found" \
     "found" \
     false true
 
 # Test: script has idempotency checks (already installed patterns)
 run_test "script has idempotency checks" \
-    "grep -c 'already installed' ./scripts/init-development-host.sh | grep -E '^[5-9]|^[0-9]{2}' && echo found" \
+    "grep -c 'already installed' ./scripts/init-host.sh | grep -E '^[5-9]|^[0-9]{2}' && echo found" \
     "found" \
     false true
 
 # Test: script installs font-anonymous-pro
 run_test "script installs font-anonymous-pro" \
-    "grep -q 'font-anonymous-pro' ./scripts/init-development-host.sh && echo found" \
+    "grep -q 'font-anonymous-pro' ./scripts/init-host.sh && echo found" \
     "found" \
+    false true
+
+# Test: script installs git
+run_test "script installs git in base packages" \
+    "grep -q 'git' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+# Test: script installs unzip
+run_test "script installs unzip in base packages" \
+    "grep -q 'unzip' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+# Test: script installs locales
+run_test "script installs locales in base packages" \
+    "grep -q 'locales' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+# Test: script generates locale
+run_test "script generates en_US.UTF-8 locale" \
+    "grep -q 'locale-gen en_US.UTF-8' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+# =============================================================================
+echo -e "\n${YELLOW}=== Optional Feature Tests (PHP/Node/VPN) ===${NC}"
+# =============================================================================
+
+# Test: script has install_php_stack function
+run_test "script has install_php_stack function" \
+    "grep -q 'install_php_stack()' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+# Test: script has install_node_stack function
+run_test "script has install_node_stack function" \
+    "grep -q 'install_node_stack()' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+# Test: script has install_fortivpn function
+run_test "script has install_fortivpn function" \
+    "grep -q 'install_fortivpn()' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+# Test: script has setup_version_switcher function
+run_test "script has setup_version_switcher function" \
+    "grep -q 'setup_version_switcher()' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+# Test: PHP stack includes ondrej/php PPA
+run_test "PHP stack uses ondrej/php PPA" \
+    "grep -q 'ondrej/php' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+# Test: PHP stack installs PHP 7.4
+run_test "PHP stack installs PHP 7.4" \
+    "grep -q 'php7.4' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+# Test: PHP stack installs PHP 8.3
+run_test "PHP stack installs PHP 8.3" \
+    "grep -q 'php8.3' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+# Test: PHP stack installs Composer
+run_test "PHP stack installs Composer" \
+    "grep -q 'getcomposer.org' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+# Test: script installs fnm via brew (always, for optional Node)
+run_test "script installs fnm via brew" \
+    "grep -q 'fnm' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+# Test: Node stack installs Node 20 LTS
+run_test "Node stack installs Node 20 LTS" \
+    "grep -q 'fnm install 20' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+# Test: fortivpn installs openfortivpn
+run_test "fortivpn installs openfortivpn package" \
+    "grep -q 'openfortivpn' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+# Test: version switcher references Makefile template
+run_test "version switcher uses Makefile template" \
+    "grep -q 'init-host/Makefile\\|Makefile' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+# Test: PHP is opt-in (SKIP_PHP=true by default)
+run_test "PHP is opt-in (SKIP_PHP=true default)" \
+    "grep -q 'SKIP_PHP=true' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+# Test: Node is opt-in (SKIP_NODE=true by default)
+run_test "Node is opt-in (SKIP_NODE=true default)" \
+    "grep -q 'SKIP_NODE=true' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+# Test: Fortivpn is opt-in (SKIP_FORTIVPN=true by default)
+run_test "Fortivpn is opt-in (SKIP_FORTIVPN=true default)" \
+    "grep -q 'SKIP_FORTIVPN=true' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+# Test: syntax validation
+run_test "script has valid bash syntax" \
+    "bash -n ./scripts/init-host.sh && echo valid" \
+    "valid" \
     false true
 
 # Cleanup
