@@ -1,0 +1,17 @@
+.ansible
+.env
+.semaphore
+.ssh
+docker/config/caddy/.env
+docker/config/caddy/.envrc
+docker/config/cloudflared/.env
+docker/config/cloudflared/.envrc
+docker/config/pihole/.env
+docker/config/pihole/.envrc
+docker/config/semaphore/.env
+docker/config/semaphore/.envrc
+docker/config/webhook/.env
+docker/config/webhook/.envrc
+docker/data/pihole/
+infra/tofu/terraform.tfstate
+infra/tofu/terraform.tfvars
