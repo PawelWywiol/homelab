@@ -46,7 +46,7 @@ curl -fsSL https://raw.githubusercontent.com/PawelWywiol/homelab/main/scripts/in
 #   --install-fortivpn  Install openfortivpn (FortiGate VPN client)
 #   --disable-dns-stub  Disable systemd-resolved DNSStubListener
 #   --skip-docker       Skip Docker installation
-#   --skip-user         Skip user creation
+#   --skip-user         Skip user creation (for cloud-init pre-created users)
 ```
 
 ### Configuration
@@ -84,11 +84,14 @@ See `.env.example` for template.
 
 ### Version Switching (PHP/Node)
 
-If PHP or Node is installed, a Makefile is created in user home directory:
+If PHP or Node is installed, a Makefile is created in user home directory (template: `init-host/Makefile`):
 
 ```bash
-# Show current versions
+# Show help
 make help
+
+# Show current versions
+make status
 
 # Switch PHP version
 make php74
