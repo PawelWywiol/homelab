@@ -11,9 +11,9 @@ make push x000
 
 # On x000 (192.168.0.2)
 ssh code@x000
-cp bootstrap.env.example .env
+cp setup.env.example .env
 nano .env  # Set: CLOUDFLARE_API_TOKEN, BASE_DOMAIN, CONTROL_NODE_IP
-make bootstrap
+make setup
 ```
 
 ## Services
@@ -21,7 +21,6 @@ make bootstrap
 | Service | Port | Description |
 |---------|------|-------------|
 | caddy | 80, 443 | Reverse proxy with auto-HTTPS |
-| semaphore | 3001 | Ansible automation UI |
 | webhook | 8097 | GitHub webhook handler |
 | portainer | 9443 | Container management UI |
 | cloudflared | - | Cloudflare Tunnel |
@@ -32,14 +31,16 @@ make bootstrap
 ```bash
 # Manage services
 make caddy up|down|restart|pull|logs
-make semaphore up|down|restart|pull|logs
 make webhook up|down|restart|pull|logs
 make portainer up|down|restart|pull|logs
 make cloudflared up|down|restart|pull|logs
 make pihole up|down|restart|pull|logs
 
+# Bulk operations
+make all up|down  # Start/stop all services
+
 # Setup
-make bootstrap   # Run control node bootstrap
+make setup       # Run control node setup
 make backup      # Backup control node
 make verify      # Verify backups
 
@@ -54,11 +55,14 @@ make help        # Show help
 ```
 pve/x000/
 ├── Makefile              # Service + setup commands
-├── bootstrap.sh          # Control node setup
-├── bootstrap.env.example
+├── setup.sh              # Control node setup
+├── setup.env.example
 ├── backup-control-node.sh
 ├── verify-backups.sh
 ├── .envrc                # Sync config
+├── scripts/              # Host scripts
+│   ├── deploy.sh         # Ansible deployment
+│   └── apply-tofu.sh     # OpenTofu plan/apply
 ├── ansible/              # Ansible configuration
 │   ├── ansible.cfg
 │   ├── inventory/hosts.yml
@@ -72,7 +76,6 @@ pve/x000/
 │   └── terraform.tfvars.example
 └── docker/config/
     ├── caddy/            # Reverse proxy
-    ├── semaphore/        # Ansible UI
     ├── webhook/          # GitHub webhooks
     ├── portainer/        # Container management
     ├── cloudflared/      # Cloudflare tunnel
@@ -83,21 +86,21 @@ pve/x000/
 ```
 ~/
 ├── Makefile
-├── bootstrap.sh
+├── setup.sh
+├── scripts/              # Host scripts (deploy.sh, apply-tofu.sh)
 ├── ansible/
 ├── infra/tofu/
-├── docker/config/
-└── .semaphore/           # Semaphore data (created by bootstrap)
+└── docker/config/
 ```
 
 ## GitOps Triggers
 
 | Path Change | Action |
 |-------------|--------|
-| `pve/x202/*` | Deploy x202 services |
+| `pve/x202/docker/config/*` | Deploy x202 services |
 | `pve/x201/*` | Deploy x201 services |
+| `pve/*/vms.tf` | OpenTofu plan |
 | `pve/x000/infra/tofu/*` | OpenTofu plan |
-| `pve/x000/ansible/*` | Ansible syntax check |
 
 ## Documentation
 

@@ -34,7 +34,7 @@ NAME must match a directory in `pve/` (x000, x201, x202, x250).
 
 ## Environments
 
-- **x000**: Control node (Ansible, Semaphore, webhook handler, DNS)
+- **x000**: Control node (Ansible, webhook handler, DNS)
 - **legacy**: Legacy services (deprecated)
 - **x199**: Legacy VM (Proxmox)
 - **x201**: DNS/network services (Proxmox VM)
@@ -50,16 +50,15 @@ Push to `main` branch triggers automated deployments:
 
 ```
 GitHub Push → webhook.wywiol.eu → x000 webhook handler → {
-  pve/x202/* → Ansible deployment (x202 services)
+  pve/x202/docker/config/* → Ansible deployment (x202 services)
   pve/x201/* → Ansible deployment (x201 services)
+  pve/*/vms.tf → OpenTofu plan (infrastructure updates)
   pve/x000/infra/tofu/* → OpenTofu plan (infrastructure updates)
-  pve/x000/ansible/* → Syntax check
 }
 ```
 
 **Components:**
 - **Webhook Handler** (x000): adnanh/webhook with GitHub signature verification
-- **Semaphore UI** (x000): Ansible playbook orchestration
 - **OpenTofu** (x000): Proxmox VM management
 - **Caddy** (x000): Reverse proxy with GitHub IP whitelist
 
@@ -80,11 +79,12 @@ GitHub Push → webhook.wywiol.eu → x000 webhook handler → {
 ```
 ├── pve/                     # Proxmox environments
 │   ├── x000/                # Control node
-│   │   ├── Makefile         # Service + bootstrap commands
-│   │   ├── bootstrap.sh     # Control node setup
+│   │   ├── Makefile         # Service + setup commands
+│   │   ├── setup.sh         # Control node setup
+│   │   ├── scripts/         # Host scripts (deploy.sh, apply-tofu.sh)
 │   │   ├── ansible/         # Ansible playbooks + vault
 │   │   ├── infra/tofu/      # OpenTofu VM management
-│   │   └── docker/config/   # Caddy, Semaphore, webhook, portainer, pihole
+│   │   └── docker/config/   # Caddy, webhook, portainer, cloudflared, pihole
 │   ├── legacy/              # Legacy services (deprecated)
 │   ├── x201/                # DNS services (VM)
 │   ├── x202/                # Web services (primary VM)

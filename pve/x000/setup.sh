@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 #
-# Bootstrap script for x000 control node
+# Setup script for x000 control node
 # Transforms a fresh machine into a fully configured control node
 #
 # Usage (from local machine):
 #   git clone https://github.com/PawelWywiol/homelab.git && cd homelab
-#   make push code@x000
+#   make push x000
 #
 # Usage (on x000):
-#   cp bootstrap.env.example .env
+#   cd ~/pve/x000
+#   cp setup.env.example .env
 #   nano .env  # Configure required values
-#   make bootstrap
+#   make setup
 #
 # Idempotent: Safe to re-run - skips already installed components
 #
@@ -48,7 +49,7 @@ log_skip()  { echo -e "${YELLOW}[SKIP]${NC} $1 (already done)"; }
 load_env() {
     if [ ! -f "$ENV_FILE" ]; then
         log_error ".env file not found at $ENV_FILE"
-        log_error "Create from template: cp bootstrap.env.example .env"
+        log_error "Create from template: cp setup.env.example .env"
         exit 1
     fi
 

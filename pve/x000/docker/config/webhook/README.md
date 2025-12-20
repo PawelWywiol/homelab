@@ -6,8 +6,8 @@ Lightweight webhook service for triggering Ansible deployments and OpenTofu infr
 
 ```
 GitHub Push → webhook.wywiol.eu (Caddy) → webhook:8097 (adnanh/webhook) → {
-  Semaphore API → Ansible playbooks (x202/x201 services)
-  OpenTofu → Infrastructure updates (plan/apply)
+  SSH to localhost → ~/scripts/deploy.sh → Ansible playbooks
+  SSH to localhost → ~/scripts/apply-tofu.sh → OpenTofu plan/apply
   ntfy.sh → Notifications
 }
 ```
@@ -24,73 +24,21 @@ GitHub Push → webhook.wywiol.eu (Caddy) → webhook:8097 (adnanh/webhook) → 
 
 | Endpoint | Trigger | Action |
 |----------|---------|--------|
-| `/hooks/deploy-x202-services` | Changes in `pve/x202/` | Deploy x202 services via Semaphore |
-| `/hooks/deploy-x201-services` | Changes in `pve/x201/` | Deploy x201 services via Semaphore |
-| `/hooks/update-infrastructure` | Changes in `pve/x000/infra/tofu/` | Run OpenTofu plan (+ optional apply) |
-| `/hooks/check-ansible` | Changes in `pve/x000/ansible/` | Ansible syntax check via Semaphore |
+| `/hooks/deploy-x202-services` | Changes in `pve/x202/docker/config/*` | Deploy x202 services via SSH → Ansible |
+| `/hooks/deploy-x201-services` | Changes in `pve/x201/*` | Deploy x201 services via SSH → Ansible |
+| `/hooks/update-infrastructure` | Changes in `pve/*/vms.tf` or `pve/x000/infra/tofu/*` | Run OpenTofu plan (+ optional apply) |
 | `/hooks/health` | Anytime | Health check (no auth) |
 
 ## Setup Instructions
 
 ### 1. Prerequisites
 
-**Already installed by bootstrap.sh:**
-- ✅ Caddy reverse proxy (GitHub IP whitelist configured)
-- ✅ Semaphore UI (API endpoint at localhost:3001)
-- ✅ Webhook service (running on port 8097)
+**Installed by setup.sh:**
+- Caddy reverse proxy (GitHub IP whitelist configured)
+- Webhook service (running on port 8097)
+- SSH keys for localhost access
 
-### 2. Configure Semaphore API Token
-
-After Semaphore is running, generate an API token:
-
-```bash
-# Access Semaphore UI
-open http://semaphore.local.wywiol.eu
-
-# Go to: User Settings → API Tokens → Create New Token
-# Copy the token
-```
-
-Update webhook configuration:
-
-```bash
-# Edit .env file
-nano docker/config/webhook/.env
-
-# Update:
-SEMAPHORE_API_TOKEN=your-actual-token-here
-
-# Restart webhook service
-make webhook restart
-```
-
-### 3. Create Semaphore Projects & Templates
-
-Create projects and templates in Semaphore UI for:
-
-1. **x202 Services Deployment**
-   - Template ID: 1
-   - Playbook: `ansible/playbooks/deploy-service.yml`
-   - Extra vars: `target=x202`
-
-2. **x201 Services Deployment**
-   - Template ID: 2
-   - Playbook: `ansible/playbooks/deploy-service.yml`
-   - Extra vars: `target=x201`
-
-3. **Ansible Syntax Check**
-   - Template ID: 3
-   - Command: `ansible-playbook --syntax-check ansible/playbooks/*.yml`
-
-Update template IDs in `.env` if different:
-
-```bash
-SEMAPHORE_TEMPLATE_X202=1
-SEMAPHORE_TEMPLATE_X201=2
-SEMAPHORE_TEMPLATE_ANSIBLE_CHECK=3
-```
-
-### 4. Configure GitHub Webhook
+### 2. Configure GitHub Webhook
 
 In your GitHub repository (`PawelWywiol/homelab`):
 
@@ -114,7 +62,7 @@ In your GitHub repository (`PawelWywiol/homelab`):
 
 5. Check webhook deliveries in GitHub UI for successful response
 
-### 5. Verify Setup
+### 3. Verify Setup
 
 **Test health endpoint:**
 ```bash
@@ -127,15 +75,9 @@ curl https://webhook.wywiol.eu/hooks/health
 make webhook logs
 ```
 
-**Check Semaphore for triggered tasks:**
-```bash
-open http://semaphore.local.wywiol.eu
-# Go to: Projects → Tasks
-```
-
 **Monitor notifications:**
 ```bash
-# Subscribe to ntfy topic (optional)
+# Subscribe to ntfy topic
 curl -s https://ntfy.sh/homelab-webhooks/json
 ```
 
@@ -146,27 +88,16 @@ curl -s https://ntfy.sh/homelab-webhooks/json
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `GITHUB_WEBHOOK_SECRET` | GitHub webhook secret (HMAC) | Auto-generated |
-| `SEMAPHORE_URL` | Semaphore API endpoint | http://localhost:3001 |
-| `SEMAPHORE_API_TOKEN` | Semaphore API token | **REQUIRED** |
-| `SEMAPHORE_PROJECT_ID` | Semaphore project ID | 1 |
+| `SSH_HOST` | SSH target host | host.docker.internal |
+| `SSH_USER` | SSH user | code |
 | `TOFU_AUTO_APPLY` | Auto-apply infrastructure changes | false |
 | `NTFY_ENABLED` | Enable ntfy notifications | true |
 | `NTFY_TOPIC` | ntfy.sh topic name | homelab-webhooks |
 | `LOG_LEVEL` | Logging verbosity | info |
 
-### Semaphore Template Mapping
-
-Edit `.env` to match your Semaphore template IDs:
-
-```bash
-SEMAPHORE_TEMPLATE_X202=1      # x202 deployment template
-SEMAPHORE_TEMPLATE_X201=2      # x201 deployment template
-SEMAPHORE_TEMPLATE_ANSIBLE_CHECK=3  # Ansible syntax check
-```
-
 ### OpenTofu Auto-Apply
 
-**⚠️ NOT RECOMMENDED** - Manual approval is safer
+**NOT RECOMMENDED** - Manual approval is safer
 
 To enable automatic infrastructure updates:
 
@@ -183,6 +114,29 @@ With auto-apply disabled (default), you'll receive notifications to manually app
 ```bash
 cd ~/infra/tofu
 tofu apply /tmp/tofu-plan-*.tfplan
+```
+
+## Host Scripts
+
+Webhook container SSHs to localhost to execute host scripts:
+
+### ~/scripts/deploy.sh
+
+Triggers Ansible deployment:
+```bash
+deploy.sh <target> [service]
+# Examples:
+deploy.sh x202           # Deploy all x202 services
+deploy.sh x202 caddy     # Deploy specific service
+```
+
+### ~/scripts/apply-tofu.sh
+
+Triggers OpenTofu plan/apply:
+```bash
+apply-tofu.sh
+# Creates plan in /tmp/tofu-plan-*.tfplan
+# Auto-applies if TOFU_AUTO_APPLY=true
 ```
 
 ## Troubleshooting
@@ -206,20 +160,17 @@ tofu apply /tmp/tofu-plan-*.tfplan
 make webhook logs
 ```
 
-### Check Semaphore API
+### SSH Connection Fails
 
-Test Semaphore API manually:
-
+Test SSH from webhook container:
 ```bash
-# Get API token from .env
-source docker/config/webhook/.env
-
-# Test API connection
-curl -H "Authorization: Bearer $SEMAPHORE_API_TOKEN" \
-  http://localhost:3001/api/projects
-
-# Expected: JSON list of projects
+docker exec -it webhook ssh -o StrictHostKeyChecking=no code@host.docker.internal "echo OK"
 ```
+
+**Common issues:**
+- SSH key not mounted in container
+- SSH key permissions wrong (should be 600)
+- Host user doesn't accept key
 
 ### Signature Verification Failed
 
@@ -292,14 +243,6 @@ openssl rand -hex 32
 # 3. Restart: make webhook restart
 ```
 
-**Semaphore API token:**
-
-```bash
-# Generate new token in Semaphore UI
-# Update docker/config/webhook/.env (SEMAPHORE_API_TOKEN)
-# Restart: make webhook restart
-```
-
 ### View Webhook Statistics
 
 ```bash
@@ -316,7 +259,6 @@ docker compose logs -f webhook
 ### Backup Configuration
 
 **Automated** (included in `backup-control-node.sh`):
-- `~/.semaphore/config/` (Semaphore database)
 - `~/docker/config/webhook/.env` (webhook secrets)
 
 **Manual backup:**
@@ -375,7 +317,7 @@ Comment out unwanted hooks in `hooks.yml`:
 
 ```yaml
 # - id: "deploy-x201-services"
-#   execute-command: "/scripts/trigger-semaphore.sh"
+#   execute-command: "/scripts/trigger-deploy.sh"
 #   ...
 ```
 
@@ -383,18 +325,16 @@ Reload applies automatically.
 
 ## Security Best Practices
 
-1. ✅ **Never commit .env files** - Contains secrets
-2. ✅ **Rotate secrets quarterly** - Webhook + API tokens
-3. ✅ **Monitor webhook logs** - Check for unauthorized attempts
-4. ✅ **Keep auto-apply disabled** - Manual approval for infrastructure
-5. ✅ **Use dedicated Semaphore API token** - Minimal permissions
-6. ✅ **Backup webhook secrets** - Store in Ansible Vault + password manager
-7. ✅ **Test webhook changes** - Use GitHub "Redeliver" feature
+1. **Never commit .env files** - Contains secrets
+2. **Rotate secrets quarterly** - Webhook secret
+3. **Monitor webhook logs** - Check for unauthorized attempts
+4. **Keep auto-apply disabled** - Manual approval for infrastructure
+5. **Backup webhook secrets** - Store in Ansible Vault + password manager
+6. **Test webhook changes** - Use GitHub "Redeliver" feature
 
 ## References
 
 - [adnanh/webhook Documentation](https://github.com/adnanh/webhook)
 - [GitHub Webhook Guide](https://docs.github.com/en/webhooks)
-- [Semaphore API Documentation](https://docs.semaphoreui.com/api)
 - [OpenTofu Documentation](https://opentofu.org/docs/)
 - [ntfy.sh Documentation](https://ntfy.sh/docs/)

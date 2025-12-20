@@ -9,14 +9,24 @@ services:
     volumes:
       - ${PWD}/docker/config/webhook/hooks.yml:/etc/webhook/hooks.yml:ro
       - ${PWD}/docker/config/webhook/scripts:/scripts:ro
-      - ${REPO_PATH:-/home/code}:/repo:ro
-      - ${SEMAPHORE_DIR}/.semaphore:/semaphore:ro
+      - ${HOME}/.ssh:/root/.ssh:ro
     environment:
       - TZ=${TIMEZONE:-Europe/Warsaw}
+      - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
+      - SSH_HOST=${SSH_HOST:-host.docker.internal}
+      - SSH_USER=${SSH_USER:-code}
+      - TOFU_AUTO_APPLY=${TOFU_AUTO_APPLY:-false}
+      - NTFY_ENABLED=${NTFY_ENABLED:-true}
+      - NTFY_URL=${NTFY_URL:-https://ntfy.sh}
+      - NTFY_TOPIC=${NTFY_TOPIC:-homelab-webhooks}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command: ["-verbose", "-hooks=/etc/webhook/hooks.yml", "-hotreload"]
     networks:
       - homelab
-    user: "${UID:-1000}:${GID:-1000}"
+    # Run as root for SSH access to host
+    user: "0:0"
 
 networks:
   homelab:

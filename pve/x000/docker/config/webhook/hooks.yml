@@ -1,18 +1,23 @@
 ---
 # GitHub Webhook Handlers
 # Docs: https://github.com/adnanh/webhook/blob/master/docs/Hook-Definition.md
+#
+# Architecture: Webhook → SSH to localhost → Host scripts → Ansible
+#
 
-# Hook 1: Deploy x202 services (when pve/x202 configs change)
+# Hook 1: Deploy x202 services (when pve/x202/docker/config/* changes)
 - id: "deploy-x202-services"
-  execute-command: "/scripts/trigger-semaphore.sh"
-  command-working-directory: "/repo"
+  execute-command: "/scripts/trigger-deploy.sh"
+  command-working-directory: "/scripts"
   pass-arguments-to-command:
     - source: "payload"
       name: "repository.full_name"
     - source: "payload"
       name: "ref"
     - source: "string"
-      name: "x202-services"
+      name: "x202"
+    - source: "string"
+      name: "all"
   response-message: "x202 deployment triggered"
   trigger-rule:
     and:
@@ -37,31 +42,34 @@
           parameter:
             source: "payload"
             name: "ref"
-      # Path filter (x202 configs)
-      - match:
-          type: "regex"
-          regex: "pve/x202/"
-          parameter:
-            source: "payload"
-            name: "commits.#.added.#"
-      - match:
-          type: "regex"
-          regex: "pve/x202/"
-          parameter:
-            source: "payload"
-            name: "commits.#.modified.#"
+      # Path filter (x202 docker configs)
+      - or:
+        - match:
+            type: "regex"
+            regex: "pve/x202/docker/config/"
+            parameter:
+              source: "payload"
+              name: "commits.#.added.#"
+        - match:
+            type: "regex"
+            regex: "pve/x202/docker/config/"
+            parameter:
+              source: "payload"
+              name: "commits.#.modified.#"
 
-# Hook 2: Deploy x201 services (when pve/x201 configs change)
+# Hook 2: Deploy x201 services (when pve/x201/* changes)
 - id: "deploy-x201-services"
-  execute-command: "/scripts/trigger-semaphore.sh"
-  command-working-directory: "/repo"
+  execute-command: "/scripts/trigger-deploy.sh"
+  command-working-directory: "/scripts"
   pass-arguments-to-command:
     - source: "payload"
       name: "repository.full_name"
     - source: "payload"
       name: "ref"
     - source: "string"
-      name: "x201-services"
+      name: "x201"
+    - source: "string"
+      name: "all"
   response-message: "x201 deployment triggered"
   trigger-rule:
     and:
@@ -83,17 +91,24 @@
           parameter:
             source: "payload"
             name: "ref"
-      - match:
-          type: "regex"
-          regex: "pve/x201/"
-          parameter:
-            source: "payload"
-            name: "commits.#(added|modified).#"
+      - or:
+        - match:
+            type: "regex"
+            regex: "pve/x201/"
+            parameter:
+              source: "payload"
+              name: "commits.#.added.#"
+        - match:
+            type: "regex"
+            regex: "pve/x201/"
+            parameter:
+              source: "payload"
+              name: "commits.#.modified.#"
 
-# Hook 3: Update infrastructure (when OpenTofu configs change)
+# Hook 3: Update infrastructure (when vms.tf changes in any pve folder)
 - id: "update-infrastructure"
   execute-command: "/scripts/trigger-tofu.sh"
-  command-working-directory: "/repo"
+  command-working-directory: "/scripts"
   pass-arguments-to-command:
     - source: "payload"
       name: "repository.full_name"
@@ -122,53 +137,34 @@
           parameter:
             source: "payload"
             name: "ref"
-      - match:
-          type: "regex"
-          regex: "pve/x000/infra/tofu/"
-          parameter:
-            source: "payload"
-            name: "commits.#(added|modified).#"
+      # Watch vms.tf in any pve folder OR infra/tofu changes
+      - or:
+        - match:
+            type: "regex"
+            regex: "pve/.*/vms\\.tf"
+            parameter:
+              source: "payload"
+              name: "commits.#.added.#"
+        - match:
+            type: "regex"
+            regex: "pve/.*/vms\\.tf"
+            parameter:
+              source: "payload"
+              name: "commits.#.modified.#"
+        - match:
+            type: "regex"
+            regex: "pve/x000/infra/tofu/"
+            parameter:
+              source: "payload"
+              name: "commits.#.added.#"
+        - match:
+            type: "regex"
+            regex: "pve/x000/infra/tofu/"
+            parameter:
+              source: "payload"
+              name: "commits.#.modified.#"
 
-# Hook 4: Ansible syntax check (when playbooks change)
-- id: "check-ansible"
-  execute-command: "/scripts/trigger-semaphore.sh"
-  command-working-directory: "/repo"
-  pass-arguments-to-command:
-    - source: "payload"
-      name: "repository.full_name"
-    - source: "payload"
-      name: "ref"
-    - source: "string"
-      name: "ansible-check"
-  response-message: "Ansible syntax check triggered"
-  trigger-rule:
-    and:
-      - match:
-          type: "payload-hmac-sha256"
-          secret: "${GITHUB_WEBHOOK_SECRET}"
-          parameter:
-            source: "header"
-            name: "X-Hub-Signature-256"
-      - match:
-          type: "value"
-          value: "PawelWywiol/homelab"
-          parameter:
-            source: "payload"
-            name: "repository.full_name"
-      - match:
-          type: "value"
-          value: "refs/heads/main"
-          parameter:
-            source: "payload"
-            name: "ref"
-      - match:
-          type: "regex"
-          regex: "pve/x000/ansible/"
-          parameter:
-            source: "payload"
-            name: "commits.#(added|modified).#"
-
-# Hook 5: Health check endpoint (no auth required)
+# Hook 4: Health check endpoint (no auth required)
 - id: "health"
   execute-command: "echo"
   pass-arguments-to-command:
