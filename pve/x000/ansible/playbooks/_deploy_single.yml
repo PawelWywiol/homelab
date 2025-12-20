@@ -1,0 +1,19 @@
+---
+# Helper task for deploying a single service
+# Called from deploy-service.yml with svc_path variable
+#
+
+- name: "Pull images for {{ svc_path | basename }}"
+  command: docker compose pull
+  args:
+    chdir: "{{ svc_path }}"
+  register: pull_result
+  changed_when: "'Pulling' in pull_result.stdout or 'Downloaded' in pull_result.stdout"
+  ignore_errors: true
+
+- name: "Start {{ svc_path | basename }}"
+  command: docker compose up -d --remove-orphans
+  args:
+    chdir: "{{ svc_path }}"
+  register: up_result
+  changed_when: "'Started' in up_result.stdout or 'Created' in up_result.stdout"

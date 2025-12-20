@@ -29,7 +29,7 @@ ansible/
 ## Inventory
 
 **Control node:**
-- x000 (192.168.0.2) - Control node (Ansible, Semaphore, DNS)
+- x000 (192.168.0.2) - Control node (Ansible, webhook, DNS)
 
 **VMs managed:**
 - x100 (192.168.0.100) - Development/test
@@ -62,7 +62,6 @@ ansible-vault encrypt ansible/group_vars/all/vault.yml
 
 **Secrets stored:**
 - Proxmox API tokens
-- Semaphore admin password + API token
 - GitHub webhook secret
 - Database passwords
 - Service API keys
@@ -142,19 +141,17 @@ Manages Docker Compose service deployments.
 - Health checks
 - Cleanup old images
 
-## Integration with Semaphore
+## Integration with Webhook
 
-Playbooks are triggered via Semaphore UI or webhook handler:
+Playbooks triggered via webhook handler → SSH → host scripts:
 
-**Semaphore projects:**
-1. x202 Services (Template ID: 1)
-2. x201 Services (Template ID: 2)
-3. Ansible Syntax Check (Template ID: 3)
+```
+GitHub Push → webhook:8097 → SSH to localhost → ~/scripts/deploy.sh → ansible-playbook
+```
 
-**Webhook triggers:**
-- Push to `pve/x202/*` → Deploy x202 services
-- Push to `pve/x201/*` → Deploy x201 services
-- Push to `ansible/*` → Syntax check
+**Triggers:**
+- `pve/x202/docker/config/*` → Deploy x202 services
+- `pve/x201/*` → Deploy x201 services
 
 See: `pve/x000/docker/config/webhook/README.md`
 
@@ -250,4 +247,3 @@ ansible x202 -a "docker compose config" -e "service=caddy"
 - [Ansible Documentation](https://docs.ansible.com/)
 - [Ansible Vault Guide](https://docs.ansible.com/ansible/latest/user_guide/vault.html)
 - [Docker Compose Module](https://docs.ansible.com/ansible/latest/collections/community/docker/docker_compose_v2_module.html)
-- [Semaphore Documentation](https://docs.semaphoreui.com/)

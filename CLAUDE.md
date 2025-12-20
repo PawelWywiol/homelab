@@ -10,6 +10,8 @@ cd pve/x202 && make SERVICE up|down|restart|logs
 
 # x000 (control node) - manage automation
 cd pve/x000 && make SERVICE up|down|restart|logs
+cd pve/x000 && make all up   # Start all control services
+cd pve/x000 && make setup    # Run/re-run setup script
 
 # File sync
 make pull NAME   # Server -> Local
@@ -20,7 +22,7 @@ make push NAME   # Local -> Server
 
 | ID | Purpose | Services | Makefile |
 |----|---------|----------|----------|
-| x000 | Control node | caddy, semaphore, webhook, portainer, cloudflared, pihole | `pve/x000/Makefile` |
+| x000 | Control node | caddy, webhook, portainer, cloudflared, pihole | `pve/x000/Makefile` |
 | x201 | DNS/Network | caddy | `pve/x201/Makefile` |
 | x202 | Web/App (primary) | 16 services | `pve/x202/Makefile` |
 | x250 | AI/ML | sd-rocm | - |
@@ -82,7 +84,6 @@ make SERVICE [up|down|restart|pull|logs]
 | Service | Port | Description |
 |---------|------|-------------|
 | caddy | 80, 443 | Reverse proxy (Cloudflare DNS) |
-| semaphore | 3001 | Ansible automation UI |
 | webhook | 8097 | GitHub webhook handler |
 | portainer | 9443 | Container management UI |
 | cloudflared | - | Cloudflare Tunnel |
@@ -90,7 +91,7 @@ make SERVICE [up|down|restart|pull|logs]
 
 ## Control Node Setup
 
-Bootstrap control node:
+Setup control node:
 
 ```bash
 # On local machine
@@ -99,14 +100,16 @@ make push x000
 
 # On x000
 ssh code@x000
-cp bootstrap.env.example .env
+cd pve/x000
+cp setup.env.example .env
 nano .env  # Set required: CLOUDFLARE_API_TOKEN, BASE_DOMAIN, CONTROL_NODE_IP
-make bootstrap
+make setup
+make all up  # Start all services
 ```
 
 **Installs:** Docker, Ansible (+collections), OpenTofu
-**Configures:** Caddy (Cloudflare DNS), Semaphore, Webhook, Docker network
-**Auto-generates:** Vault password, Semaphore credentials, webhook secret
+**Configures:** Caddy (Cloudflare DNS), Webhook, Docker network
+**Auto-generates:** Vault password, webhook secret
 
 ## GitOps Automation
 
@@ -115,7 +118,8 @@ Push to `main` triggers automated deployments:
 ```
 GitHub Push → webhook.wywiol.eu (Caddy: IP whitelist)
            → webhook:8097 (HMAC verification)
-           → Semaphore API / OpenTofu
+           → SSH to localhost → ~/scripts/deploy.sh
+           → git pull + Ansible / OpenTofu
            → Deploy services / Update VMs
            → ntfy.sh notification
 ```
@@ -124,10 +128,10 @@ GitHub Push → webhook.wywiol.eu (Caddy: IP whitelist)
 
 | Path Change | Action |
 |-------------|--------|
-| `pve/x202/*` | Deploy x202 services (Ansible) |
+| `pve/x202/docker/config/*` | Deploy x202 services (Ansible) |
 | `pve/x201/*` | Deploy x201 services (Ansible) |
+| `pve/*/vms.tf` | OpenTofu plan (manual apply) |
 | `pve/x000/infra/tofu/*` | OpenTofu plan (manual apply) |
-| `pve/x000/ansible/*` | Syntax check |
 
 **Ansible playbooks:**
 - `deploy-service.yml` - Deploy Docker Compose services
@@ -156,11 +160,9 @@ Config: Copy `pve/NAME/.envrc.example` to `.envrc` and set `REMOTE_HOST`.
 - `.env.example` for structure reference (keys only)
 - `pve/x000/ansible/group_vars/all/vault.yml` - Ansible Vault encrypted
 - `~/.ansible/vault_password` - Vault decryption key (on x000)
-- `~/.semaphore/` - Semaphore data (on x000)
 
 **Access control:**
 - Caddy: GitHub IP whitelist for webhook endpoint
-- Caddy: Local network only for Semaphore UI
 - Webhook: HMAC-SHA256 signature verification
 - Proxmox: API token with minimal permissions
 
@@ -174,11 +176,14 @@ Config: Copy `pve/NAME/.envrc.example` to `.envrc` and set `REMOTE_HOST`.
 ├── Makefile                  # Root sync commands (push/pull)
 ├── pve/
 │   ├── x000/                 # Control node
-│   │   ├── Makefile          # Service + bootstrap commands
-│   │   ├── bootstrap.sh      # Control node setup
-│   │   ├── bootstrap.env.example
+│   │   ├── Makefile          # Service + setup commands
+│   │   ├── setup.sh          # Control node setup
+│   │   ├── setup.env.example
 │   │   ├── backup-control-node.sh
 │   │   ├── verify-backups.sh
+│   │   ├── scripts/          # Host scripts for webhook
+│   │   │   ├── deploy.sh     # Deployment script
+│   │   │   └── apply-tofu.sh # OpenTofu script
 │   │   ├── ansible/          # Ansible configuration
 │   │   │   ├── inventory/hosts.yml
 │   │   │   ├── playbooks/
@@ -189,7 +194,6 @@ Config: Copy `pve/NAME/.envrc.example` to `.envrc` and set `REMOTE_HOST`.
 │   │   │   └── provider.tf
 │   │   └── docker/config/
 │   │       ├── caddy/        # Reverse proxy
-│   │       ├── semaphore/    # Ansible UI
 │   │       ├── webhook/      # GitHub webhooks
 │   │       ├── portainer/    # Container management
 │   │       ├── cloudflared/  # Cloudflare tunnel

@@ -61,50 +61,44 @@ send_notification() {
     return 0
 }
 
-# Call Semaphore API
-# Usage: call_semaphore_api "project_id" "template_id" "git_ref"
-call_semaphore_api() {
-    local project_id="$1"
-    local template_id="$2"
-    local git_ref="${3:-refs/heads/main}"
+# Execute command on host via SSH
+# Usage: ssh_to_host "command"
+ssh_to_host() {
+    local command="$1"
+    local ssh_host="${SSH_HOST:-host.docker.internal}"
+    local ssh_user="${SSH_USER:-code}"
 
-    local semaphore_url="${SEMAPHORE_URL:-http://localhost:3001}"
-    local api_token="${SEMAPHORE_API_TOKEN}"
+    log_info "Executing on host via SSH: $command"
 
-    if [ -z "$api_token" ]; then
-        log_error "SEMAPHORE_API_TOKEN not set"
+    if ! ssh -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -o LogLevel=ERROR \
+            "${ssh_user}@${ssh_host}" \
+            "$command"; then
+        log_error "SSH command failed"
         return 1
     fi
 
-    log_info "Triggering Semaphore task: project=$project_id template=$template_id ref=$git_ref"
+    return 0
+}
 
-    local response
-    local http_code
+# Run deploy script on host
+# Usage: run_deploy "target" "service"
+run_deploy() {
+    local target="$1"
+    local service="${2:-all}"
 
-    response=$(curl -s -w "\n%{http_code}" \
-        -X POST \
-        -H "Authorization: Bearer ${api_token}" \
-        -H "Content-Type: application/json" \
-        -d "{
-            \"template_id\": ${template_id},
-            \"environment\": \"{\\\"git_ref\\\": \\\"${git_ref}\\\"}\"
-        }" \
-        "${semaphore_url}/api/project/${project_id}/tasks")
+    log_info "Deploying $service to $target"
+    ssh_to_host "~/scripts/deploy.sh $target $service"
+}
 
-    http_code=$(echo "$response" | tail -n1)
-    local body=$(echo "$response" | sed '$d')
+# Run OpenTofu script on host
+# Usage: run_tofu ["auto-apply"]
+run_tofu() {
+    local auto_apply="${1:-false}"
 
-    log_debug "Semaphore API response: HTTP $http_code - $body"
-
-    if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
-        log_info "Semaphore task created successfully"
-        echo "$body"
-        return 0
-    else
-        log_error "Semaphore API request failed: HTTP $http_code"
-        log_error "Response: $body"
-        return 1
-    fi
+    log_info "Running OpenTofu (auto-apply=$auto_apply)"
+    ssh_to_host "~/scripts/apply-tofu.sh $auto_apply"
 }
 
 # Extract repository name from full_name

@@ -8,18 +8,22 @@ help:
 	@echo " "
 	@echo "Services:"
 	@echo "  caddy     - Reverse proxy with auto-HTTPS"
-	@echo "  semaphore - Ansible automation UI"
 	@echo "  webhook   - GitHub webhook handler"
+	@echo "  portainer - Container management UI"
 	@echo " "
 	@echo "Examples:"
 	@echo "  make caddy up"
-	@echo "  make semaphore up"
+	@echo "  make webhook up"
 	@echo "  make webhook logs"
 	@echo " "
 	@echo "Setup:"
-	@echo "  make bootstrap - Run control node bootstrap"
+	@echo "  make setup     - Run control node setup"
 	@echo "  make backup    - Backup control node"
 	@echo "  make verify    - Verify backups"
+	@echo " "
+	@echo "Bulk:"
+	@echo "  make all up    - Start all services (caddy, webhook, portainer)"
+	@echo "  make all down  - Stop all services"
 	@echo " "
 	@echo "Tools:"
 	@echo "  make random - Generate random hex string"
@@ -29,9 +33,9 @@ help:
 random:
 	@echo $(shell openssl rand -hex 32)
 
-.PHONY: bootstrap
-bootstrap:
-	./bootstrap.sh
+.PHONY: setup
+setup:
+	./setup.sh
 
 .PHONY: backup
 backup:
@@ -40,6 +44,25 @@ backup:
 .PHONY: verify
 verify:
 	./verify-backups.sh
+
+.PHONY: all
+all:
+	@ACTION="$(word 2, $(MAKECMDGOALS))"; \
+	case "$$ACTION" in \
+		up) \
+			echo "Starting all services..."; \
+			$(MAKE) caddy up && \
+			$(MAKE) webhook up && \
+			$(MAKE) portainer up && \
+			echo "All services started." ;; \
+		down) \
+			echo "Stopping all services..."; \
+			$(MAKE) portainer down; \
+			$(MAKE) webhook down; \
+			$(MAKE) caddy down; \
+			echo "All services stopped." ;; \
+		*) echo "Usage: make all [up|down]"; exit 1 ;; \
+	esac
 
 # Prevent action words from being treated as targets
 .PHONY: up down restart pull logs
