@@ -17,8 +17,9 @@ ansible/
 │   └── hosts.yml           # x202 host definition
 ├── group_vars/
 │   └── all/
-│       ├── vars.yml        # Common variables
-│       └── vault.yml       # Encrypted secrets (Ansible Vault)
+│       ├── vars.yml            # Common variables
+│       ├── vault.yml           # Encrypted secrets (committed)
+│       └── vault.yml.example   # Template/documentation
 ├── playbooks/
 │   ├── deploy-service.yml  # Deploy Docker Compose services
 │   └── rollback-service.yml # Rollback to previous version
@@ -37,18 +38,24 @@ ansible/
 
 **Ansible Vault** encrypts sensitive data in `group_vars/all/vault.yml`:
 
+- `vault.yml` - Encrypted secrets (committed to git, safe)
+- `vault.yml.example` - Template/documentation (no secrets)
+
 ```bash
-# View secrets (requires vault password)
-ansible-vault view ansible/group_vars/all/vault.yml
+# Create vault from template (first time only)
+cp group_vars/all/vault.yml.example group_vars/all/vault.yml
+nano group_vars/all/vault.yml  # Fill in real secrets
+ansible-vault encrypt group_vars/all/vault.yml
+git add group_vars/all/vault.yml && git commit -m "Add encrypted vault"
 
-# Edit secrets
-ansible-vault edit ansible/group_vars/all/vault.yml
+# View secrets
+ansible-vault view group_vars/all/vault.yml
 
-# Encrypt new file
-ansible-vault encrypt ansible/group_vars/all/vault.yml
+# Edit secrets (decrypts, opens editor, re-encrypts)
+ansible-vault edit group_vars/all/vault.yml
 ```
 
-**Vault password location:** `~/.ansible/vault_password` (on x000)
+**Vault password:** `~/.ansible/vault_password` (never committed)
 
 **Secrets stored:**
 - Proxmox API tokens

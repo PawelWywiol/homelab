@@ -2,7 +2,6 @@
 .envrc
 .ssh
 .ansible
-.semaphore
 docker/data/
 infra/tofu/terraform.tfstate
 infra/tofu/terraform.tfvars
