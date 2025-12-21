@@ -11,9 +11,14 @@
 
     @webhook host webhook.wywiol.eu
     handle @webhook {
-        @github remote_ip 140.82.112.0/20 185.199.108.0/22 192.30.252.0/22
+        @github client_ip 140.82.112.0/20 185.199.108.0/22 192.30.252.0/22 143.55.64.0/20
         handle @github {
-            reverse_proxy webhook:9000
+            reverse_proxy https://webhook:9000 {
+              transport http {
+                  tls
+                  tls_insecure_skip_verify
+              }
+            }
         }
         respond "Access denied" 403
     }
