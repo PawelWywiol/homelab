@@ -6,8 +6,8 @@ help:
 	@echo " "
 	@echo "- Generic app management:"
 	@echo " "
-	@echo "  make APP [up|down|restart|pull] - Manage any app in docker/config/"
-	@echo "    Examples: make caddy up, make portainer down, make n8n restart"
+	@echo "  make APP [up|down|restart|pull|logs] - Manage any app in docker/config/"
+	@echo "    Examples: make caddy up, make portainer down, make n8n logs"
 	@echo " "
 	@echo "- Special commands:"
 	@echo " "
@@ -77,8 +77,8 @@ random:
 	@echo $(shell openssl rand -hex 32)
 
 # Prevent action words from being treated as targets
-.PHONY: up down restart pull add remove createsuperuser
-up down restart pull add remove createsuperuser:
+.PHONY: up down restart pull logs add remove createsuperuser
+up down restart pull logs add remove createsuperuser:
 	@:
 
 # Generic app management - catches all non-special targets
@@ -89,7 +89,7 @@ up down restart pull add remove createsuperuser:
 	elif [ -f "./docker/config/$@/compose.yml" ]; then \
 		ACTION="$(word 2, $(MAKECMDGOALS))"; \
 		if [ -z "$$ACTION" ]; then \
-			echo "Usage: make $@ [up|down|restart|pull]"; exit 1; \
+			echo "Usage: make $@ [up|down|restart|pull|logs]"; exit 1; \
 		fi; \
 		case "$$ACTION" in \
 			up) \
@@ -104,8 +104,10 @@ up down restart pull add remove createsuperuser:
 				docker compose -f ./docker/config/$@/compose.yml restart ;; \
 			pull) \
 				docker compose -f ./docker/config/$@/compose.yml pull ;; \
+			logs) \
+				docker compose -f ./docker/config/$@/compose.yml logs -f ;; \
 			*) \
-				echo "Invalid action '$$ACTION'. Use: up|down|restart|pull"; exit 1 ;; \
+				echo "Invalid action '$$ACTION'. Use: up|down|restart|pull|logs"; exit 1 ;; \
 		esac; \
 	elif [ "$(word 2, $(MAKECMDGOALS))" = "" ]; then \
 		: ; \

@@ -40,7 +40,7 @@ infra/
 
 **OpenTofu installed:**
 ```bash
-# Installed by bootstrap.sh on x000 (control node)
+# Installed by setup.sh on x000 (control node)
 tofu --version
 ```
 

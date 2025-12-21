@@ -9,8 +9,8 @@ docker_network_name: homelab
 docker_network_driver: bridge
 
 # Repository
-repo_base_path: /home/code/home
-repo_url: https://github.com/PawelWywiol/home.git
+repo_base_path: /home/code/homelab
+repo_url: https://github.com/PawelWywiol/homelab.git
 
 # Compose file locations relative to repo
 compose_paths:

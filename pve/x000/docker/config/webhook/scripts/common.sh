@@ -67,11 +67,13 @@ ssh_to_host() {
     local command="$1"
     local ssh_host="${SSH_HOST:-host.docker.internal}"
     local ssh_user="${SSH_USER:-code}"
+    local ssh_key="${SSH_KEY:-${HOME}/.ssh/id_ed25519}"
 
     log_info "Executing on host via SSH: $command"
 
-    if ! ssh -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
+    if ! ssh -i "$ssh_key" \
+            -o StrictHostKeyChecking=accept-new \
+            -o UserKnownHostsFile="${HOME}/.ssh/known_hosts" \
             -o LogLevel=ERROR \
             "${ssh_user}@${ssh_host}" \
             "$command"; then
