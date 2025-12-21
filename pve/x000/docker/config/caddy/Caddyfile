@@ -1,124 +1,109 @@
 {
-  admin 0.0.0.0:2019
+    # Secure the admin API to localhost unless remote management is required
+    admin localhost:2019
+
+    servers {
+        trusted_proxies static 173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 104.24.0.0/14 172.64.0.0/13 131.0.72.0/22 2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
+    }
 }
 
-*.wywiol.eu {
+# --- SNIPPETS ---
+
+(cloudflare_tls) {
     tls {
         dns cloudflare {env.CLOUDFLARE_API_TOKEN}
         propagation_delay 2m
         resolvers 1.1.1.1
     }
+}
+
+# Reusable proxy config for backends using self-signed certs
+(insecure_proxy) {
+    transport http {
+        tls
+        tls_insecure_skip_verify
+    }
+}
+
+# Reusable restriction for local network only
+(local_only) {
+    @not_local not remote_ip 192.168.0.0/24
+    respond @not_local "Access denied" 403
+}
+
+# --- SITE BLOCKS ---
+
+*.wywiol.eu {
+    import cloudflare_tls
 
     @webhook host webhook.wywiol.eu
     handle @webhook {
-        @github remote_ip 140.82.112.0/20 185.199.108.0/22 192.30.252.0/22
+        # GitHub Hook Source IPs
+        @github remote_ip 140.82.112.0/20 185.199.108.0/22 192.30.252.0/22 143.55.64.0/20
         handle @github {
-            reverse_proxy webhook:9000
+            reverse_proxy https://webhook:9000 {
+                import insecure_proxy
+            }
         }
         respond "Access denied" 403
     }
 }
 
 *.local.wywiol.eu {
-    tls {
-        dns cloudflare {env.CLOUDFLARE_API_TOKEN}
-        propagation_delay 2m
-        resolvers 1.1.1.1
-    }
+    import cloudflare_tls
+    import local_only
 
     @portainer host portainer.local.wywiol.eu
     handle @portainer {
-        @local remote_ip 192.168.0.0/24
-        handle @local {
-          reverse_proxy https://portainer:9443 {
-              transport http {
-                  tls
-                  tls_insecure_skip_verify
-              }
-          }
+        reverse_proxy https://portainer:9443 {
+            import insecure_proxy
         }
-        respond "Access denied" 403
     }
 
     @semaphore host semaphore.local.wywiol.eu
     handle @semaphore {
-        @local remote_ip 192.168.0.0/24
-        handle @local {
-            reverse_proxy semaphore:3000
-        }
-        respond "Access denied" 403
+        reverse_proxy semaphore:3000
     }
 
     @pihole host pihole.local.wywiol.eu
     handle @pihole {
-        @local remote_ip 192.168.0.0/24
-        handle @local {
-            reverse_proxy http://pihole:80
-        }
-        respond "Access denied" 403
+        reverse_proxy http://pihole:80
     }
 
     @glitchtip host glitchtip.local.wywiol.eu
     handle @glitchtip {
-        @local remote_ip 192.168.0.0/24
-        handle @local {
-            reverse_proxy 192.168.0.105:8000
-        }
-        respond "Access denied" 403
+        reverse_proxy 192.168.0.105:8000
     }
 
     @passbolt host passbolt.local.wywiol.eu
     handle @passbolt {
-        @local remote_ip 192.168.0.0/24
-        handle @local {
-            reverse_proxy 192.168.0.108:80
-        }
-        respond "Access denied" 403
+        reverse_proxy 192.168.0.108:80
     }
 
     @proxmox host proxmox.local.wywiol.eu
     handle @proxmox {
-        @local remote_ip 192.168.0.0/24
-        handle @local {
-          reverse_proxy https://192.168.0.200:8006 {
-              transport http {
-                  tls
-                  tls_insecure_skip_verify
-              }
-          }
+        reverse_proxy https://192.168.0.200:8006 {
+            import insecure_proxy
         }
-        respond "Access denied" 403
     }
 
     @retro host retro.local.wywiol.eu
     handle @retro {
-        @local remote_ip 192.168.0.0/24
-        handle @local {
-            reverse_proxy 192.168.0.111:80
-        }
-        respond "Access denied" 403
+        reverse_proxy 192.168.0.111:80
     }
 
     @sitespeed host sitespeed.local.wywiol.eu
     handle @sitespeed {
-        @local remote_ip 192.168.0.0/24
-        handle @local {
-            reverse_proxy 192.168.0.107:3000
-        }
-        respond "Access denied" 403
+        reverse_proxy 192.168.0.107:3000
     }
 
     @wakapi host wakapi.local.wywiol.eu
     handle @wakapi {
-        @local remote_ip 192.168.0.0/24
-        handle @local {
-            reverse_proxy 192.168.0.104:3000
-        }
-        respond "Access denied" 403
+        reverse_proxy 192.168.0.104:3000
     }
 
+    # Fallback for undefined subdomains
     handle {
         respond "x000 Control Node" 200
     }
 }
-
