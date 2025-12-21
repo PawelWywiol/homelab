@@ -2,14 +2,16 @@
 services:
   webhook:
     container_name: webhook
-    image: almir/webhook:latest
+    image: almir/webhook:2.8.2
     restart: unless-stopped
     ports:
       - "8097:9000"
     volumes:
       - ${PWD}/docker/config/webhook/hooks.yml:/etc/webhook/hooks.yml:ro
       - ${PWD}/docker/config/webhook/scripts:/scripts:ro
-      - ${HOME}/.ssh:/root/.ssh:ro
+      # Mount SSH keys with proper permissions
+      - ${HOME}/.ssh/ansible_ed25519:/home/webhook/.ssh/id_ed25519:ro
+      - ${HOME}/.ssh/known_hosts:/home/webhook/.ssh/known_hosts:ro
     environment:
       - TZ=${TIMEZONE:-Europe/Warsaw}
       - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
@@ -20,13 +22,14 @@ services:
       - NTFY_URL=${NTFY_URL:-https://ntfy.sh}
       - NTFY_TOPIC=${NTFY_TOPIC:-homelab-webhooks}
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      - HOME=/home/webhook
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: ["-verbose", "-hooks=/etc/webhook/hooks.yml", "-hotreload"]
     networks:
       - homelab
-    # Run as root for SSH access to host
-    user: "0:0"
+    # Run as host user for security (UID/GID from .env)
+    user: "${UID:-1000}:${GID:-1000}"
 
 networks:
   homelab:

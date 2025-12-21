@@ -78,12 +78,12 @@ ansible all -m ping
 
 **Deploy service:**
 ```bash
-ansible-playbook playbooks/deploy-service.yml -e "target=x202 service=caddy"
+ansible-playbook playbooks/deploy-service.yml -e "target_host=x202 service=caddy"
 ```
 
 **Rollback service:**
 ```bash
-ansible-playbook playbooks/rollback-service.yml -e "target=x202 service=caddy"
+ansible-playbook playbooks/rollback-service.yml -e "target_host=x202 service=caddy"
 ```
 
 **Check syntax:**
@@ -93,7 +93,7 @@ ansible-playbook --syntax-check playbooks/*.yml
 
 **Dry run (check mode):**
 ```bash
-ansible-playbook playbooks/deploy-service.yml -e "target=x202" --check
+ansible-playbook playbooks/deploy-service.yml -e "target_host=x202" --check
 ```
 
 ## Playbooks
@@ -103,16 +103,16 @@ ansible-playbook playbooks/deploy-service.yml -e "target=x202" --check
 Deploys Docker Compose services to target hosts.
 
 **Required variables:**
-- `target` - Target host/group (x201, x202, etc.)
+- `target_host` - Target host/group (x201, x202, etc.)
 - `service` - Service name (optional, deploys all if not specified)
 
 **Example:**
 ```bash
 # Deploy all x202 services
-ansible-playbook playbooks/deploy-service.yml -e "target=x202"
+ansible-playbook playbooks/deploy-service.yml -e "target_host=x202"
 
 # Deploy specific service
-ansible-playbook playbooks/deploy-service.yml -e "target=x202 service=caddy"
+ansible-playbook playbooks/deploy-service.yml -e "target_host=x202 service=caddy"
 ```
 
 ### rollback-service.yml
@@ -120,12 +120,12 @@ ansible-playbook playbooks/deploy-service.yml -e "target=x202 service=caddy"
 Rolls back service to previous version.
 
 **Required variables:**
-- `target` - Target host/group
+- `target_host` - Target host/group
 - `service` - Service name
 
 **Example:**
 ```bash
-ansible-playbook playbooks/rollback-service.yml -e "target=x202 service=caddy"
+ansible-playbook playbooks/rollback-service.yml -e "target_host=x202 service=caddy"
 ```
 
 ## Roles

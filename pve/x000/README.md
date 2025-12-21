@@ -102,6 +102,57 @@ pve/x000/
 | `pve/*/vms.tf` | OpenTofu plan |
 | `pve/x000/infra/tofu/*` | OpenTofu plan |
 
+## Backup & Restore
+
+**Create backup:**
+```bash
+make backup  # Creates encrypted backup in /opt/backups/control-node/
+```
+
+**Restore from backup:**
+```bash
+# Copy backup to new control node
+scp /opt/backups/control-node/backup-YYYYMMDD.tar.gz code@new-x000:~/
+
+# Extract
+cd ~ && tar -xzf backup-YYYYMMDD.tar.gz
+
+# Restore Ansible vault password
+cp backup/ansible/vault_password ~/.ansible/
+chmod 600 ~/.ansible/vault_password
+
+# Restore SSH keys (requires GPG passphrase)
+gpg --decrypt backup/ssh/ansible_ed25519.gpg > ~/.ssh/ansible_ed25519
+chmod 600 ~/.ssh/ansible_ed25519
+
+# Restore OpenTofu state (optional, requires GPG)
+gpg --decrypt backup/tofu/terraform.tfvars.gpg > ~/infra/tofu/terraform.tfvars
+```
+
+**Verify backup:**
+```bash
+make verify  # Check backup integrity
+```
+
+## SSH Key Distribution
+
+**VMs:**
+```bash
+ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.100  # x100
+ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.201  # x201
+ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.202  # x202
+```
+
+**LXC containers:**
+```bash
+ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.107  # sitespeed
+ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.108  # passbolt
+ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.109  # samba
+ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.111  # romm
+```
+
+See [ansible/README.md](ansible/README.md) for full inventory.
+
 ## Documentation
 
 - [Webhook Service](docker/config/webhook/README.md) - GitHub webhook configuration

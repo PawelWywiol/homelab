@@ -7,9 +7,11 @@ help:
 	@echo "  make APP [up|down|restart|pull|logs]"
 	@echo " "
 	@echo "Services:"
-	@echo "  caddy     - Reverse proxy with auto-HTTPS"
-	@echo "  webhook   - GitHub webhook handler"
-	@echo "  portainer - Container management UI"
+	@echo "  caddy       - Reverse proxy with auto-HTTPS"
+	@echo "  webhook     - GitHub webhook handler"
+	@echo "  portainer   - Container management UI"
+	@echo "  cloudflared - Cloudflare tunnel"
+	@echo "  pihole      - DNS + ad-blocking"
 	@echo " "
 	@echo "Examples:"
 	@echo "  make caddy up"
@@ -22,7 +24,7 @@ help:
 	@echo "  make verify    - Verify backups"
 	@echo " "
 	@echo "Bulk:"
-	@echo "  make all up    - Start all services (caddy, webhook, portainer)"
+	@echo "  make all up    - Start all services"
 	@echo "  make all down  - Stop all services"
 	@echo " "
 	@echo "Tools:"
@@ -54,9 +56,13 @@ all:
 			$(MAKE) caddy up && \
 			$(MAKE) webhook up && \
 			$(MAKE) portainer up && \
+			$(MAKE) cloudflared up && \
+			$(MAKE) pihole up && \
 			echo "All services started." ;; \
 		down) \
 			echo "Stopping all services..."; \
+			$(MAKE) pihole down; \
+			$(MAKE) cloudflared down; \
 			$(MAKE) portainer down; \
 			$(MAKE) webhook down; \
 			$(MAKE) caddy down; \
