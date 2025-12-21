@@ -29,13 +29,38 @@ infra/
 
 ## Prerequisites
 
-**Proxmox API Token:**
-1. Proxmox UI → Datacenter → Permissions → API Tokens
-2. Create token: `homelab@pve!tofu`
-3. Copy token ID and secret
-4. Set permissions: PVEVMAdmin + PVEDatastoreUser
+### Proxmox API Token Setup
 
-**OpenTofu installed:**
+**1. Create User (Datacenter → Permissions → Users → Add):**
+- User name: `homelab`
+- Realm: `pam` (Linux PAM)
+- Group: `automation` (create if needed)
+
+**2. Create Group (Datacenter → Permissions → Groups → Create):**
+- Group ID: `automation`
+
+**3. Create API Token (Datacenter → Permissions → API Tokens → Add):**
+- User: `homelab@pam`
+- Token ID: `tofu`
+- Privilege Separation: ✓ (checked)
+- **Save the secret** - shown only once!
+
+**4. Assign Permissions (Datacenter → Permissions → Add → API Token Permission):**
+- Path: `/`
+- API Token: `homelab@pam!tofu`
+- Role: `Administrator`
+- Propagate: ✓ (checked)
+
+**Result:** Token format: `homelab@pam!tofu=YOUR_SECRET`
+
+**Verify token works:**
+```bash
+curl -sk -H 'Authorization: PVEAPIToken=homelab@pam!tofu=YOUR_SECRET' \
+  'https://192.168.0.200:8006/api2/json/nodes/pve/qemu' | jq '.data[] | {vmid, name}'
+```
+
+### OpenTofu
+
 ```bash
 # Installed by setup.sh on x000 (control node)
 tofu --version

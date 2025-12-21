@@ -54,10 +54,7 @@ GitHub Push (main) → webhook.wywiol.eu/hooks/homelab (Caddy: GitHub IP whiteli
    ```
 
 2. **Proxmox API Token** (for OpenTofu):
-   ```bash
-   # On Proxmox host
-   pveum user token add root@pam tofu --privsep 0
-   ```
+   See [pve/x000/infra/README.md](../pve/x000/infra/README.md#proxmox-api-token-setup) for setup instructions.
 
 3. **GitHub Personal Access Token** (for webhooks)
 
@@ -233,7 +230,7 @@ pve/x000/infra/tofu/       # Centralized provider config
 ### Usage
 
 ```bash
-cd ~/pve/x000/infra/tofu
+cd ~/homelab/pve/x000/infra/tofu
 
 # Initialize
 tofu init
