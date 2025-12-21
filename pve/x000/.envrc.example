@@ -8,8 +8,9 @@ REMOTE_FILES=(
   "Makefile"
   "ansible"
   "infra"
-  "bootstrap.sh"
-  "bootstrap.env.example"
+  "setup.sh"
+  "setup.env.example"
   "backup-control-node.sh"
   "verify-backups.sh"
+  "scripts"
 )

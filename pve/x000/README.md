@@ -156,6 +156,6 @@ See [ansible/README.md](ansible/README.md) for full inventory.
 ## Documentation
 
 - [Webhook Service](docker/config/webhook/README.md) - GitHub webhook configuration
-- [Automation Guide](../../docs/automation/ansible-opentofu-automation.md) - Full automation setup
+- [Automation Guide](../../docs/automation/README.md) - Full automation setup
 - [Ansible README](ansible/README.md) - Ansible playbooks and vault
 - [OpenTofu README](infra/README.md) - Proxmox VM management
