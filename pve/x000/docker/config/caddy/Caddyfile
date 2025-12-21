@@ -33,19 +33,23 @@
 
 # --- SITE BLOCKS ---
 
+# HTTP handler for cloudflared tunnel (sends HTTP to port 80)
+http://*.wywiol.eu {
+    @webhook host webhook.wywiol.eu
+    handle @webhook {
+        reverse_proxy webhook:9000
+    }
+    handle {
+        redir https://{host}{uri} permanent
+    }
+}
+
 *.wywiol.eu {
     import cloudflare_tls
 
     @webhook host webhook.wywiol.eu
     handle @webhook {
-        # GitHub Hook Source IPs
-        @github remote_ip 140.82.112.0/20 185.199.108.0/22 192.30.252.0/22 143.55.64.0/20
-        handle @github {
-            reverse_proxy https://webhook:9000 {
-                import insecure_proxy
-            }
-        }
-        respond "Access denied" 403
+        reverse_proxy webhook:9000
     }
 }
 
