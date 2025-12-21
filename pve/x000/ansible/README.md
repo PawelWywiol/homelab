@@ -18,8 +18,7 @@ ansible/
 ├── group_vars/
 │   └── all/
 │       ├── vars.yml            # Common variables
-│       ├── vault.yml           # Encrypted secrets (committed)
-│       └── vault.yml.example   # Template/documentation
+│       └── vault.yml.example   # Vault template (unused)
 ├── playbooks/
 │   ├── deploy-service.yml  # Deploy Docker Compose services
 │   └── rollback-service.yml # Rollback to previous version
@@ -36,35 +35,11 @@ ansible/
 
 ## Secrets Management
 
-**Ansible Vault** encrypts sensitive data in `group_vars/all/vault.yml`:
+**Current approach:** Services use `.env` files for secrets (gitignored).
 
-- `vault.yml` - Encrypted secrets (committed to git, safe)
-- `vault.yml.example` - Template/documentation (no secrets)
-
-```bash
-# Create vault from template (first time only)
-cp group_vars/all/vault.yml.example group_vars/all/vault.yml
-nano group_vars/all/vault.yml  # Fill in real secrets
-ansible-vault encrypt group_vars/all/vault.yml
-git add group_vars/all/vault.yml && git commit -m "Add encrypted vault"
-
-# View secrets
-ansible-vault view group_vars/all/vault.yml
-
-# Edit secrets (decrypts, opens editor, re-encrypts)
-ansible-vault edit group_vars/all/vault.yml
-```
-
-**Vault password:** `~/.ansible/vault_password` (never committed)
-
-**Secrets stored:**
-- Proxmox API tokens
-- GitHub webhook secret
-- Database passwords
-- Service API keys
-- Backup encryption keys
-
-See `group_vars/all/vault.yml.example` for template.
+**Ansible Vault:** Available but currently unused. Infrastructure configured if needed:
+- `ansible.cfg` references `~/.ansible/vault_password`
+- `vault.yml.example` template available
 
 ## Common Commands
 
@@ -182,11 +157,9 @@ ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.202
 ## Best Practices
 
 1. **Always test with --check** before actual deployment
-2. **Use vault for all secrets** - Never commit unencrypted credentials
-3. **Backup vault password** - Store in multiple secure locations
-4. **Tag playbooks** - Use tags for selective execution
-5. **Idempotent tasks** - Playbooks should be safe to run multiple times
-6. **Version control** - Commit all playbook/role changes
+2. **Tag playbooks** - Use tags for selective execution
+3. **Idempotent tasks** - Playbooks should be safe to run multiple times
+4. **Version control** - Commit all playbook/role changes
 
 ## Troubleshooting
 
@@ -197,16 +170,6 @@ ssh -i ~/.ssh/ansible_ed25519 code@192.168.0.202
 
 # Check SSH key permissions
 ls -l ~/.ssh/ansible_ed25519
-# Should be: -rw------- (600)
-```
-
-**Vault password error:**
-```bash
-# Verify vault password file exists
-cat ~/.ansible/vault_password
-
-# Verify file permissions
-ls -l ~/.ansible/vault_password
 # Should be: -rw------- (600)
 ```
 
@@ -234,5 +197,4 @@ ansible x202 -a "docker compose config" -e "service=caddy"
 ## References
 
 - [Ansible Documentation](https://docs.ansible.com/)
-- [Ansible Vault Guide](https://docs.ansible.com/ansible/latest/user_guide/vault.html)
 - [Docker Compose Module](https://docs.ansible.com/ansible/latest/collections/community/docker/docker_compose_v2_module.html)

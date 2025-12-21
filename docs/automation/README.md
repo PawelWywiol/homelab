@@ -92,7 +92,6 @@ make setup
 ```
 
 **IMPORTANT**: Save credentials from output:
-- Ansible vault password: `~/.ansible/vault_password`
 - GitHub webhook secret
 - SSH key path
 
@@ -188,8 +187,7 @@ ansible/
 ├── group_vars/
 │   └── all/
 │       ├── vars.yml            # Common variables
-│       ├── vault.yml           # Encrypted secrets (committed)
-│       └── vault.yml.example   # Template/documentation
+│       └── vault.yml.example   # Vault template (unused)
 ├── playbooks/
 │   ├── deploy-service.yml  # Main deployment playbook
 │   └── _deploy_single.yml  # Helper task
@@ -215,23 +213,9 @@ ansible-playbook playbooks/deploy-service.yml \
   --check
 ```
 
-### Vault Management
+### Secrets
 
-Encrypted `vault.yml` is committed to git (safe). Vault password stays local.
-
-```bash
-# Run from ansible/ directory
-
-# Create vault from template (first time only)
-cp group_vars/all/vault.yml.example group_vars/all/vault.yml
-nano group_vars/all/vault.yml  # Fill in real secrets
-ansible-vault encrypt group_vars/all/vault.yml
-git add group_vars/all/vault.yml && git commit -m "Add encrypted vault"
-
-# View/edit encrypted vars
-ansible-vault view group_vars/all/vault.yml
-ansible-vault edit group_vars/all/vault.yml
-```
+Services use `.env` files for secrets (gitignored). Ansible Vault available but currently unused.
 
 ## OpenTofu Infrastructure
 
@@ -304,13 +288,11 @@ make SERVICE up|down|restart|logs
 1. **Caddy IP whitelist** - Only GitHub IPs for webhook
 2. **HMAC-SHA256** - Verifies GitHub authenticity
 3. **SSH keys** - Key-based authentication only
-4. **Ansible Vault** - Encrypted secrets
-5. **API Tokens** - Minimal permissions
+4. **API Tokens** - Minimal permissions
 
 ### Secret Management
 
-- `.env` files: Secrets, gitignored
-- `~/.ansible/vault_password`: Vault decryption key
+- `.env` files: Service secrets, gitignored
 - `~/.ssh/id_ed25519`: SSH key for Ansible
 - `terraform.tfvars`: Proxmox credentials (not in git)
 
@@ -366,7 +348,6 @@ tofu force-unlock <lock-id>
 | Docker services | `docker/config/` |
 | Ansible config | `ansible/` |
 | OpenTofu config | `infra/tofu/` |
-| Vault password | `~/.ansible/vault_password` |
 | SSH keys | `~/.ssh/id_ed25519` |
 
 ---

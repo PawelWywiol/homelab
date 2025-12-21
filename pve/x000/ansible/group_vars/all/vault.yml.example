@@ -1,26 +1,8 @@
 ---
 # Ansible Vault - Encrypted Secrets Template
-# Copy this file to vault.yml and encrypt with: ansible-vault encrypt vault.yml
-
-# Proxmox API
-vault_proxmox_api_token: "homelab@pve!tofu=YOUR_SECRET_HERE"
-vault_proxmox_endpoint: "https://192.168.0.200:8006"
-
-# GitHub Webhook
-vault_github_webhook_secret: "CHANGE_ME"  # Generate with: openssl rand -hex 32
-vault_github_webhook_ntfy_topic: "homelab-webhooks"  # ntfy.sh topic for notifications
-
-# Database Passwords
-vault_postgres_password: "CHANGE_ME"
-vault_redis_password: "CHANGE_ME"
-
-# Service-specific secrets
-vault_grafana_admin_password: "CHANGE_ME"
-vault_portainer_admin_password: "CHANGE_ME"
-
-# API Keys
-vault_cloudflare_api_token: "CHANGE_ME"  # if using Cloudflare DNS
-
-# Backup Encryption
-vault_backup_encryption_key: "CHANGE_ME"
-vault_gpg_passphrase: "CHANGE_ME"
+# Currently unused - services use .env files for secrets
+# Keep for future use if templating .env files via Ansible
+#
+# Usage:
+#   cp vault.yml.example vault.yml
+#   ansible-vault encrypt vault.yml
