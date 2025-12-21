@@ -89,18 +89,20 @@ ssh_to_host() {
 run_deploy() {
     local target="$1"
     local service="${2:-all}"
+    local repo_path="${REPO_PATH:-~/homelab/pve/x000}"
 
     log_info "Deploying $service to $target"
-    ssh_to_host "~/scripts/deploy.sh $target $service"
+    ssh_to_host "${repo_path}/scripts/deploy.sh $target $service"
 }
 
 # Run OpenTofu script on host
 # Usage: run_tofu ["auto-apply"]
 run_tofu() {
     local auto_apply="${1:-false}"
+    local repo_path="${REPO_PATH:-~/homelab/pve/x000}"
 
     log_info "Running OpenTofu (auto-apply=$auto_apply)"
-    ssh_to_host "~/scripts/apply-tofu.sh $auto_apply"
+    ssh_to_host "${repo_path}/scripts/apply-tofu.sh $auto_apply"
 }
 
 # Extract repository name from full_name

@@ -1,11 +1,12 @@
 # Proxmox Connection
+# See infra/README.md for token setup instructions
 proxmox_endpoint   = "https://192.168.0.200:8006"
-proxmox_api_token  = "homelab@pve!tofu=YOUR_TOKEN_SECRET_HERE"
+proxmox_api_token  = "homelab@pam!tofu=YOUR_TOKEN_SECRET_HERE"
 proxmox_insecure   = true
 proxmox_node       = "pve"
 
 # SSH Configuration
-ssh_public_key = "ssh-ed25519 AAAA... ansible@x199"
+ssh_public_key = "ssh-ed25519 AAAA... ansible@x000"
 
 # VM Configuration
 vm_username = "code"
