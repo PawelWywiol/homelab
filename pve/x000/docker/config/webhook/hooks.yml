@@ -1,24 +1,20 @@
 ---
-# GitHub Webhook Handlers
+# GitHub Webhook Handler - Unified endpoint for homelab automation
 # Docs: https://github.com/adnanh/webhook/blob/master/docs/Hook-Definition.md
 #
-# Architecture: Webhook → SSH to localhost → Host scripts → Ansible
+# Architecture: GitHub → Caddy (IP whitelist) → webhook (HMAC) → trigger-homelab.sh → Ansible/OpenTofu
 #
+# Single unified webhook that routes based on changed files:
+#   pve/x202/docker/config/* → Ansible deploy to x202
+#   pve/x000/infra/tofu/*    → OpenTofu plan (manual apply)
 
-# Hook 1: Deploy x202 services (when pve/x202/docker/config/* changes)
-- id: "deploy-x202-services"
-  execute-command: "/scripts/trigger-deploy.sh"
+# Hook: Unified homelab webhook
+- id: "homelab"
+  execute-command: "/scripts/trigger-homelab.sh"
   command-working-directory: "/scripts"
   pass-arguments-to-command:
-    - source: "payload"
-      name: "repository.full_name"
-    - source: "payload"
-      name: "ref"
-    - source: "string"
-      name: "x202"
-    - source: "string"
-      name: "all"
-  response-message: "x202 deployment triggered"
+    - source: "entire-payload"
+  response-message: "Webhook received, processing..."
   trigger-rule:
     and:
       # Security: GitHub signature verification
@@ -42,129 +38,8 @@
           parameter:
             source: "payload"
             name: "ref"
-      # Path filter (x202 docker configs)
-      - or:
-        - match:
-            type: "regex"
-            regex: "pve/x202/docker/config/"
-            parameter:
-              source: "payload"
-              name: "commits.#.added.#"
-        - match:
-            type: "regex"
-            regex: "pve/x202/docker/config/"
-            parameter:
-              source: "payload"
-              name: "commits.#.modified.#"
 
-# Hook 2: Deploy x201 services (when pve/x201/* changes)
-- id: "deploy-x201-services"
-  execute-command: "/scripts/trigger-deploy.sh"
-  command-working-directory: "/scripts"
-  pass-arguments-to-command:
-    - source: "payload"
-      name: "repository.full_name"
-    - source: "payload"
-      name: "ref"
-    - source: "string"
-      name: "x201"
-    - source: "string"
-      name: "all"
-  response-message: "x201 deployment triggered"
-  trigger-rule:
-    and:
-      - match:
-          type: "payload-hmac-sha256"
-          secret: "${GITHUB_WEBHOOK_SECRET}"
-          parameter:
-            source: "header"
-            name: "X-Hub-Signature-256"
-      - match:
-          type: "value"
-          value: "PawelWywiol/homelab"
-          parameter:
-            source: "payload"
-            name: "repository.full_name"
-      - match:
-          type: "value"
-          value: "refs/heads/main"
-          parameter:
-            source: "payload"
-            name: "ref"
-      - or:
-        - match:
-            type: "regex"
-            regex: "pve/x201/"
-            parameter:
-              source: "payload"
-              name: "commits.#.added.#"
-        - match:
-            type: "regex"
-            regex: "pve/x201/"
-            parameter:
-              source: "payload"
-              name: "commits.#.modified.#"
-
-# Hook 3: Update infrastructure (when vms.tf changes in any pve folder)
-- id: "update-infrastructure"
-  execute-command: "/scripts/trigger-tofu.sh"
-  command-working-directory: "/scripts"
-  pass-arguments-to-command:
-    - source: "payload"
-      name: "repository.full_name"
-    - source: "payload"
-      name: "ref"
-    - source: "payload"
-      name: "head_commit.message"
-  response-message: "Infrastructure update triggered"
-  trigger-rule:
-    and:
-      - match:
-          type: "payload-hmac-sha256"
-          secret: "${GITHUB_WEBHOOK_SECRET}"
-          parameter:
-            source: "header"
-            name: "X-Hub-Signature-256"
-      - match:
-          type: "value"
-          value: "PawelWywiol/homelab"
-          parameter:
-            source: "payload"
-            name: "repository.full_name"
-      - match:
-          type: "value"
-          value: "refs/heads/main"
-          parameter:
-            source: "payload"
-            name: "ref"
-      # Watch vms.tf in any pve folder OR infra/tofu changes
-      - or:
-        - match:
-            type: "regex"
-            regex: "pve/.*/vms\\.tf"
-            parameter:
-              source: "payload"
-              name: "commits.#.added.#"
-        - match:
-            type: "regex"
-            regex: "pve/.*/vms\\.tf"
-            parameter:
-              source: "payload"
-              name: "commits.#.modified.#"
-        - match:
-            type: "regex"
-            regex: "pve/x000/infra/tofu/"
-            parameter:
-              source: "payload"
-              name: "commits.#.added.#"
-        - match:
-            type: "regex"
-            regex: "pve/x000/infra/tofu/"
-            parameter:
-              source: "payload"
-              name: "commits.#.modified.#"
-
-# Hook 4: Health check endpoint (no auth required)
+# Hook: Health check (no auth required)
 - id: "health"
   execute-command: "echo"
   pass-arguments-to-command:
