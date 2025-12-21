@@ -12,7 +12,7 @@ set -euo pipefail
 
 TARGET="${1:-}"
 SERVICE="${2:-all}"
-REPO_PATH="${REPO_PATH:-$HOME}"
+REPO_PATH="${REPO_PATH:-$HOME/homelab}"
 
 # Colors
 RED='\033[0;31m'

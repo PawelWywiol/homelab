@@ -114,7 +114,8 @@ make portainer up
 # Copy SSH key to x202
 ssh-copy-id -i ~/.ssh/id_ed25519.pub code@192.168.0.202
 
-# Test connectivity (from ~/homelab/pve/x000)
+# Test connectivity (run from ansible/ directory)
+cd ansible
 ansible all -m ping
 ```
 
@@ -174,6 +175,8 @@ NTFY_TOPIC=homelab-webhooks
 ```
 
 ## Ansible Configuration
+
+**Working directory:** Run all Ansible commands from `ansible/` subdirectory.
 
 ### Structure
 
@@ -320,6 +323,9 @@ docker exec webhook ssh code@host.docker.internal "echo OK"
 ### Ansible Issues
 
 ```bash
+# Run from ansible/ directory
+cd ansible
+
 # Test connectivity
 ansible all -m ping -vvv
 

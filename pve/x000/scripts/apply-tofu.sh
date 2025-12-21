@@ -11,7 +11,7 @@
 set -euo pipefail
 
 AUTO_APPLY="${1:-false}"
-REPO_PATH="${REPO_PATH:-$HOME}"
+REPO_PATH="${REPO_PATH:-$HOME/homelab}"
 TOFU_DIR="${TOFU_DIR:-$REPO_PATH/pve/x000/infra/tofu}"
 
 # Colors

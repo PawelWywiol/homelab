@@ -2,6 +2,8 @@
 
 Ansible automation for homelab infrastructure management.
 
+**Working directory:** Run all Ansible commands from this `ansible/` directory.
+
 ## Overview
 
 Manages deployment and configuration of services to x202 (primary web/app VM).
