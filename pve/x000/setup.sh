@@ -3,12 +3,9 @@
 # Setup script for x000 control node
 # Transforms a fresh machine into a fully configured control node
 #
-# Usage (from local machine):
-#   git clone https://github.com/PawelWywiol/homelab.git && cd homelab
-#   make push x000
-#
 # Usage (on x000):
-#   cd ~/pve/x000
+#   git clone https://github.com/PawelWywiol/homelab.git
+#   cd ~/homelab/pve/x000
 #   cp setup.env.example .env
 #   nano .env  # Configure required values
 #   make setup

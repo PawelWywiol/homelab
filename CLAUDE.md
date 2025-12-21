@@ -23,14 +23,9 @@ make push NAME   # Local -> Server
 | ID | Purpose | Services | Makefile |
 |----|---------|----------|----------|
 | x000 | Control node | caddy, webhook, portainer, cloudflared, pihole | `pve/x000/Makefile` |
-| x201 | DNS/Network | caddy | `pve/x201/Makefile` |
 | x202 | Web/App (primary) | 16 services | `pve/x202/Makefile` |
-| x250 | AI/ML | sd-rocm | - |
-| legacy | Legacy | various | - |
 
-**Path patterns:**
-- x000, x201, x202: `pve/ENV/docker/config/SERVICE/`
-- legacy: `pve/legacy/SERVICE/`
+**Path pattern:** `pve/ENV/docker/config/SERVICE/`
 
 ## Service Management
 
@@ -94,13 +89,10 @@ make SERVICE [up|down|restart|pull|logs]
 Setup control node:
 
 ```bash
-# On local machine
-git clone https://github.com/PawelWywiol/homelab.git && cd homelab
-make push x000
-
 # On x000
 ssh code@x000
-cd pve/x000
+git clone https://github.com/PawelWywiol/homelab.git
+cd ~/homelab/pve/x000
 cp setup.env.example .env
 nano .env  # Set required: CLOUDFLARE_API_TOKEN, BASE_DOMAIN, CONTROL_NODE_IP
 make setup
@@ -118,7 +110,7 @@ Push to `main` triggers automated deployments:
 ```
 GitHub Push → webhook.wywiol.eu (Caddy: IP whitelist)
            → webhook:8097 (HMAC verification)
-           → SSH to localhost → ~/scripts/deploy.sh
+           → SSH to localhost → scripts/deploy.sh
            → git pull + Ansible / OpenTofu
            → Deploy services / Update VMs
            → ntfy.sh notification
@@ -129,15 +121,13 @@ GitHub Push → webhook.wywiol.eu (Caddy: IP whitelist)
 | Path Change | Action |
 |-------------|--------|
 | `pve/x202/docker/config/*` | Deploy x202 services (Ansible) |
-| `pve/x201/*` | Deploy x201 services (Ansible) |
-| `pve/*/vms.tf` | OpenTofu plan (manual apply) |
 | `pve/x000/infra/tofu/*` | OpenTofu plan (manual apply) |
 
 **Ansible playbooks:**
 - `deploy-service.yml` - Deploy Docker Compose services
 - `rollback-service.yml` - Rollback to previous version
 
-**Managed hosts:** x000, x100, x199, x201, x202 (VMs) + 107, 108, 109, 111 (LXC)
+**Managed hosts:** x202 (VM)
 
 ## File Sync
 

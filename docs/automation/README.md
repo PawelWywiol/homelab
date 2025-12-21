@@ -1,6 +1,7 @@
 # Ansible + OpenTofu Automation
 
 **Control Node**: x000
+**Managed Host**: x202
 **Base Domain**: wywiol.eu
 **Status**: Production-ready
 
@@ -11,50 +12,35 @@ GitOps automation for homelab infrastructure using Ansible, OpenTofu, and GitHub
 ### Architecture
 
 ```
-GitHub Push (main) → webhook.wywiol.eu (Caddy: GitHub IP whitelist)
+GitHub Push (main) → webhook.wywiol.eu/hooks/homelab (Caddy: GitHub IP whitelist)
                               ↓
                       x000:8097 (webhook: HMAC verification)
                               ↓
-                      SSH to code@localhost
+                      trigger-homelab.sh (file routing)
                               ↓
                     ┌─────────┴─────────┐
                     ↓                   ↓
-            ~/scripts/deploy.sh    ~/scripts/apply-tofu.sh
+            scripts/deploy.sh    scripts/apply-tofu.sh
                     ↓                   ↓
-            git pull + Ansible     git pull + tofu plan
+        git pull + Ansible         tofu plan
                     ↓                   ↓
-        ┌───────────┼───────────┐       │
-        ↓           ↓           ↓       ↓
-     x201        x202    LXC 107-111  Proxmox VMs
-    (DNS)       (Web)    (Services)   (via OpenTofu)
+                  x202              Proxmox VM
+                 (Web)             (via OpenTofu)
 ```
 
 ### Key Features
 
 - **GitOps Workflow**: Push to main → automated deployment
-- **Simple Architecture**: Webhook → SSH → Ansible (no Semaphore)
+- **Unified Webhook**: Single `/hooks/homelab` endpoint routes by file changes
 - **Service Management**: Ansible playbooks for Docker Compose services
 - **Infrastructure as Code**: OpenTofu for Proxmox VM management
-- **Webhook Automation**: GitHub webhooks trigger deployments
 - **Security**: Multi-layer (IP whitelist, HMAC, SSH keys, Vault)
 - **Notifications**: ntfy.sh integration
 
 ### Managed Infrastructure
 
-**Control Node**:
-- x000: Control node (orchestration hub)
-
-**VMs (OpenTofu)**:
-- x100: Development (4 vCPUs, 12GB RAM)
-- x199: Legacy VM (2 cores, 4GB RAM)
-- x201: DNS services (2 cores, 2GB RAM)
-- x202: Web services (4 cores, 12GB RAM)
-
-**LXC Containers (Ansible)**:
-- 107: sitespeed
-- 108: passbolt
-- 109: samba
-- 111: romm
+- **x000**: Control node (orchestration hub)
+- **x202**: Web services (4 vCPUs, 12GB RAM) - managed by OpenTofu + Ansible
 
 ## Quick Start
 
@@ -89,12 +75,9 @@ ssh root@x000 '/tmp/init-host.sh'
 **Step 2: Clone Repository**
 
 ```bash
-# SSH to x000
 ssh code@x000
-
-# Clone repository
 git clone https://github.com/PawelWywiol/homelab.git
-cd homelab/pve/x000
+cd ~/homelab/pve/x000
 ```
 
 **Step 3: Configure and Run Setup**
@@ -128,21 +111,19 @@ make portainer up
 **Step 5: Distribute SSH Keys**
 
 ```bash
-# Copy SSH key to managed hosts
-ssh-copy-id -i ~/.ssh/id_ed25519.pub code@192.168.0.201
+# Copy SSH key to x202
 ssh-copy-id -i ~/.ssh/id_ed25519.pub code@192.168.0.202
 
-# Test connectivity
-cd ~/ansible
+# Test connectivity (from ~/homelab/pve/x000)
 ansible all -m ping
 ```
 
 **Step 6: Configure GitHub Webhook**
 
 1. GitHub repo → Settings → Webhooks → Add webhook
-2. Payload URL: `https://webhook.wywiol.eu/hooks/deploy-x202-services`
+2. Payload URL: `https://webhook.wywiol.eu/hooks/homelab`
 3. Content type: `application/json`
-4. Secret: from `~/docker/config/webhook/.env` (`GITHUB_WEBHOOK_SECRET`)
+4. Secret: from `docker/config/webhook/.env` (`GITHUB_WEBHOOK_SECRET`)
 5. Events: Just the push event
 
 Test:
@@ -156,21 +137,20 @@ curl https://webhook.wywiol.eu/hooks/health
 ### How It Works
 
 1. Push changes to `main` branch
-2. GitHub sends webhook to `webhook.wywiol.eu`
+2. GitHub sends webhook to `webhook.wywiol.eu/hooks/homelab`
 3. Caddy validates GitHub IP range
 4. Webhook handler verifies HMAC signature
-5. SSH to localhost runs deployment script
-6. Script pulls latest changes and runs Ansible
-7. Ansible deploys to target host
+5. `trigger-homelab.sh` analyzes changed files and routes:
+   - `pve/x202/docker/config/*` → Ansible deploy to x202
+   - `pve/x000/infra/tofu/*` → OpenTofu plan
+6. ntfy.sh notification on completion
 
 ### Triggers
 
 | Path Pattern | Action |
 |--------------|--------|
 | `pve/x202/docker/config/*` | Deploy services to x202 |
-| `pve/x201/*` | Deploy services to x201 |
-| `pve/*/vms.tf` | OpenTofu plan (manual apply) |
-| `pve/x000/infra/tofu/*` | OpenTofu plan |
+| `pve/x000/infra/tofu/*` | OpenTofu plan (manual apply) |
 
 ### Configuration
 
@@ -201,7 +181,7 @@ NTFY_TOPIC=homelab-webhooks
 ansible/
 ├── ansible.cfg              # Ansible configuration
 ├── inventory/
-│   └── hosts.yml           # All managed hosts
+│   └── hosts.yml           # x202 host definition
 ├── group_vars/
 │   └── all/
 │       ├── vars.yml        # Common variables
@@ -249,10 +229,9 @@ ansible-vault edit ansible/group_vars/all/vault.yml
 pve/x000/infra/tofu/       # Centralized provider config
 ├── provider.tf            # Proxmox provider
 ├── variables.tf           # Input variables
-├── vms.tf                # VM definitions
+├── vms.tf                # x202 VM definition
+├── outputs.tf            # Output values
 └── terraform.tfvars       # Secrets (not in git)
-
-pve/x202/vms.tf            # Distributed VM config (optional)
 ```
 
 ### Usage
@@ -272,14 +251,6 @@ tofu apply
 # Import existing VM
 tofu import proxmox_virtual_environment_vm.x202 pve/202
 ```
-
-### Distributed vms.tf Pattern
-
-Each pve folder can have its own `vms.tf` for that environment's VM:
-- `pve/x202/vms.tf` - x202 VM definition
-- `pve/x201/vms.tf` - x201 VM definition (future)
-
-The webhook watches `pve/*/vms.tf` and triggers OpenTofu on changes.
 
 ## Service Management
 
@@ -331,13 +302,6 @@ make SERVICE up|down|restart|logs
 - `~/.ssh/id_ed25519`: SSH key for Ansible
 - `terraform.tfvars`: Proxmox credentials (not in git)
 
-### Public Repository Considerations
-
-- All secrets in `.env` files (gitignored)
-- No hardcoded credentials
-- Sensitive data in Ansible Vault
-- API tokens with minimal scope
-
 ## Troubleshooting
 
 ### Webhook Issues
@@ -378,20 +342,20 @@ tofu force-unlock <lock-id>
 
 ## File Locations
 
-**On x000:**
+**On x000 (`~/homelab/pve/x000/`):**
 
 | Purpose | Location |
 |---------|----------|
-| Setup script | `~/pve/x000/setup.sh` |
-| Host scripts | `~/scripts/deploy.sh`, `~/scripts/apply-tofu.sh` |
-| Docker services | `~/docker/config/` |
-| Ansible config | `~/ansible/` |
-| OpenTofu config | `~/infra/tofu/` |
+| Setup script | `setup.sh` |
+| Host scripts | `scripts/deploy.sh`, `scripts/apply-tofu.sh` |
+| Docker services | `docker/config/` |
+| Ansible config | `ansible/` |
+| OpenTofu config | `infra/tofu/` |
 | Vault password | `~/.ansible/vault_password` |
 | SSH keys | `~/.ssh/id_ed25519` |
 
 ---
 
-**Last Updated**: 2025-12-19
-**Version**: 2.0
+**Last Updated**: 2025-12-21
+**Version**: 3.0
 **Status**: Production-ready

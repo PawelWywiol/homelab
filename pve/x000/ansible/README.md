@@ -4,7 +4,7 @@ Ansible automation for homelab infrastructure management.
 
 ## Overview
 
-Manages deployment and configuration of services across (x000), VMs (x100, x199, x201, x202) and LXC containers (107, 108, 109, 111).
+Manages deployment and configuration of services to x202 (primary web/app VM).
 
 ## Structure
 
@@ -12,7 +12,7 @@ Manages deployment and configuration of services across (x000), VMs (x100, x199,
 ansible/
 ├── ansible.cfg              # Ansible configuration
 ├── inventory/
-│   └── hosts.yml           # All managed hosts (VMs + LXC)
+│   └── hosts.yml           # x202 host definition
 ├── group_vars/
 │   └── all/
 │       ├── vars.yml        # Common variables
@@ -28,20 +28,8 @@ ansible/
 
 ## Inventory
 
-**Control node:**
-- x000 (192.168.0.2) - Control node (Ansible, webhook, DNS)
-
-**VMs managed:**
-- x100 (192.168.0.100) - Development/test
-- x199 (192.168.0.199) - Legacy VM
-- x201 (192.168.0.201) - DNS services
+**Managed hosts:**
 - x202 (192.168.0.202) - Web/app services
-
-**LXC containers managed:**
-- 107 (192.168.0.107) - sitespeed
-- 108 (192.168.0.108) - passbolt
-- 109 (192.168.0.109) - samba
-- 111 (192.168.0.111) - romm
 
 ## Secrets Management
 
@@ -103,7 +91,7 @@ ansible-playbook playbooks/deploy-service.yml -e "target_host=x202" --check
 Deploys Docker Compose services to target hosts.
 
 **Required variables:**
-- `target_host` - Target host/group (x201, x202, etc.)
+- `target_host` - Target host/group (x202)
 - `service` - Service name (optional, deploys all if not specified)
 
 **Example:**
@@ -146,12 +134,11 @@ Manages Docker Compose service deployments.
 Playbooks triggered via webhook handler → SSH → host scripts:
 
 ```
-GitHub Push → webhook:8097 → SSH to localhost → ~/scripts/deploy.sh → ansible-playbook
+GitHub Push → webhook:8097 → SSH to localhost → scripts/deploy.sh → ansible-playbook
 ```
 
 **Triggers:**
 - `pve/x202/docker/config/*` → Deploy x202 services
-- `pve/x201/*` → Deploy x201 services
 
 See: `pve/x000/docker/config/webhook/README.md`
 
@@ -179,14 +166,8 @@ control_path = /tmp/ansible-ssh-%%h-%%p-%%r
 # Generate SSH key (done by setup script)
 ssh-keygen -t ed25519 -C "ansible@x000" -f ~/.ssh/ansible_ed25519
 
-# Distribute to managed hosts
-ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.100
-ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.201
+# Distribute to x202
 ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.202
-ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.107
-ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.108
-ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.109
-ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.111
 ```
 
 ## Best Practices
@@ -197,7 +178,6 @@ ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.111
 4. **Tag playbooks** - Use tags for selective execution
 5. **Idempotent tasks** - Playbooks should be safe to run multiple times
 6. **Version control** - Commit all playbook/role changes
-7. **Test in x100** - Use dev VM before production deployment
 
 ## Troubleshooting
 

@@ -5,11 +5,19 @@ Lightweight webhook service for triggering Ansible deployments and OpenTofu infr
 ## Architecture
 
 ```
-GitHub Push → webhook.wywiol.eu (Caddy) → webhook:8097 (adnanh/webhook) → {
-  SSH to localhost → ~/scripts/deploy.sh → Ansible playbooks
-  SSH to localhost → ~/scripts/apply-tofu.sh → OpenTofu plan/apply
-  ntfy.sh → Notifications
-}
+GitHub Push → webhook.wywiol.eu/hooks/homelab (Caddy) → webhook:8097 (adnanh/webhook)
+                                                               ↓
+                                              trigger-homelab.sh (file routing)
+                                                               ↓
+                                    ┌──────────────────────────┴──────────────────────────┐
+                                    ↓                                                      ↓
+              pve/x202/docker/config/* changes                       pve/x000/infra/tofu/* changes
+                                    ↓                                                      ↓
+    SSH to localhost → scripts/deploy.sh                   SSH to localhost → scripts/apply-tofu.sh
+                                    ↓                                                      ↓
+                            Ansible playbooks                                     OpenTofu plan
+                                    ↓                                                      ↓
+                                ntfy.sh                                               ntfy.sh
 ```
 
 ## Security Layers
@@ -18,16 +26,20 @@ GitHub Push → webhook.wywiol.eu (Caddy) → webhook:8097 (adnanh/webhook) → 
 2. **HMAC-SHA256 Signature** (webhook) - Verifies GitHub authenticity
 3. **Repository Filter** - Only allows `PawelWywiol/homelab`
 4. **Branch Filter** - Only triggers on `main` branch
-5. **Path-based Routing** - Selective triggers based on changed files
+5. **File-based Routing** - Routes actions based on changed files
 
 ## Webhook Endpoints
 
-| Endpoint | Trigger | Action |
-|----------|---------|--------|
-| `/hooks/deploy-x202-services` | Changes in `pve/x202/docker/config/*` | Deploy x202 services via SSH → Ansible |
-| `/hooks/deploy-x201-services` | Changes in `pve/x201/*` | Deploy x201 services via SSH → Ansible |
-| `/hooks/update-infrastructure` | Changes in `pve/*/vms.tf` or `pve/x000/infra/tofu/*` | Run OpenTofu plan (+ optional apply) |
-| `/hooks/health` | Anytime | Health check (no auth) |
+| Endpoint | Action |
+|----------|--------|
+| `/hooks/homelab` | Unified handler - routes by changed files |
+| `/hooks/health` | Health check (no auth) |
+
+**File routing:**
+| Changed Files | Action |
+|--------------|--------|
+| `pve/x202/docker/config/*` | Deploy x202 services via Ansible |
+| `pve/x000/infra/tofu/*` | Run OpenTofu plan |
 
 ## Setup Instructions
 
@@ -45,9 +57,9 @@ In your GitHub repository (`PawelWywiol/homelab`):
 1. Go to **Settings** → **Webhooks** → **Add webhook**
 
 2. Configure:
-   - **Payload URL**: `https://webhook.wywiol.eu/hooks/deploy-x202-services`
+   - **Payload URL**: `https://webhook.wywiol.eu/hooks/homelab`
    - **Content type**: `application/json`
-   - **Secret**: (from `~/docker/config/webhook/.env` → `GITHUB_WEBHOOK_SECRET`)
+   - **Secret**: (from `docker/config/webhook/.env` → `GITHUB_WEBHOOK_SECRET`)
    - **SSL verification**: Enable
    - **Events**: Just the push event
    - **Active**: ✓
@@ -112,15 +124,15 @@ docker compose restart
 With auto-apply disabled (default), you'll receive notifications to manually apply:
 
 ```bash
-cd ~/infra/tofu
-tofu apply /tmp/tofu-plan-*.tfplan
+cd infra/tofu
+tofu apply
 ```
 
 ## Host Scripts
 
-Webhook container SSHs to localhost to execute host scripts:
+Webhook container SSHs to localhost to execute scripts in `~/homelab/pve/x000/scripts/`:
 
-### ~/scripts/deploy.sh
+### scripts/deploy.sh
 
 Triggers Ansible deployment:
 ```bash
@@ -130,12 +142,12 @@ deploy.sh x202           # Deploy all x202 services
 deploy.sh x202 caddy     # Deploy specific service
 ```
 
-### ~/scripts/apply-tofu.sh
+### scripts/apply-tofu.sh
 
 Triggers OpenTofu plan/apply:
 ```bash
 apply-tofu.sh
-# Creates plan in /tmp/tofu-plan-*.tfplan
+# Creates plan and notifies
 # Auto-applies if TOFU_AUTO_APPLY=true
 ```
 
@@ -196,7 +208,7 @@ echo "New secret: $NEW_SECRET"
 **Check OpenTofu state:**
 
 ```bash
-cd ~/infra/tofu
+cd infra/tofu
 tofu init
 tofu validate
 tofu plan
@@ -259,7 +271,7 @@ docker compose logs -f webhook
 ### Backup Configuration
 
 **Automated** (included in `backup-control-node.sh`):
-- `~/docker/config/webhook/.env` (webhook secrets)
+- `docker/config/webhook/.env` (webhook secrets)
 
 **Manual backup:**
 
@@ -273,55 +285,20 @@ tar -czf webhook-config-backup-$(date +%Y%m%d).tar.gz \
 make backup
 ```
 
-## Advanced Configuration
+## Adding New Hosts
 
-### Custom Hook Rules
+To add automation for new hosts:
 
-Edit `docker/config/webhook/hooks.yml` to add custom triggers:
+1. Edit `trigger-homelab.sh` to add file pattern:
+   ```bash
+   pve/x203/docker/config/*)
+       DEPLOY_X203=true
+       ;;
+   ```
 
-```yaml
-- id: "custom-hook"
-  execute-command: "/scripts/custom-script.sh"
-  trigger-rule:
-    and:
-      - match:
-          type: "payload-hmac-sha256"
-          secret: "${GITHUB_WEBHOOK_SECRET}"
-          parameter:
-            source: "header"
-            name: "X-Hub-Signature-256"
-      # Add custom rules here
-```
+2. Add Ansible inventory entry for new host
 
-After editing, reload configuration:
-
-```bash
-# Webhook service has hotreload enabled
-# Changes apply automatically within ~5 seconds
-
-# Or restart manually:
-docker compose restart
-```
-
-### Multiple Repositories
-
-To support additional repositories:
-
-1. Update hooks.yml with new repository filters
-2. Generate separate webhook secret per repo (recommended)
-3. Configure each GitHub repo with its own webhook
-
-### Disable Specific Hooks
-
-Comment out unwanted hooks in `hooks.yml`:
-
-```yaml
-# - id: "deploy-x201-services"
-#   execute-command: "/scripts/trigger-deploy.sh"
-#   ...
-```
-
-Reload applies automatically.
+3. Push changes to main branch
 
 ## Security Best Practices
 

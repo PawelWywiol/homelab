@@ -5,12 +5,10 @@ Automation and orchestration hub for the homelab infrastructure. Runs on a stand
 ## Quick Start
 
 ```bash
-# On local machine
-git clone https://github.com/PawelWywiol/homelab.git && cd homelab
-make push x000
-
-# On x000 (192.168.0.2)
+# On x000
 ssh code@x000
+git clone https://github.com/PawelWywiol/homelab.git
+cd ~/homelab/pve/x000
 cp setup.env.example .env
 nano .env  # Set: CLOUDFLARE_API_TOKEN, BASE_DOMAIN, CONTROL_NODE_IP
 make setup
@@ -98,8 +96,6 @@ pve/x000/
 | Path Change | Action |
 |-------------|--------|
 | `pve/x202/docker/config/*` | Deploy x202 services |
-| `pve/x201/*` | Deploy x201 services |
-| `pve/*/vms.tf` | OpenTofu plan |
 | `pve/x000/infra/tofu/*` | OpenTofu plan |
 
 ## Backup & Restore
@@ -126,7 +122,7 @@ gpg --decrypt backup/ssh/ansible_ed25519.gpg > ~/.ssh/ansible_ed25519
 chmod 600 ~/.ssh/ansible_ed25519
 
 # Restore OpenTofu state (optional, requires GPG)
-gpg --decrypt backup/tofu/terraform.tfvars.gpg > ~/infra/tofu/terraform.tfvars
+gpg --decrypt backup/tofu/terraform.tfvars.gpg > infra/tofu/terraform.tfvars
 ```
 
 **Verify backup:**
@@ -136,22 +132,11 @@ make verify  # Check backup integrity
 
 ## SSH Key Distribution
 
-**VMs:**
 ```bash
-ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.100  # x100
-ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.201  # x201
 ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.202  # x202
 ```
 
-**LXC containers:**
-```bash
-ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.107  # sitespeed
-ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.108  # passbolt
-ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.109  # samba
-ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.111  # romm
-```
-
-See [ansible/README.md](ansible/README.md) for full inventory.
+See [ansible/README.md](ansible/README.md) for inventory.
 
 ## Documentation
 
