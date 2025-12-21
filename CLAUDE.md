@@ -148,8 +148,8 @@ Config: Copy `pve/NAME/.envrc.example` to `.envrc` and set `REMOTE_HOST`.
 **Secrets management:**
 - `.env` files contain secrets → **never commit** (gitignored)
 - `.env.example` for structure reference (keys only)
-- `pve/x000/ansible/group_vars/all/vault.yml` - Ansible Vault encrypted
-- `~/.ansible/vault_password` - Vault decryption key (on x000)
+- `pve/x000/ansible/group_vars/all/vault.yml` - Encrypted, safe to commit
+- `~/.ansible/vault_password` - Vault decryption key → **never commit**
 
 **Access control:**
 - Caddy: GitHub IP whitelist for webhook endpoint

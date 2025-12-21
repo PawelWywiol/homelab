@@ -6,18 +6,12 @@
 vault_proxmox_api_token: "homelab@pve!tofu=YOUR_SECRET_HERE"
 vault_proxmox_endpoint: "https://192.168.0.200:8006"
 
-# Semaphore
-vault_semaphore_admin_password: "CHANGE_ME"
-vault_semaphore_access_key: "CHANGE_ME"
-vault_semaphore_api_token: "CHANGE_ME"  # API token for webhook integration
-
 # GitHub Webhook
 vault_github_webhook_secret: "CHANGE_ME"  # Generate with: openssl rand -hex 32
 vault_github_webhook_ntfy_topic: "homelab-webhooks"  # ntfy.sh topic for notifications
 
 # Database Passwords
 vault_postgres_password: "CHANGE_ME"
-vault_mysql_root_password: "CHANGE_ME"
 vault_redis_password: "CHANGE_ME"
 
 # Service-specific secrets
@@ -30,9 +24,3 @@ vault_cloudflare_api_token: "CHANGE_ME"  # if using Cloudflare DNS
 # Backup Encryption
 vault_backup_encryption_key: "CHANGE_ME"
 vault_gpg_passphrase: "CHANGE_ME"
-
-# Email/SMTP
-vault_smtp_username: "CHANGE_ME"
-vault_smtp_password: "CHANGE_ME"
-vault_smtp_server: "smtp.example.com"
-vault_smtp_port: 587

@@ -114,7 +114,8 @@ make portainer up
 # Copy SSH key to x202
 ssh-copy-id -i ~/.ssh/id_ed25519.pub code@192.168.0.202
 
-# Test connectivity (from ~/homelab/pve/x000)
+# Test connectivity (run from ansible/ directory)
+cd ansible
 ansible all -m ping
 ```
 
@@ -175,6 +176,8 @@ NTFY_TOPIC=homelab-webhooks
 
 ## Ansible Configuration
 
+**Working directory:** Run all Ansible commands from `ansible/` subdirectory.
+
 ### Structure
 
 ```
@@ -184,8 +187,9 @@ ansible/
 │   └── hosts.yml           # x202 host definition
 ├── group_vars/
 │   └── all/
-│       ├── vars.yml        # Common variables
-│       └── vault.yml       # Encrypted secrets
+│       ├── vars.yml            # Common variables
+│       ├── vault.yml           # Encrypted secrets (committed)
+│       └── vault.yml.example   # Template/documentation
 ├── playbooks/
 │   ├── deploy-service.yml  # Main deployment playbook
 │   └── _deploy_single.yml  # Helper task
@@ -213,12 +217,20 @@ ansible-playbook playbooks/deploy-service.yml \
 
 ### Vault Management
 
-```bash
-# View encrypted vars
-ansible-vault view ansible/group_vars/all/vault.yml
+Encrypted `vault.yml` is committed to git (safe). Vault password stays local.
 
-# Edit encrypted vars
-ansible-vault edit ansible/group_vars/all/vault.yml
+```bash
+# Run from ansible/ directory
+
+# Create vault from template (first time only)
+cp group_vars/all/vault.yml.example group_vars/all/vault.yml
+nano group_vars/all/vault.yml  # Fill in real secrets
+ansible-vault encrypt group_vars/all/vault.yml
+git add group_vars/all/vault.yml && git commit -m "Add encrypted vault"
+
+# View/edit encrypted vars
+ansible-vault view group_vars/all/vault.yml
+ansible-vault edit group_vars/all/vault.yml
 ```
 
 ## OpenTofu Infrastructure
@@ -320,6 +332,9 @@ docker exec webhook ssh code@host.docker.internal "echo OK"
 ### Ansible Issues
 
 ```bash
+# Run from ansible/ directory
+cd ansible
+
 # Test connectivity
 ansible all -m ping -vvv
 

@@ -21,8 +21,7 @@
 **/.terraform.tfstate.lock.info
 
 # Ansible
-**/vault.yml
-!**/vault.yml.example
+# vault.yml is encrypted and safe to commit
 **/retry-files/
 **/*.retry
 
