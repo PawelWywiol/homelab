@@ -62,7 +62,7 @@ GitHub Push → webhook.wywiol.eu → x000 webhook handler → {
 - **OpenTofu** (x000): Proxmox VM management
 - **Caddy** (x000): Reverse proxy with GitHub IP whitelist
 
-**Full Documentation:** [docs/automation/ansible-opentofu-automation.md](./docs/automation/ansible-opentofu-automation.md)
+**Full Documentation:** [docs/automation/README.md](./docs/automation/README.md)
 
 ## Documentation
 
