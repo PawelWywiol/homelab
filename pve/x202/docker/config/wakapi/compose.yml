@@ -2,7 +2,7 @@
 services:
   wakapi:
     container_name: wakapi
-    image: ghcr.io/muety/wakapi:2.16
+    image: ghcr.io/muety/wakapi:2.15
     ports:
       - 3003:3000
     environment:
