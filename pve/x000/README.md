@@ -19,7 +19,7 @@ make setup
 | Service | Port | Description |
 |---------|------|-------------|
 | caddy | 80, 443 | Reverse proxy with auto-HTTPS |
-| webhook | 8097 | GitHub webhook handler |
+| webhook | 8097 | GitHub webhook handler (custom image) |
 | portainer | 9443 | Container management UI |
 | cloudflared | - | Cloudflare Tunnel |
 | pihole | 53, 5080 | DNS + ad-blocking |

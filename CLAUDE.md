@@ -109,7 +109,7 @@ Push to `main` triggers automated deployments:
 
 ```
 GitHub Push → webhook.wywiol.eu (Caddy: IP whitelist)
-           → webhook:8097 (HMAC verification)
+           → webhook:8097 (custom image with bash/jq, HMAC verification)
            → SSH to localhost → scripts/deploy.sh
            → git pull + Ansible / OpenTofu
            → Deploy services / Update VMs
@@ -219,6 +219,7 @@ Config: Copy `pve/NAME/.envrc.example` to `.envrc` and set `REMOTE_HOST`.
 - All secrets via environment variables
 
 **Documentation:**
+- [pve/x000/docker/config/webhook/README.md](pve/x000/docker/config/webhook/README.md) - Webhook setup & troubleshooting
 - [pve/x000/ansible/README.md](pve/x000/ansible/README.md) - Ansible setup
 - [pve/x000/infra/README.md](pve/x000/infra/README.md) - OpenTofu/Proxmox
 - [pve/x000/README.md](pve/x000/README.md) - Control node

@@ -5,7 +5,7 @@ Lightweight webhook service for triggering Ansible deployments and OpenTofu infr
 ## Architecture
 
 ```
-GitHub Push → webhook.wywiol.eu/hooks/homelab (Caddy) → webhook:8097 (adnanh/webhook)
+GitHub Push → webhook.wywiol.eu/hooks/homelab (Caddy) → webhook:8097 (custom image with bash/jq)
                                                                ↓
                                               trigger-homelab.sh (file routing)
                                                                ↓
@@ -27,6 +27,24 @@ GitHub Push → webhook.wywiol.eu/hooks/homelab (Caddy) → webhook:8097 (adnanh
 3. **Repository Filter** - Only allows `PawelWywiol/homelab`
 4. **Branch Filter** - Only triggers on `main` branch
 5. **File-based Routing** - Routes actions based on changed files
+
+## Custom Docker Image
+
+The webhook service uses a custom Docker image built from `almir/webhook:2.8.2` with additional dependencies:
+
+**Dockerfile additions:**
+- `bash` - Required for scripts using bash-specific syntax (arrays, `${BASH_SOURCE}`)
+- `jq` - JSON parsing for webhook payload processing
+- `openssh-client` - SSH to host for executing deployment scripts
+
+**compose.yml flags:**
+- `-template` - Enables Go template syntax in hooks.yml for environment variable expansion
+
+**hooks.yml syntax:**
+```yaml
+# Environment variables use Go template syntax (NOT shell ${VAR} syntax)
+secret: '{{ getenv "GITHUB_WEBHOOK_SECRET" }}'
+```
 
 ## Webhook Endpoints
 
@@ -186,8 +204,17 @@ docker exec -it webhook ssh -o StrictHostKeyChecking=no code@host.docker.interna
 
 ### Signature Verification Failed
 
-Regenerate webhook secret:
+**Common causes:**
+- Secret mismatch between GitHub and `.env` file
+- Missing `-template` flag in compose.yml (env vars not expanded)
+- Wrong syntax in hooks.yml (must use `{{ getenv "VAR" }}` not `${VAR}`)
 
+**Verify secret is loaded:**
+```bash
+docker exec webhook sh -c 'echo $GITHUB_WEBHOOK_SECRET'
+```
+
+**Regenerate webhook secret:**
 ```bash
 # Generate new secret
 NEW_SECRET=$(openssl rand -hex 32)
@@ -196,12 +223,14 @@ NEW_SECRET=$(openssl rand -hex 32)
 sed -i "s/GITHUB_WEBHOOK_SECRET=.*/GITHUB_WEBHOOK_SECRET=$NEW_SECRET/" \
   docker/config/webhook/.env
 
-# Restart webhook
-make webhook restart
+# Restart webhook (down+up to reload .env)
+make webhook down && make webhook up
 
 # Update GitHub webhook with new secret
 echo "New secret: $NEW_SECRET"
 ```
+
+**Note:** `make webhook restart` properly reloads .env files (uses down+up internally).
 
 ### OpenTofu Plan Fails
 
@@ -238,8 +267,12 @@ curl -d "Test notification" https://ntfy.sh/homelab-webhooks
 ### Update Webhook Service
 
 ```bash
-make webhook pull && make webhook up
+# Rebuild custom image and restart
+docker compose -f ./docker/config/webhook/compose.yml build
+make webhook down && make webhook up
 ```
+
+**Note:** Uses custom Dockerfile, so `make webhook pull` won't update the base image. Rebuild to pick up Dockerfile changes or base image updates.
 
 ### Rotate Secrets
 
@@ -279,7 +312,8 @@ docker compose logs -f webhook
 # Backup webhook config
 tar -czf webhook-config-backup-$(date +%Y%m%d).tar.gz \
   docker/config/webhook/.env \
-  docker/config/webhook/hooks.yml
+  docker/config/webhook/hooks.yml \
+  docker/config/webhook/Dockerfile
 
 # Backup control node
 make backup
