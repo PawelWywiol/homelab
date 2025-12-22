@@ -35,7 +35,7 @@ GitHub Push (main) → webhook.wywiol.eu/hooks/homelab (Caddy: GitHub IP whiteli
 - **Service Management**: Ansible playbooks for Docker Compose services
 - **Infrastructure as Code**: OpenTofu for Proxmox VM management
 - **Security**: Multi-layer (IP whitelist, HMAC, SSH keys, Vault)
-- **Notifications**: ntfy.sh integration
+- **Notifications**: Discord webhook integration
 
 ### Managed Infrastructure
 
@@ -140,7 +140,7 @@ curl https://webhook.wywiol.eu/hooks/health
 5. `trigger-homelab.sh` analyzes changed files and routes:
    - `pve/x202/docker/config/*` → Ansible deploy to x202
    - `pve/x000/infra/tofu/*` → OpenTofu plan
-6. ntfy.sh notification on completion
+6. Discord notification on completion
 
 ### Triggers
 
@@ -164,10 +164,9 @@ SSH_USER=code
 # OpenTofu
 TOFU_AUTO_APPLY=false  # Manual apply recommended
 
-# Notifications
-NTFY_ENABLED=true
-NTFY_URL=https://ntfy.sh
-NTFY_TOPIC=homelab-webhooks
+# Discord notifications
+DISCORD_ENABLED=true
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/ID/TOKEN
 ```
 
 ## Ansible Configuration

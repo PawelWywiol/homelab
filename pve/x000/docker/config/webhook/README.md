@@ -17,7 +17,7 @@ GitHub Push → webhook.wywiol.eu/hooks/homelab (Caddy) → webhook:8097 (custom
                                     ↓                                                      ↓
                             Ansible playbooks                                     OpenTofu plan
                                     ↓                                                      ↓
-                                ntfy.sh                                               ntfy.sh
+                                Discord                                               Discord
 ```
 
 ## Security Layers
@@ -106,10 +106,7 @@ make webhook logs
 ```
 
 **Monitor notifications:**
-```bash
-# Subscribe to ntfy topic
-curl -s https://ntfy.sh/homelab-webhooks/json
-```
+Notifications are sent to configured Discord channel via webhook.
 
 ## Configuration
 
@@ -121,8 +118,8 @@ curl -s https://ntfy.sh/homelab-webhooks/json
 | `SSH_HOST` | SSH target host | host.docker.internal |
 | `SSH_USER` | SSH user | code |
 | `TOFU_AUTO_APPLY` | Auto-apply infrastructure changes | false |
-| `NTFY_ENABLED` | Enable ntfy notifications | true |
-| `NTFY_TOPIC` | ntfy.sh topic name | homelab-webhooks |
+| `DISCORD_ENABLED` | Enable Discord notifications | true |
+| `DISCORD_WEBHOOK_URL` | Discord webhook URL | - |
 | `LOG_LEVEL` | Logging verbosity | info |
 
 ### OpenTofu Auto-Apply
@@ -250,17 +247,18 @@ tofu plan
 
 ### Notifications Not Working
 
-**Test ntfy.sh:**
+**Test Discord webhook:**
 
 ```bash
-curl -d "Test notification" https://ntfy.sh/homelab-webhooks
+curl -H "Content-Type: application/json" \
+  -d '{"content": "Test notification"}' \
+  "$DISCORD_WEBHOOK_URL"
 ```
 
-**Subscribe to notifications:**
-
-- Web: https://ntfy.sh/homelab-webhooks
-- Mobile: Install ntfy app → Subscribe to `homelab-webhooks`
-- CLI: `curl -s https://ntfy.sh/homelab-webhooks/json`
+**Check webhook URL:**
+- Ensure `DISCORD_WEBHOOK_URL` is set in `.env`
+- Verify webhook exists in Discord (Server Settings → Integrations → Webhooks)
+- Check webhook logs: `make webhook logs`
 
 ## Maintenance
 
@@ -348,4 +346,4 @@ To add automation for new hosts:
 - [adnanh/webhook Documentation](https://github.com/adnanh/webhook)
 - [GitHub Webhook Guide](https://docs.github.com/en/webhooks)
 - [OpenTofu Documentation](https://opentofu.org/docs/)
-- [ntfy.sh Documentation](https://ntfy.sh/docs/)
+- [Discord Webhooks Guide](https://discord.com/developers/docs/resources/webhook)

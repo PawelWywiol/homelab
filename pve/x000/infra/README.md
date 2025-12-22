@@ -209,7 +209,7 @@ Infrastructure changes trigger automatically via GitHub webhook:
 2. GitHub webhook → `webhook.wywiol.eu/hooks/homelab`
 3. `trigger-homelab.sh` detects tofu changes
 4. OpenTofu plan executed
-5. Notification sent via ntfy.sh
+5. Discord notification sent
 6. Manual approval required (unless `TOFU_AUTO_APPLY=true`)
 
 **Auto-apply:** Disabled by default for safety

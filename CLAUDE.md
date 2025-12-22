@@ -113,7 +113,7 @@ GitHub Push → webhook.wywiol.eu (Caddy: IP whitelist)
            → SSH to localhost → scripts/deploy.sh
            → git pull + Ansible / OpenTofu
            → Deploy services / Update VMs
-           → ntfy.sh notification
+           → Discord notification
 ```
 
 **Triggers:**

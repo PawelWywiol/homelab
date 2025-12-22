@@ -32,29 +32,45 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $(date '+%Y-%m-%d %H:%M:%S') $*" >&2
 }
 
-# Send notification via ntfy
+# Send notification via Discord webhook
 # Usage: send_notification "title" "message" ["priority"]
+# priority: high=red, default=green
 send_notification() {
     local title="$1"
     local message="$2"
     local priority="${3:-default}"
 
-    if [ "${NTFY_ENABLED:-true}" != "true" ]; then
+    if [ "${DISCORD_ENABLED:-true}" != "true" ]; then
         log_debug "Notifications disabled, skipping"
         return 0
     fi
 
-    local ntfy_url="${NTFY_URL:-https://ntfy.sh}"
-    local ntfy_topic="${NTFY_TOPIC:-homelab-wh-b776dffa}"
+    local webhook_url="${DISCORD_WEBHOOK_URL:-}"
+    if [ -z "$webhook_url" ]; then
+        log_warn "DISCORD_WEBHOOK_URL not set, skipping notification"
+        return 1
+    fi
 
-    log_debug "Sending notification: $title - $message"
+    # Color: green=65280 (success), red=16711680 (error/high priority)
+    local color=65280
+    if [ "$priority" = "high" ]; then
+        color=16711680
+    fi
 
-    if ! curl -s -o /dev/null \
-        -H "Title: $title" \
-        -H "Priority: $priority" \
-        -d "$message" \
-        "${ntfy_url}/${ntfy_topic}"; then
-        log_warn "Failed to send notification"
+    log_debug "Sending Discord notification: $title - $message"
+
+    local payload
+    payload=$(jq -n \
+        --arg title "$title" \
+        --arg desc "$message" \
+        --argjson color "$color" \
+        '{embeds: [{title: $title, description: $desc, color: $color, timestamp: (now | strftime("%Y-%m-%dT%H:%M:%SZ"))}]}')
+
+    if ! curl -s -o /dev/null -w "%{http_code}" \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "$webhook_url" | grep -q "^2"; then
+        log_warn "Failed to send Discord notification"
         return 1
     fi
 

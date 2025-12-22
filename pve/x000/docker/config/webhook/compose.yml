@@ -21,9 +21,8 @@ services:
       - SSH_HOST=${SSH_HOST:-host.docker.internal}
       - SSH_USER=${SSH_USER:-code}
       - TOFU_AUTO_APPLY=${TOFU_AUTO_APPLY:-false}
-      - NTFY_ENABLED=${NTFY_ENABLED:-true}
-      - NTFY_URL=${NTFY_URL:-https://ntfy.sh}
-      - NTFY_TOPIC=${NTFY_TOPIC:-homelab-webhooks}
+      - DISCORD_ENABLED=${DISCORD_ENABLED:-true}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - HOME=/home/webhook
     extra_hosts:

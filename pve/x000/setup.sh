@@ -304,9 +304,9 @@ GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
 REPO_PATH=${REPO_PATH}
 TOFU_AUTO_APPLY=false
 TOFU_WORKING_DIR=${REPO_PATH}/infra/tofu
-NTFY_ENABLED=true
-NTFY_URL=https://ntfy.sh
-NTFY_TOPIC=homelab-wh-$(openssl rand -hex 4)
+# Discord notifications - set DISCORD_WEBHOOK_URL manually after setup
+DISCORD_ENABLED=true
+DISCORD_WEBHOOK_URL=
 UID=$(id -u)
 GID=$(id -g)
 TIMEZONE=${TIMEZONE}
