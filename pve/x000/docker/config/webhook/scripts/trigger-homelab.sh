@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # trigger-homelab.sh - Unified webhook handler for homelab automation
 # Routes GitHub push events to appropriate actions based on changed files

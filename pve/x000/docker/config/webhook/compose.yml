@@ -2,7 +2,10 @@
 services:
   webhook:
     container_name: webhook
-    image: almir/webhook:2.8.2
+    build:
+      context: ${PWD}/docker/config/webhook
+      dockerfile: Dockerfile
+    image: homelab/webhook:latest
     restart: unless-stopped
     ports:
       - "8097:9000"
