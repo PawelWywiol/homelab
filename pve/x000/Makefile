@@ -4,7 +4,7 @@ help:
 	@echo "Makefile for x000 control node services"
 	@echo " "
 	@echo "Usage:"
-	@echo "  make APP [up|down|restart|pull|logs]"
+	@echo "  make APP [up|down|restart|pull|logs|build]"
 	@echo " "
 	@echo "Services:"
 	@echo "  caddy       - Reverse proxy with auto-HTTPS"
@@ -71,8 +71,8 @@ all:
 	esac
 
 # Prevent action words from being treated as targets
-.PHONY: up down restart pull logs
-up down restart pull logs:
+.PHONY: up down restart pull logs build
+up down restart pull logs build:
 	@:
 
 # Generic app management
@@ -102,8 +102,10 @@ up down restart pull logs:
 				docker compose -f ./docker/config/$@/compose.yml pull ;; \
 			logs) \
 				docker compose -f ./docker/config/$@/compose.yml logs -f ;; \
+			build) \
+				docker compose -f ./docker/config/$@/compose.yml build --no-cache ;; \
 			*) \
-				echo "Invalid action '$$ACTION'. Use: up|down|restart|pull|logs"; exit 1 ;; \
+				echo "Invalid action '$$ACTION'. Use: up|down|restart|pull|logs|build"; exit 1 ;; \
 		esac; \
 	elif [ "$(word 2, $(MAKECMDGOALS))" = "" ]; then \
 		: ; \
