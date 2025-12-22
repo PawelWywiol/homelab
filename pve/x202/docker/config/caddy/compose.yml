@@ -15,8 +15,8 @@ services:
     volumes:
       - caddy_config:/config
       - caddy_data:/data
-      - ${PWD}/docker/config/caddy/Caddyfile:/etc/caddy/Caddyfile
-      - ${PWD}/docker/config/caddy/index.html:/usr/share/caddy/index.html
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./index.html:/usr/share/caddy/index.html
     restart: unless-stopped
     networks:
       - caddy_network

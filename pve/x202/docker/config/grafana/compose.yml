@@ -11,7 +11,7 @@ services:
       - GF_AUTH_BASIC_ENABLED=${GRAFANA_AUTH_BASIC_ENABLED}
       - GF_SERVER_SERVE_FROM_SUB_PATH=${GRAFANA_SERVER_SERVE_FROM_SUB_PATH}
     volumes:
-      - ${PWD}/docker/config/grafana/provisioning:/etc/grafana/provisioning/
+      - ./provisioning:/etc/grafana/provisioning/
     networks:
       - grafana_network
       - caddy_network
