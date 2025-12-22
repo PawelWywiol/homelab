@@ -12,8 +12,8 @@
   ignore_errors: true
 
 - name: "Start {{ svc_path | basename }}"
-  command: docker compose up -d --remove-orphans
+  command: docker compose up -d --remove-orphans --pull always
   args:
     chdir: "{{ svc_path }}"
   register: up_result
-  changed_when: "'Started' in up_result.stdout or 'Created' in up_result.stdout"
+  changed_when: "'Started' in up_result.stdout or 'Created' in up_result.stdout or 'Recreated' in up_result.stdout"

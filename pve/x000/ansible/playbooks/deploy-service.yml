@@ -39,11 +39,11 @@
           ignore_errors: true
 
         - name: Start service
-          command: docker compose up -d --remove-orphans
+          command: docker compose up -d --remove-orphans --pull always
           args:
             chdir: "{{ base_path }}/{{ service_name }}"
           register: up_result
-          changed_when: "'Started' in up_result.stdout or 'Created' in up_result.stdout"
+          changed_when: "'Started' in up_result.stdout or 'Created' in up_result.stdout or 'Recreated' in up_result.stdout"
 
         - name: Display service status
           debug:
