@@ -16,6 +16,14 @@
     base_path: "{{ services_base_path | default('/home/code/docker/config') }}"
 
   tasks:
+    # Pull latest changes before deploying
+    - name: Pull latest changes on target
+      command: git pull origin main
+      args:
+        chdir: /home/code/homelab
+      register: git_result
+      changed_when: "'Already up to date' not in git_result.stdout"
+
     # Single service deployment
     - name: Deploy single service
       when: service_name != 'all'
