@@ -14,6 +14,9 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/common.sh"
 
+# Newline character for string building
+NL=$'\n'
+
 # Parse payload from argument
 PAYLOAD="${1:-}"
 
@@ -48,7 +51,7 @@ CHANGED_FILES=$(echo "$PAYLOAD" | jq -r '
 
 if [ -z "$CHANGED_FILES" ]; then
     log_info "No file changes detected, skipping"
-    send_notification "ℹ️ Webhook: No Changes" "**Commit:** \`$COMMIT_SHA\` $COMMIT_MSG\n**Author:** $COMMIT_AUTHOR\n**Branch:** $BRANCH_NAME\n\nNo file changes in payload"
+    send_notification "ℹ️ Webhook: No Changes" "**Commit:** \`$COMMIT_SHA\` $COMMIT_MSG${NL}**Author:** $COMMIT_AUTHOR${NL}**Branch:** $BRANCH_NAME${NL}${NL}No file changes in payload"
     exit 0
 fi
 
@@ -86,18 +89,18 @@ while IFS= read -r file; do
 done <<< "$CHANGED_FILES"
 
 # Build commit info block for notifications
-COMMIT_INFO="**Commit:** [\`$COMMIT_SHA\`]($COMMIT_URL) $COMMIT_MSG\n**Author:** $COMMIT_AUTHOR\n**Branch:** $BRANCH_NAME"
+COMMIT_INFO="**Commit:** [\`$COMMIT_SHA\`]($COMMIT_URL) $COMMIT_MSG${NL}**Author:** $COMMIT_AUTHOR${NL}**Branch:** $BRANCH_NAME"
 
 # If only ignored files, notify and exit
 if [ "$DEPLOY_X202" = false ] && [ "$TOFU_PLAN" = false ]; then
     IGNORED_COUNT=${#IGNORED_FILES[@]}
     IGNORED_LIST=$(printf '%s\n' "${IGNORED_FILES[@]}" | head -5 | sed 's/^/• /')
     if [ $IGNORED_COUNT -gt 5 ]; then
-        IGNORED_LIST="$IGNORED_LIST\n• ... and $((IGNORED_COUNT - 5)) more"
+        IGNORED_LIST="$IGNORED_LIST${NL}• ... and $((IGNORED_COUNT - 5)) more"
     fi
 
     log_info "No actionable changes detected ($IGNORED_COUNT files ignored)"
-    send_notification "ℹ️ Webhook: Ignored" "$COMMIT_INFO\n\n**Ignored files ($IGNORED_COUNT):**\n$IGNORED_LIST"
+    send_notification "ℹ️ Webhook: Ignored" "$COMMIT_INFO${NL}${NL}**Ignored files ($IGNORED_COUNT):**${NL}$IGNORED_LIST"
     exit 0
 fi
 
@@ -117,9 +120,9 @@ if [ "$DEPLOY_X202" = true ]; then
         ERRORS+=("x202 deployment failed")
 
         # Build detailed error message
-        ERROR_MSG="$COMMIT_INFO\n\n"
-        ERROR_MSG+="**Services:** $SERVICES_STR\n"
-        ERROR_MSG+="**Status:** ❌ Deployment failed\n\n"
+        ERROR_MSG="$COMMIT_INFO${NL}${NL}"
+        ERROR_MSG+="**Services:** $SERVICES_STR${NL}"
+        ERROR_MSG+="**Status:** ❌ Deployment failed${NL}${NL}"
         ERROR_MSG+="Check logs: \`docker logs webhook\`"
 
         send_notification "❌ x202 Deploy Failed" "$ERROR_MSG" "high"
@@ -141,9 +144,9 @@ if [ "$TOFU_PLAN" = true ]; then
             ACTIONS_TAKEN+=("tofu plan")
             log_info "OpenTofu plan ready - manual approval required"
 
-            TOFU_MSG="$COMMIT_INFO\n\n"
-            TOFU_MSG+="**Changed:** $TOFU_FILES_STR\n"
-            TOFU_MSG+="**Status:** Plan ready\n\n"
+            TOFU_MSG="$COMMIT_INFO${NL}${NL}"
+            TOFU_MSG+="**Changed:** $TOFU_FILES_STR${NL}"
+            TOFU_MSG+="**Status:** Plan ready${NL}${NL}"
             TOFU_MSG+="⚠️ Manual approval required on x000"
 
             send_notification "🔧 OpenTofu Plan Ready" "$TOFU_MSG" "high"
@@ -151,9 +154,9 @@ if [ "$TOFU_PLAN" = true ]; then
     else
         ERRORS+=("OpenTofu plan failed")
 
-        ERROR_MSG="$COMMIT_INFO\n\n"
-        ERROR_MSG+="**Changed:** $TOFU_FILES_STR\n"
-        ERROR_MSG+="**Status:** ❌ Plan failed\n\n"
+        ERROR_MSG="$COMMIT_INFO${NL}${NL}"
+        ERROR_MSG+="**Changed:** $TOFU_FILES_STR${NL}"
+        ERROR_MSG+="**Status:** ❌ Plan failed${NL}${NL}"
         ERROR_MSG+="Check logs on x000"
 
         send_notification "❌ OpenTofu Failed" "$ERROR_MSG" "high"
@@ -165,11 +168,11 @@ fi
 SERVICES_STR=$(IFS=', '; echo "${SERVICES_AFFECTED[*]}")
 ACTIONS_STR=$(IFS=', '; echo "${ACTIONS_TAKEN[*]}")
 
-SUCCESS_MSG="$COMMIT_INFO\n\n"
+SUCCESS_MSG="$COMMIT_INFO${NL}${NL}"
 if [ ${#SERVICES_AFFECTED[@]} -gt 0 ]; then
-    SUCCESS_MSG+="**Services:** $SERVICES_STR\n"
+    SUCCESS_MSG+="**Services:** $SERVICES_STR${NL}"
 fi
-SUCCESS_MSG+="**Actions:** $ACTIONS_STR\n"
+SUCCESS_MSG+="**Actions:** $ACTIONS_STR${NL}"
 SUCCESS_MSG+="**Status:** ✅ Completed"
 
 send_notification "✅ Deploy Success" "$SUCCESS_MSG"
