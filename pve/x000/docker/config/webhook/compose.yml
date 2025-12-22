@@ -25,7 +25,7 @@ services:
       - HOME=/home/webhook
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    command: ["-verbose", "-hooks=/etc/webhook/hooks.yml", "-hotreload"]
+    command: ["-verbose", "-hooks=/etc/webhook/hooks.yml", "-hotreload", "-template"]
     networks:
       - homelab
     # Run as host user for security (UID/GID from .env)
