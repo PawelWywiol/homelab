@@ -92,7 +92,12 @@ up down restart pull logs:
 			down) \
 				docker compose -f ./docker/config/$@/compose.yml down ;; \
 			restart) \
-				docker compose -f ./docker/config/$@/compose.yml restart ;; \
+				docker compose -f ./docker/config/$@/compose.yml down && \
+				if [ -f "./docker/config/$@/.env" ]; then \
+					docker compose --env-file ./docker/config/$@/.env -f ./docker/config/$@/compose.yml up -d; \
+				else \
+					docker compose -f ./docker/config/$@/compose.yml up -d; \
+				fi ;; \
 			pull) \
 				docker compose -f ./docker/config/$@/compose.yml pull ;; \
 			logs) \
