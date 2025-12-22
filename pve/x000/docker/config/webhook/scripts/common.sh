@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # Common functions for webhook scripts
 # Source this file in trigger scripts: source /scripts/common.sh
