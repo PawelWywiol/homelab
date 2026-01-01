@@ -5,19 +5,20 @@ Lightweight webhook service for triggering Ansible deployments and OpenTofu infr
 ## Architecture
 
 ```
-GitHub Push → webhook.wywiol.eu/hooks/homelab (Caddy) → webhook:8097 (custom image with bash/jq)
+GitHub Push → webhook.wywiol.eu/hooks/homelab (Caddy) → webhook:9000 (custom image with bash/jq)
                                                                ↓
                                               trigger-homelab.sh (file routing)
                                                                ↓
-                                    ┌──────────────────────────┴──────────────────────────┐
-                                    ↓                                                      ↓
-              pve/x202/docker/config/* changes                       pve/x000/infra/tofu/* changes
-                                    ↓                                                      ↓
-    SSH to localhost → scripts/deploy.sh                   SSH to localhost → scripts/apply-tofu.sh
-                                    ↓                                                      ↓
-                            Ansible playbooks                                     OpenTofu plan
-                                    ↓                                                      ↓
-                                Discord                                               Discord
+                    ┌────────────────────────┬────────────────────────┬────────────────────┐
+                    ↓                        ↓                        ↓                    ↓
+    pve/x000/docker/config/*   pve/x202/docker/config/*   pve/x000/infra/tofu/*   Folder removed
+                    ↓                        ↓                        ↓                    ↓
+        scripts/deploy.sh          scripts/deploy.sh        scripts/apply-tofu.sh   scripts/stop-service.sh
+                    ↓                        ↓                        ↓                    ↓
+            Deploy to x000            Deploy to x202            OpenTofu plan        Stop containers
+                    ↓                        ↓                        ↓                    ↓
+        📦 Start + ✅/❌ End    📦 Start + ✅/❌ End    🔧 Start + ✅/❌ End   🛑 Start + ✅/❌ End
+              Discord                  Discord                  Discord                Discord
 ```
 
 ## Security Layers
@@ -56,8 +57,15 @@ secret: '{{ getenv "GITHUB_WEBHOOK_SECRET" }}'
 **File routing:**
 | Changed Files | Action |
 |--------------|--------|
+| `pve/x000/docker/config/*` | Deploy x000 services via Ansible |
 | `pve/x202/docker/config/*` | Deploy x202 services via Ansible |
 | `pve/x000/infra/tofu/*` | Run OpenTofu plan |
+| Folder removed from `pve/x*/docker/config/*` | Stop & remove containers |
+
+**Two-phase notifications:**
+Each action sends two Discord notifications:
+1. **Start** - When trigger fires (📦 deploy, 🔧 tofu, 🛑 stop)
+2. **End** - After execution (✅ success / ❌ failure + duration)
 
 ## Setup Instructions
 
@@ -153,8 +161,19 @@ Triggers Ansible deployment:
 ```bash
 deploy.sh <target> [service]
 # Examples:
+deploy.sh x000           # Deploy all x000 services
 deploy.sh x202           # Deploy all x202 services
 deploy.sh x202 caddy     # Deploy specific service
+```
+
+### scripts/stop-service.sh
+
+Stops and removes containers when folder is removed:
+```bash
+stop-service.sh <target> <service>
+# Examples:
+stop-service.sh x000 caddy   # Stop caddy on x000
+stop-service.sh x202 n8n     # Stop n8n on x202
 ```
 
 ### scripts/apply-tofu.sh
@@ -319,18 +338,31 @@ make backup
 
 ## Adding New Hosts
 
-To add automation for new hosts:
+To add automation for new hosts (e.g., x203):
 
-1. Edit `trigger-homelab.sh` to add file pattern:
-   ```bash
-   pve/x203/docker/config/*)
-       DEPLOY_X203=true
-       ;;
-   ```
+1. Edit `trigger-homelab.sh`:
+   - Add new arrays:
+     ```bash
+     SERVICES_TO_START_X203=()
+     SERVICES_TO_RESTART_X203=()
+     SERVICES_TO_STOP_X203=()
+     ```
+   - Add extract helper:
+     ```bash
+     extract_service_x203() {
+         echo "$1" | sed -n 's|pve/x203/docker/config/\([^/]*\)/.*|\1|p'
+     }
+     ```
+   - Add file pattern matching in each loop (added/modified/removed)
+   - Add DEPLOY_X203/STOP_X203 flags
+   - Add execution blocks for deploy and stop
 
-2. Add Ansible inventory entry for new host
+2. Edit `common.sh`:
+   - Add notification types: `deploy_x203`, `stop_x203`
 
-3. Push changes to main branch
+3. Add Ansible inventory entry for new host
+
+4. Push changes to main branch
 
 ## Security Best Practices
 

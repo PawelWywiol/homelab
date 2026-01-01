@@ -101,29 +101,32 @@ make all up  # Start all services
 
 ## GitOps Automation
 
-Push to `main` triggers automated deployments:
+Push to `main` triggers automated deployments with two-phase Discord notifications:
 
 ```
 GitHub Push → webhook.wywiol.eu (Caddy: IP whitelist)
-           → webhook:8097 (custom image with bash/jq, HMAC verification)
-           → SSH to localhost → scripts/deploy.sh
-           → git pull + Ansible / OpenTofu
-           → Deploy services / Update VMs
-           → Discord notification
+           → webhook:9000 (HMAC verification)
+           → trigger-homelab.sh (analyzes added/modified/removed files)
+           → scripts/deploy.sh | stop-service.sh | apply-tofu.sh
+           → Ansible / OpenTofu
+           → 📦/🛑/🔧 Start notification → ✅/❌ End notification
 ```
 
 **Triggers:**
 
-| Path Change | Action |
-|-------------|--------|
-| `pve/x202/docker/config/*` | Deploy x202 services (Ansible) |
-| `pve/x000/infra/tofu/*` | OpenTofu plan (manual apply) |
+| Path Change | Action | Notification |
+|-------------|--------|--------------|
+| `pve/x000/docker/config/*` (add/mod) | Deploy x000 services | 📦 → ✅/❌ |
+| `pve/x202/docker/config/*` (add/mod) | Deploy x202 services | 📦 → ✅/❌ |
+| `pve/x*/docker/config/*` (removed) | Stop & remove containers | 🛑 → ✅/❌ |
+| `pve/x000/infra/tofu/*` | OpenTofu plan (manual apply) | 🔧 → ✅/❌ |
 
 **Ansible playbooks:**
 - `deploy-service.yml` - Deploy Docker Compose services
+- `stop-service.yml` - Stop and remove containers
 - `rollback-service.yml` - Rollback to previous version
 
-**Managed hosts:** x202 (VM)
+**Managed hosts:** x000 (control node), x202 (VM)
 
 ## File Sync
 
@@ -168,6 +171,7 @@ Config: Copy `pve/NAME/.envrc.example` to `.envrc` and set `REMOTE_HOST`.
 │   │   ├── verify-backups.sh
 │   │   ├── scripts/          # Host scripts for webhook
 │   │   │   ├── deploy.sh     # Deployment script
+│   │   │   ├── stop-service.sh # Stop containers script
 │   │   │   └── apply-tofu.sh # OpenTofu script
 │   │   ├── ansible/          # Ansible configuration
 │   │   │   ├── inventory/hosts.yml

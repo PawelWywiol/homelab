@@ -14,18 +14,18 @@ GitOps automation for homelab infrastructure using Ansible, OpenTofu, and GitHub
 ```
 GitHub Push (main) → webhook.wywiol.eu/hooks/homelab (Caddy: GitHub IP whitelist)
                               ↓
-                      x000:8097 (webhook: HMAC verification)
+                      x000:9000 (webhook: HMAC verification)
                               ↓
                       trigger-homelab.sh (file routing)
                               ↓
-                    ┌─────────┴─────────┐
-                    ↓                   ↓
-            scripts/deploy.sh    scripts/apply-tofu.sh
-                    ↓                   ↓
-        git pull + Ansible         tofu plan
-                    ↓                   ↓
-                  x202              Proxmox VM
-                 (Web)             (via OpenTofu)
+         ┌───────────┬────────┴────────┬───────────┐
+         ↓           ↓                 ↓           ↓
+   deploy.sh    deploy.sh      apply-tofu.sh   stop-service.sh
+         ↓           ↓                 ↓           ↓
+       x000        x202          tofu plan     Stop containers
+         ↓           ↓                 ↓           ↓
+    📦 → ✅/❌   📦 → ✅/❌      🔧 → ✅/❌     🛑 → ✅/❌
+     Discord      Discord        Discord        Discord
 ```
 
 ### Key Features
@@ -35,7 +35,9 @@ GitHub Push (main) → webhook.wywiol.eu/hooks/homelab (Caddy: GitHub IP whiteli
 - **Service Management**: Ansible playbooks for Docker Compose services
 - **Infrastructure as Code**: OpenTofu for Proxmox VM management
 - **Security**: Multi-layer (IP whitelist, HMAC, SSH keys, Vault)
-- **Notifications**: Discord webhook integration
+- **Two-Phase Notifications**: Discord notifications on start + end with status/duration
+- **Multi-Host Support**: Deploy to x000 (control node) and x202 (web services)
+- **Service Lifecycle**: Auto-stop containers when folders are removed
 
 ### Managed Infrastructure
 
@@ -137,17 +139,26 @@ curl https://webhook.wywiol.eu/hooks/health
 2. GitHub sends webhook to `webhook.wywiol.eu/hooks/homelab`
 3. Caddy validates GitHub IP range
 4. Webhook handler verifies HMAC signature
-5. `trigger-homelab.sh` analyzes changed files and routes:
+5. `trigger-homelab.sh` analyzes files by change type:
+   - **Added files** → Start new containers
+   - **Modified files** → Restart existing containers
+   - **Removed files** → Stop & remove containers
+6. Routes to appropriate host:
+   - `pve/x000/docker/config/*` → Ansible deploy to x000
    - `pve/x202/docker/config/*` → Ansible deploy to x202
    - `pve/x000/infra/tofu/*` → OpenTofu plan
-6. Discord notification on completion
+7. Two-phase Discord notifications:
+   - **Start notification** → When trigger fires (with commit info)
+   - **End notification** → After execution (with status + duration)
 
 ### Triggers
 
-| Path Pattern | Action |
-|--------------|--------|
-| `pve/x202/docker/config/*` | Deploy services to x202 |
-| `pve/x000/infra/tofu/*` | OpenTofu plan (manual apply) |
+| Path Pattern | Action | Notification |
+|--------------|--------|--------------|
+| `pve/x000/docker/config/*` (added/modified) | Deploy services to x000 | 📦 Start → ✅/❌ End |
+| `pve/x202/docker/config/*` (added/modified) | Deploy services to x202 | 📦 Start → ✅/❌ End |
+| `pve/x*/docker/config/*` (removed) | Stop & remove containers | 🛑 Start → ✅/❌ End |
+| `pve/x000/infra/tofu/*` | OpenTofu plan (manual apply) | 🔧 Start → ✅/❌ End |
 
 ### Configuration
 
@@ -339,7 +350,7 @@ tofu force-unlock <lock-id>
 | Purpose | Location |
 |---------|----------|
 | Setup script | `setup.sh` |
-| Host scripts | `scripts/deploy.sh`, `scripts/apply-tofu.sh` |
+| Host scripts | `scripts/deploy.sh`, `scripts/stop-service.sh`, `scripts/apply-tofu.sh` |
 | Docker services | `docker/config/` |
 | Ansible config | `ansible/` |
 | OpenTofu config | `infra/tofu/` |
@@ -347,6 +358,6 @@ tofu force-unlock <lock-id>
 
 ---
 
-**Last Updated**: 2025-12-21
-**Version**: 3.0
+**Last Updated**: 2026-01-01
+**Version**: 4.0
 **Status**: Production-ready
