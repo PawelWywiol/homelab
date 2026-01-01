@@ -1,7 +1,7 @@
 services:
   cloudflared:
     container_name: cloudflared
-    image: cloudflare/cloudflared:2025.4.2
+    image: cloudflare/cloudflared:2025.11.1
     command: tunnel run
     env_file: .env
     environment:
