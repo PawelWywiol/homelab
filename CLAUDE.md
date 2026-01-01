@@ -50,7 +50,6 @@ make SERVICE [up|down|restart|pull|logs]
 | wakapi | Coding activity tracker |
 | beszel | System monitoring |
 | uptime-kuma | Uptime monitoring |
-| ntfy | Push notifications |
 | glitchtip | Error tracking |
 | k6 | Load testing |
 
