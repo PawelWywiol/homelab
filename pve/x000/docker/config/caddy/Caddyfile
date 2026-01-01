@@ -76,7 +76,7 @@ http://*.wywiol.eu {
 
     @glitchtip host glitchtip.local.wywiol.eu
     handle @glitchtip {
-        reverse_proxy 192.168.0.105:8000
+        reverse_proxy 192.168.0.202:8000
     }
 
     @passbolt host passbolt.local.wywiol.eu
@@ -103,7 +103,55 @@ http://*.wywiol.eu {
 
     @wakapi host wakapi.local.wywiol.eu
     handle @wakapi {
-        reverse_proxy 192.168.0.104:3000
+        reverse_proxy 192.168.0.202:3003
+    }
+
+    # x202 Services
+    @portainer_x202 host portainer-x202.local.wywiol.eu
+    handle @portainer_x202 {
+        reverse_proxy https://192.168.0.202:9443 {
+            import insecure_proxy
+        }
+    }
+
+    @pgadmin host pgadmin.local.wywiol.eu
+    handle @pgadmin {
+        reverse_proxy 192.168.0.202:8888
+    }
+
+    @n8n host n8n.local.wywiol.eu
+    handle @n8n {
+        reverse_proxy 192.168.0.202:5678
+    }
+
+    @grafana host grafana.local.wywiol.eu
+    handle @grafana {
+        reverse_proxy 192.168.0.202:3002
+    }
+
+    @influxdb host influxdb.local.wywiol.eu
+    handle @influxdb {
+        reverse_proxy 192.168.0.202:8086
+    }
+
+    @redis host redis.local.wywiol.eu
+    handle @redis {
+        reverse_proxy 192.168.0.202:8001
+    }
+
+    @mongo host mongo.local.wywiol.eu
+    handle @mongo {
+        reverse_proxy 192.168.0.202:8081
+    }
+
+    @beszel host beszel.local.wywiol.eu
+    handle @beszel {
+        reverse_proxy 192.168.0.202:8090
+    }
+
+    @uptime host uptime.local.wywiol.eu
+    handle @uptime {
+        reverse_proxy 192.168.0.202:3001
     }
 
     # Fallback for undefined subdomains
