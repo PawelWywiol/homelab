@@ -149,11 +149,6 @@ http://*.wywiol.eu {
         reverse_proxy 192.168.0.202:8090
     }
 
-    @uptime host uptime.local.wywiol.eu
-    handle @uptime {
-        reverse_proxy 192.168.0.202:3001
-    }
-
     # Fallback for undefined subdomains
     handle {
         respond "x000 Control Node" 200

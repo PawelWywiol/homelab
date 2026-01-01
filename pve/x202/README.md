@@ -8,7 +8,6 @@
 - caddy - Reverse proxy
 - portainer - Container management UI
 - beszel - System monitoring
-- uptime-kuma - Uptime monitoring
 
 **Applications**:
 - n8n - Workflow automation

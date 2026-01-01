@@ -48,7 +48,6 @@ make SERVICE [up|down|restart|pull|logs]
 | n8n | Workflow automation |
 | wakapi | Coding activity tracker |
 | beszel | System monitoring |
-| uptime-kuma | Uptime monitoring |
 | glitchtip | Error tracking |
 | k6 | Load testing |
 
