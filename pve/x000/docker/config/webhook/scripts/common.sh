@@ -13,6 +13,15 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Discord embed colors
+DISCORD_COLOR_START=16776960     # Yellow/orange
+DISCORD_COLOR_SUCCESS=65280      # Green
+DISCORD_COLOR_FAILURE=16711680   # Red
+DISCORD_COLOR_INFO=3447003       # Blue
+
+# Output truncation limit (Discord embeds max 4096 chars)
+OUTPUT_MAX_LENGTH=2000
+
 # Log levels
 log_debug() {
     if [ "${LOG_LEVEL:-info}" = "debug" ]; then
@@ -71,6 +80,211 @@ send_notification() {
         -d "$payload" \
         "$webhook_url" | grep -q "^2"; then
         log_warn "Failed to send Discord notification"
+        return 1
+    fi
+
+    return 0
+}
+
+# Truncate text to max length with ellipsis
+# Usage: truncate_output "long text" [max_length]
+truncate_output() {
+    local text="$1"
+    local max_len="${2:-$OUTPUT_MAX_LENGTH}"
+
+    if [ ${#text} -le "$max_len" ]; then
+        echo "$text"
+    else
+        echo "${text:0:$((max_len - 3))}..."
+    fi
+}
+
+# Format duration from seconds to human readable
+# Usage: format_duration 125 → "2m 5s"
+format_duration() {
+    local seconds="$1"
+
+    if [ "$seconds" -lt 60 ]; then
+        echo "${seconds}s"
+    elif [ "$seconds" -lt 3600 ]; then
+        local mins=$((seconds / 60))
+        local secs=$((seconds % 60))
+        if [ "$secs" -eq 0 ]; then
+            echo "${mins}m"
+        else
+            echo "${mins}m ${secs}s"
+        fi
+    else
+        local hours=$((seconds / 3600))
+        local mins=$(((seconds % 3600) / 60))
+        echo "${hours}h ${mins}m"
+    fi
+}
+
+# Build Discord embed JSON with fields
+# Usage: build_embed "title" color "description" ["footer"]
+build_embed() {
+    local title="$1"
+    local color="$2"
+    local description="$3"
+    local footer="${4:-}"
+
+    if [ -n "$footer" ]; then
+        jq -n \
+            --arg title "$title" \
+            --arg desc "$description" \
+            --argjson color "$color" \
+            --arg footer "$footer" \
+            '{embeds: [{title: $title, description: $desc, color: $color, footer: {text: $footer}, timestamp: (now | strftime("%Y-%m-%dT%H:%M:%SZ"))}]}'
+    else
+        jq -n \
+            --arg title "$title" \
+            --arg desc "$description" \
+            --argjson color "$color" \
+            '{embeds: [{title: $title, description: $desc, color: $color, timestamp: (now | strftime("%Y-%m-%dT%H:%M:%SZ"))}]}'
+    fi
+}
+
+# Send start notification for workflow
+# Usage: send_start_notification "type" "commit_info" "details"
+# type: deploy|tofu
+send_start_notification() {
+    local type="$1"
+    local commit_info="$2"
+    local details="$3"
+
+    if [ "${DISCORD_ENABLED:-true}" != "true" ]; then
+        log_debug "Notifications disabled, skipping start notification"
+        return 0
+    fi
+
+    local webhook_url="${DISCORD_WEBHOOK_URL:-}"
+    if [ -z "$webhook_url" ]; then
+        log_warn "DISCORD_WEBHOOK_URL not set, skipping notification"
+        return 1
+    fi
+
+    local title emoji
+    case "$type" in
+        deploy)
+            emoji="📦"
+            title="$emoji x202 Deploy Started"
+            ;;
+        tofu)
+            emoji="🔧"
+            title="$emoji OpenTofu Plan Started"
+            ;;
+        *)
+            emoji="🚀"
+            title="$emoji Workflow Started"
+            ;;
+    esac
+
+    local message
+    message=$(printf "%s\n━━━━━━━━━━━━━━━━━━━━━━\n%s" "$commit_info" "$details")
+
+    log_debug "Sending start notification: $title"
+
+    local payload
+    payload=$(build_embed "$title" "$DISCORD_COLOR_START" "$message")
+
+    if ! curl -s -o /dev/null -w "%{http_code}" \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "$webhook_url" | grep -q "^2"; then
+        log_warn "Failed to send Discord start notification"
+        return 1
+    fi
+
+    return 0
+}
+
+# Send end notification for workflow
+# Usage: send_end_notification "type" "commit_info" "status" "duration_secs" "output"
+# type: deploy|tofu
+# status: success|failure
+send_end_notification() {
+    local type="$1"
+    local commit_info="$2"
+    local status="$3"
+    local duration_secs="$4"
+    local output="$5"
+
+    if [ "${DISCORD_ENABLED:-true}" != "true" ]; then
+        log_debug "Notifications disabled, skipping end notification"
+        return 0
+    fi
+
+    local webhook_url="${DISCORD_WEBHOOK_URL:-}"
+    if [ -z "$webhook_url" ]; then
+        log_warn "DISCORD_WEBHOOK_URL not set, skipping notification"
+        return 1
+    fi
+
+    local title color emoji duration_str
+    duration_str=$(format_duration "$duration_secs")
+
+    case "$type" in
+        deploy)
+            if [ "$status" = "success" ]; then
+                emoji="✅"
+                title="$emoji x202 Deploy Success"
+                color="$DISCORD_COLOR_SUCCESS"
+            else
+                emoji="❌"
+                title="$emoji x202 Deploy Failed"
+                color="$DISCORD_COLOR_FAILURE"
+            fi
+            ;;
+        tofu)
+            if [ "$status" = "success" ]; then
+                emoji="✅"
+                title="$emoji OpenTofu Plan Ready"
+                color="$DISCORD_COLOR_SUCCESS"
+            else
+                emoji="❌"
+                title="$emoji OpenTofu Plan Failed"
+                color="$DISCORD_COLOR_FAILURE"
+            fi
+            ;;
+        *)
+            if [ "$status" = "success" ]; then
+                emoji="✅"
+                title="$emoji Workflow Success"
+                color="$DISCORD_COLOR_SUCCESS"
+            else
+                emoji="❌"
+                title="$emoji Workflow Failed"
+                color="$DISCORD_COLOR_FAILURE"
+            fi
+            ;;
+    esac
+
+    # Build message with output
+    local output_label="Output"
+    [ "$status" = "failure" ] && output_label="Error"
+
+    local truncated_output
+    truncated_output=$(truncate_output "$output")
+
+    local message
+    if [ -n "$truncated_output" ]; then
+        message=$(printf "%s\n**Duration:** %s\n━━━━━━━━━━━━━━━━━━━━━━\n**%s**\n\`\`\`\n%s\n\`\`\`" \
+            "$commit_info" "$duration_str" "$output_label" "$truncated_output")
+    else
+        message=$(printf "%s\n**Duration:** %s" "$commit_info" "$duration_str")
+    fi
+
+    log_debug "Sending end notification: $title"
+
+    local payload
+    payload=$(build_embed "$title" "$color" "$message")
+
+    if ! curl -s -o /dev/null -w "%{http_code}" \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "$webhook_url" | grep -q "^2"; then
+        log_warn "Failed to send Discord end notification"
         return 1
     fi
 

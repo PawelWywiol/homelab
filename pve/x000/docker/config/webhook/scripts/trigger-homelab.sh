@@ -104,29 +104,41 @@ if [ "$DEPLOY_X202" = false ] && [ "$TOFU_PLAN" = false ]; then
     exit 0
 fi
 
-# Execute actions
+# Execute actions with two-phase notifications
 ACTIONS_TAKEN=()
-ERRORS=()
+EXEC_OUTPUT=""
 
 # Deploy to x202
 if [ "$DEPLOY_X202" = true ]; then
     SERVICES_STR=$(IFS=', '; echo "${SERVICES_AFFECTED[*]}")
     log_info "Deploying to x202: $SERVICES_STR"
 
-    if run_deploy "x202" "all"; then
+    # Send start notification
+    START_DETAILS="**Services:** $SERVICES_STR${NL}**Target:** x202"
+    send_start_notification "deploy" "$COMMIT_INFO" "$START_DETAILS"
+
+    # Track timing
+    START_TIME=$(date +%s)
+
+    # Execute and capture output
+    if EXEC_OUTPUT=$(run_deploy "x202" "all" 2>&1); then
+        END_TIME=$(date +%s)
+        DURATION=$((END_TIME - START_TIME))
+
         ACTIONS_TAKEN+=("x202 deploy")
-        log_info "x202 deployment completed"
+        log_info "x202 deployment completed in ${DURATION}s"
+
+        # Send success end notification
+        send_end_notification "deploy" "$COMMIT_INFO" "success" "$DURATION" "$EXEC_OUTPUT"
     else
-        ERRORS+=("x202 deployment failed")
+        END_TIME=$(date +%s)
+        DURATION=$((END_TIME - START_TIME))
 
-        # Build detailed error message
-        ERROR_MSG="$COMMIT_INFO${NL}${NL}"
-        ERROR_MSG+="**Services:** $SERVICES_STR${NL}"
-        ERROR_MSG+="**Status:** ❌ Deployment failed${NL}${NL}"
-        ERROR_MSG+="Check logs: \`docker logs webhook\`"
+        log_error "x202 deployment failed after ${DURATION}s"
 
-        send_notification "❌ x202 Deploy Failed" "$ERROR_MSG" "high"
-        error_exit "x202 deployment failed"
+        # Send failure end notification
+        send_end_notification "deploy" "$COMMIT_INFO" "failure" "$DURATION" "$EXEC_OUTPUT"
+        exit 1
     fi
 fi
 
@@ -136,45 +148,41 @@ if [ "$TOFU_PLAN" = true ]; then
     log_info "Running OpenTofu plan..."
     AUTO_APPLY="${TOFU_AUTO_APPLY:-false}"
 
-    if run_tofu "$AUTO_APPLY"; then
+    # Send start notification
+    START_DETAILS="**Files:** $TOFU_FILES_STR${NL}**Auto-apply:** $AUTO_APPLY"
+    send_start_notification "tofu" "$COMMIT_INFO" "$START_DETAILS"
+
+    # Track timing
+    START_TIME=$(date +%s)
+
+    # Execute and capture output
+    if EXEC_OUTPUT=$(run_tofu "$AUTO_APPLY" 2>&1); then
+        END_TIME=$(date +%s)
+        DURATION=$((END_TIME - START_TIME))
+
         if [ "$AUTO_APPLY" = "true" ]; then
             ACTIONS_TAKEN+=("tofu apply")
-            log_info "OpenTofu applied"
+            log_info "OpenTofu applied in ${DURATION}s"
+            send_end_notification "tofu" "$COMMIT_INFO" "success" "$DURATION" "$EXEC_OUTPUT"
         else
             ACTIONS_TAKEN+=("tofu plan")
-            log_info "OpenTofu plan ready - manual approval required"
+            log_info "OpenTofu plan ready in ${DURATION}s - manual approval required"
 
-            TOFU_MSG="$COMMIT_INFO${NL}${NL}"
-            TOFU_MSG+="**Changed:** $TOFU_FILES_STR${NL}"
-            TOFU_MSG+="**Status:** Plan ready${NL}${NL}"
-            TOFU_MSG+="⚠️ Manual approval required on x000"
-
-            send_notification "🔧 OpenTofu Plan Ready" "$TOFU_MSG" "high"
+            # Add manual approval note to output
+            PLAN_OUTPUT="$EXEC_OUTPUT${NL}${NL}⚠️ Manual approval required on x000"
+            send_end_notification "tofu" "$COMMIT_INFO" "success" "$DURATION" "$PLAN_OUTPUT"
         fi
     else
-        ERRORS+=("OpenTofu plan failed")
+        END_TIME=$(date +%s)
+        DURATION=$((END_TIME - START_TIME))
 
-        ERROR_MSG="$COMMIT_INFO${NL}${NL}"
-        ERROR_MSG+="**Changed:** $TOFU_FILES_STR${NL}"
-        ERROR_MSG+="**Status:** ❌ Plan failed${NL}${NL}"
-        ERROR_MSG+="Check logs on x000"
+        log_error "OpenTofu plan failed after ${DURATION}s"
 
-        send_notification "❌ OpenTofu Failed" "$ERROR_MSG" "high"
-        error_exit "OpenTofu plan failed"
+        # Send failure end notification
+        send_end_notification "tofu" "$COMMIT_INFO" "failure" "$DURATION" "$EXEC_OUTPUT"
+        exit 1
     fi
 fi
 
-# Success summary
-SERVICES_STR=$(IFS=', '; echo "${SERVICES_AFFECTED[*]}")
-ACTIONS_STR=$(IFS=', '; echo "${ACTIONS_TAKEN[*]}")
-
-SUCCESS_MSG="$COMMIT_INFO${NL}${NL}"
-if [ ${#SERVICES_AFFECTED[@]} -gt 0 ]; then
-    SUCCESS_MSG+="**Services:** $SERVICES_STR${NL}"
-fi
-SUCCESS_MSG+="**Actions:** $ACTIONS_STR${NL}"
-SUCCESS_MSG+="**Status:** ✅ Completed"
-
-send_notification "✅ Deploy Success" "$SUCCESS_MSG"
-log_info "Completed: $ACTIONS_STR"
+log_info "Completed: $(IFS=', '; echo "${ACTIONS_TAKEN[*]}")"
 exit 0
