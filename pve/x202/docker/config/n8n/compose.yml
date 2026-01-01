@@ -1,7 +1,7 @@
 services:
   n8n:
     container_name: n8n
-    image: n8nio/n8n:1.120.4
+    image: n8nio/n8n:2.1.4
     restart: unless-stopped
     environment:
       - DOMAIN_NAME=${DOMAIN_NAME}
@@ -22,10 +22,29 @@ services:
       - caddy_network
     ports:
       - 5678:5678
+  n8n_db:
+    image: postgres:16
+    container_name: n8n_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    restart: unless-stopped
+    volumes:
+      - n8n_db:/var/lib/postgresql
+      - n8n_db_data:/var/lib/postgresql/data
+    networks:
+      - caddy_network
 
 volumes:
   n8n_data:
     name: n8n_data
+    driver: local
+  n8n_db:
+    name: n8n_db
+    driver: local
+  n8n_db_data:
+    name: n8n_db_data
     driver: local
 
 networks:
