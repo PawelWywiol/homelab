@@ -56,16 +56,6 @@
         file_server browse
     }
 
-    @sonarqube host sonarqube.local.wywiol.eu
-    handle @sonarqube {
-        reverse_proxy http://sonarqube:9000
-    }
-
-    @sonarqube_prod host sonarqube.wywiol.eu
-    handle @sonarqube_prod {
-        reverse_proxy http://sonarqube:9000
-    }
-
     @glitchtip host glitchtip.local.wywiol.eu
     handle @glitchtip {
         reverse_proxy http://glitchtip_web:8000

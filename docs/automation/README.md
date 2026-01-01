@@ -274,7 +274,7 @@ make SERVICE up|down|restart|logs
 # Available services:
 # caddy, portainer, postgres, redis, mongo, rabbitmq,
 # influxdb, grafana, n8n, wakapi, beszel, uptime-kuma,
-# ntfy, glitchtip, sonarqube
+# ntfy, glitchtip
 ```
 
 ## Security

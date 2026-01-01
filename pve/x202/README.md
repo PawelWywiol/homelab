@@ -25,7 +25,6 @@
 **Dev Tools**:
 - grafana - Dashboards
 - glitchtip - Error tracking
-- sonarqube - Code quality
 
 **Testing**:
 - k6 - Load testing (w/ InfluxDB + dashboard extensions)

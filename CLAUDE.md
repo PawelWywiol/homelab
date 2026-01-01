@@ -52,7 +52,6 @@ make SERVICE [up|down|restart|pull|logs]
 | uptime-kuma | Uptime monitoring |
 | ntfy | Push notifications |
 | glitchtip | Error tracking |
-| sonarqube | Code quality |
 | k6 | Load testing |
 
 **Database operations:**
