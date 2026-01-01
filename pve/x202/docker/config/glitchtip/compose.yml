@@ -20,7 +20,7 @@ services:
       - 8000:8000
     environment: *glitchtip-environment
     volumes:
-      - ${PWD}/docker/data/glitchtip/uploads:/code/uploads
+      - glitchtip_uploads:/code/uploads
     restart: unless-stopped
     networks:
       - caddy_network
@@ -33,7 +33,7 @@ services:
     command: ./bin/run-celery-with-beat.sh
     environment: *glitchtip-environment
     volumes:
-      - ${PWD}/docker/data/glitchtip/uploads:/code/uploads
+      - glitchtip_uploads:/code/uploads
     restart: unless-stopped
     networks:
       - caddy_network
@@ -63,6 +63,9 @@ services:
       - caddy_network
 
 volumes:
+  glitchtip_uploads:
+    name: glitchtip_uploads
+    driver: local
   glitchtip_db:
     name: glitchtip_db
     driver: local

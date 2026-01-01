@@ -3,7 +3,7 @@ services:
   caddy:
     container_name: caddy
     build:
-      context: ${PWD}/docker/config/caddy
+      context: .
       dockerfile: Caddy.Dockerfile
     restart: unless-stopped
     ports:
@@ -13,8 +13,8 @@ services:
     volumes:
       - caddy_config:/config
       - caddy_data:/data
-      - ${PWD}/docker/config/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ${PWD}/docker/config/caddy/index.html:/usr/share/caddy/index.html:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./index.html:/usr/share/caddy/index.html:ro
     environment:
       - CLOUDFLARE_EMAIL=${CLOUDFLARE_EMAIL}
       - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
@@ -24,10 +24,10 @@ services:
 
 volumes:
   caddy_config:
-    name: caddy_x000_config
+    name: caddy_config
     driver: local
   caddy_data:
-    name: caddy_x000_data
+    name: caddy_data
     driver: local
 
 networks:

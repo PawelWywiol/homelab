@@ -17,7 +17,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - n8n_data:/home/node/.n8n
-      - ${PWD}/docker/data/n8n/files:/files
+      - n8n_files:/files
     networks:
       - caddy_network
     ports:
@@ -39,6 +39,9 @@ services:
 volumes:
   n8n_data:
     name: n8n_data
+    driver: local
+  n8n_files:
+    name: n8n_files
     driver: local
   n8n_db:
     name: n8n_db

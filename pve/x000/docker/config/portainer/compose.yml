@@ -5,11 +5,16 @@ services:
     ports:
       - 9443:9443
     volumes:
-      - ${PWD}/docker/data/portainer:/data
+      - portainer_data:/data
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
     networks:
       - homelab
+
+volumes:
+  portainer_data:
+    name: portainer_data
+    driver: local
 
 networks:
   homelab:

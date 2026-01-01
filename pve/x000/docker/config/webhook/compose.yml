@@ -3,18 +3,18 @@ services:
   webhook:
     container_name: webhook
     build:
-      context: ${PWD}/docker/config/webhook
+      context: .
       dockerfile: Dockerfile
     image: homelab/webhook:latest
     restart: unless-stopped
     ports:
       - "8097:9000"
     volumes:
-      - ${PWD}/docker/config/webhook/hooks.yml:/etc/webhook/hooks.yml:ro
-      - ${PWD}/docker/config/webhook/scripts:/scripts:ro
+      - ./hooks.yml:/etc/webhook/hooks.yml:ro
+      - ./scripts:/scripts:ro
       # Mount SSH keys with proper permissions
-      - ${HOME}/.ssh/ansible_ed25519:/home/webhook/.ssh/id_ed25519:ro
-      - ${HOME}/.ssh/known_hosts:/home/webhook/.ssh/known_hosts:ro
+      - ~/.ssh/ansible_ed25519:/home/webhook/.ssh/id_ed25519:ro
+      - ~/.ssh/known_hosts:/home/webhook/.ssh/known_hosts:ro
     environment:
       - TZ=${TIMEZONE:-Europe/Warsaw}
       - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
