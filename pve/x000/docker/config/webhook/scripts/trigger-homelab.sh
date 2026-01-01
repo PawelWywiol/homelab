@@ -44,10 +44,13 @@ export BRANCH_NAME=$(echo "$GIT_REF" | sed 's|refs/heads/||')
 log_info "Webhook received: $REPO_NAME/$BRANCH_NAME"
 log_info "Commit: $COMMIT_MSG"
 
-# Extract all changed files from commits (added + modified + removed)
-CHANGED_FILES=$(echo "$PAYLOAD" | jq -r '
-    [.commits[].added[], .commits[].modified[], .commits[].removed[]] | unique | .[]
-' 2>/dev/null || echo "")
+# Extract files by change type (added, modified, removed)
+ADDED_FILES=$(echo "$PAYLOAD" | jq -r '[.commits[].added[]] | unique | .[]' 2>/dev/null || echo "")
+MODIFIED_FILES=$(echo "$PAYLOAD" | jq -r '[.commits[].modified[]] | unique | .[]' 2>/dev/null || echo "")
+REMOVED_FILES=$(echo "$PAYLOAD" | jq -r '[.commits[].removed[]] | unique | .[]' 2>/dev/null || echo "")
+
+# Combine for total count check
+CHANGED_FILES=$(echo -e "${ADDED_FILES}\n${MODIFIED_FILES}\n${REMOVED_FILES}" | grep -v '^$' | sort -u)
 
 if [ -z "$CHANGED_FILES" ]; then
     log_info "No file changes detected, skipping"
@@ -55,44 +58,109 @@ if [ -z "$CHANGED_FILES" ]; then
     exit 0
 fi
 
-log_debug "Changed files:\n$CHANGED_FILES"
+log_debug "Added files:\n$ADDED_FILES"
+log_debug "Modified files:\n$MODIFIED_FILES"
+log_debug "Removed files:\n$REMOVED_FILES"
 
 # Track state
-DEPLOY_X202=false
 TOFU_PLAN=false
-SERVICES_AFFECTED=()
-IGNORED_FILES=()
 TOFU_FILES=()
+IGNORED_FILES=()
 
-# Analyze changed files and determine actions
+# Services by operation type
+SERVICES_TO_START=()
+SERVICES_TO_RESTART=()
+SERVICES_TO_STOP=()
+
+# Helper: extract service name from x202 path
+extract_service() {
+    echo "$1" | sed -n 's|pve/x202/docker/config/\([^/]*\)/.*|\1|p'
+}
+
+# Helper: add to array if not already present
+add_unique() {
+    local -n arr=$1
+    local val=$2
+    if [ -n "$val" ] && [[ ! " ${arr[*]} " =~ " ${val} " ]]; then
+        arr+=("$val")
+    fi
+}
+
+# Analyze ADDED files → services to start
 while IFS= read -r file; do
+    [ -z "$file" ] && continue
     case "$file" in
         pve/x202/docker/config/*)
-            DEPLOY_X202=true
-            # Extract service name from path
-            SERVICE=$(echo "$file" | sed -n 's|pve/x202/docker/config/\([^/]*\)/.*|\1|p')
-            if [ -n "$SERVICE" ] && [[ ! " ${SERVICES_AFFECTED[*]} " =~ " ${SERVICE} " ]]; then
-                SERVICES_AFFECTED+=("$SERVICE")
-            fi
-            log_debug "x202 deploy needed: $file"
+            SERVICE=$(extract_service "$file")
+            add_unique SERVICES_TO_START "$SERVICE"
+            log_debug "x202 start needed: $file"
             ;;
         pve/x000/infra/tofu/*)
             TOFU_PLAN=true
             TOFU_FILES+=("$(basename "$file")")
-            log_debug "OpenTofu plan needed: $file"
             ;;
         *)
-            IGNORED_FILES+=("$file")
-            log_debug "Ignored: $file"
+            add_unique IGNORED_FILES "$file"
             ;;
     esac
-done <<< "$CHANGED_FILES"
+done <<< "$ADDED_FILES"
+
+# Analyze MODIFIED files → services to restart
+while IFS= read -r file; do
+    [ -z "$file" ] && continue
+    case "$file" in
+        pve/x202/docker/config/*)
+            SERVICE=$(extract_service "$file")
+            # Only restart if not already in start list
+            if [[ ! " ${SERVICES_TO_START[*]} " =~ " ${SERVICE} " ]]; then
+                add_unique SERVICES_TO_RESTART "$SERVICE"
+            fi
+            log_debug "x202 restart needed: $file"
+            ;;
+        pve/x000/infra/tofu/*)
+            TOFU_PLAN=true
+            add_unique TOFU_FILES "$(basename "$file")"
+            ;;
+        *)
+            add_unique IGNORED_FILES "$file"
+            ;;
+    esac
+done <<< "$MODIFIED_FILES"
+
+# Analyze REMOVED files → services to stop
+while IFS= read -r file; do
+    [ -z "$file" ] && continue
+    case "$file" in
+        pve/x202/docker/config/*)
+            SERVICE=$(extract_service "$file")
+            # Only stop if not being started or restarted
+            if [[ ! " ${SERVICES_TO_START[*]} " =~ " ${SERVICE} " ]] && \
+               [[ ! " ${SERVICES_TO_RESTART[*]} " =~ " ${SERVICE} " ]]; then
+                add_unique SERVICES_TO_STOP "$SERVICE"
+            fi
+            log_debug "x202 stop needed: $file"
+            ;;
+        pve/x000/infra/tofu/*)
+            TOFU_PLAN=true
+            add_unique TOFU_FILES "$(basename "$file")"
+            ;;
+        *)
+            add_unique IGNORED_FILES "$file"
+            ;;
+    esac
+done <<< "$REMOVED_FILES"
+
+# Determine if any x202 actions needed
+DEPLOY_X202=false
+STOP_X202=false
+[ ${#SERVICES_TO_START[@]} -gt 0 ] || [ ${#SERVICES_TO_RESTART[@]} -gt 0 ] && DEPLOY_X202=true
+[ ${#SERVICES_TO_STOP[@]} -gt 0 ] && STOP_X202=true
 
 # Build commit info block for notifications
 COMMIT_INFO="**Commit:** [\`$COMMIT_SHA\`]($COMMIT_URL) $COMMIT_MSG${NL}**Author:** $COMMIT_AUTHOR${NL}**Branch:** $BRANCH_NAME"
 
 # If only ignored files, notify and exit
-if [ "$DEPLOY_X202" = false ] && [ "$TOFU_PLAN" = false ]; then
+if [ "$DEPLOY_X202" = false ] && [ "$STOP_X202" = false ] && [ "$TOFU_PLAN" = false ]; then
     IGNORED_COUNT=${#IGNORED_FILES[@]}
     IGNORED_LIST=$(printf '%s\n' "${IGNORED_FILES[@]}" | head -5 | sed 's/^/• /')
     if [ $IGNORED_COUNT -gt 5 ]; then
@@ -108,13 +176,57 @@ fi
 ACTIONS_TAKEN=()
 EXEC_OUTPUT=""
 
-# Deploy to x202
-if [ "$DEPLOY_X202" = true ]; then
-    SERVICES_STR=$(IFS=', '; echo "${SERVICES_AFFECTED[*]}")
-    log_info "Deploying to x202: $SERVICES_STR"
+# Stop removed services first (before deploy)
+if [ "$STOP_X202" = true ]; then
+    STOP_STR=$(IFS=', '; echo "${SERVICES_TO_STOP[*]}")
+    log_info "Stopping removed services on x202: $STOP_STR"
 
     # Send start notification
-    START_DETAILS="**Services:** $SERVICES_STR${NL}**Target:** x202"
+    START_DETAILS="**Services:** $STOP_STR${NL}**Action:** Stop & Remove"
+    send_start_notification "stop" "$COMMIT_INFO" "$START_DETAILS"
+
+    # Track timing
+    START_TIME=$(date +%s)
+
+    # Execute stop for each service
+    STOP_OUTPUT=""
+    STOP_FAILED=false
+    for svc in "${SERVICES_TO_STOP[@]}"; do
+        log_info "Stopping service: $svc"
+        if OUTPUT=$(run_stop "x202" "$svc" 2>&1); then
+            STOP_OUTPUT+="$svc: stopped${NL}"
+        else
+            STOP_OUTPUT+="$svc: failed - $OUTPUT${NL}"
+            STOP_FAILED=true
+        fi
+    done
+
+    END_TIME=$(date +%s)
+    DURATION=$((END_TIME - START_TIME))
+
+    if [ "$STOP_FAILED" = true ]; then
+        log_error "Some services failed to stop after ${DURATION}s"
+        send_end_notification "stop" "$COMMIT_INFO" "failure" "$DURATION" "$STOP_OUTPUT"
+        exit 1
+    else
+        ACTIONS_TAKEN+=("x202 stop")
+        log_info "Services stopped in ${DURATION}s"
+        send_end_notification "stop" "$COMMIT_INFO" "success" "$DURATION" ""
+    fi
+fi
+
+# Deploy/restart services on x202
+if [ "$DEPLOY_X202" = true ]; then
+    # Combine start and restart services for display
+    ALL_DEPLOY_SERVICES=("${SERVICES_TO_START[@]}" "${SERVICES_TO_RESTART[@]}")
+    SERVICES_STR=$(IFS=', '; echo "${ALL_DEPLOY_SERVICES[*]}")
+    log_info "Deploying to x202: $SERVICES_STR"
+
+    # Build details with action type
+    START_DETAILS="**Target:** x202"
+    [ ${#SERVICES_TO_START[@]} -gt 0 ] && START_DETAILS+="${NL}**Start:** $(IFS=', '; echo "${SERVICES_TO_START[*]}")"
+    [ ${#SERVICES_TO_RESTART[@]} -gt 0 ] && START_DETAILS+="${NL}**Restart:** $(IFS=', '; echo "${SERVICES_TO_RESTART[*]}")"
+
     send_start_notification "deploy" "$COMMIT_INFO" "$START_DETAILS"
 
     # Track timing
@@ -128,15 +240,13 @@ if [ "$DEPLOY_X202" = true ]; then
         ACTIONS_TAKEN+=("x202 deploy")
         log_info "x202 deployment completed in ${DURATION}s"
 
-        # Send success end notification
-        send_end_notification "deploy" "$COMMIT_INFO" "success" "$DURATION" "$EXEC_OUTPUT"
+        send_end_notification "deploy" "$COMMIT_INFO" "success" "$DURATION" ""
     else
         END_TIME=$(date +%s)
         DURATION=$((END_TIME - START_TIME))
 
         log_error "x202 deployment failed after ${DURATION}s"
 
-        # Send failure end notification
         send_end_notification "deploy" "$COMMIT_INFO" "failure" "$DURATION" "$EXEC_OUTPUT"
         exit 1
     fi

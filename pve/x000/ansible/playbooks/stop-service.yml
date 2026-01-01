@@ -1,0 +1,57 @@
+---
+# Stop and remove Docker Compose service
+# Called when a service folder is removed from the repository
+#
+# Usage:
+#   ansible-playbook stop-service.yml -e target_host=x202 -e service=caddy
+#
+- name: Stop Docker Compose service
+  hosts: "{{ target_host | default('all') }}"
+  become: true
+  gather_facts: false
+
+  vars:
+    service_name: "{{ service }}"
+    base_path: "{{ services_base_path | default('/home/code/docker/config') }}"
+
+  tasks:
+    - name: Validate service name provided
+      fail:
+        msg: "Service name is required. Use -e service=<name>"
+      when: service_name is not defined or service_name == ''
+
+    - name: Check if service directory exists
+      stat:
+        path: "{{ base_path }}/{{ service_name }}"
+      register: svc_dir
+
+    - name: Stop service if directory exists
+      when: svc_dir.stat.exists
+      block:
+        - name: Stop and remove containers
+          command: docker compose down --remove-orphans --volumes
+          args:
+            chdir: "{{ base_path }}/{{ service_name }}"
+          register: down_result
+          ignore_errors: true
+
+        - name: Display stop result
+          debug:
+            msg: "Stopped {{ service_name }}: {{ down_result.stdout | default('OK') }}"
+
+    - name: Handle missing directory (service already removed from target)
+      when: not svc_dir.stat.exists
+      block:
+        - name: Try to find running containers with service name
+          shell: docker ps -a --filter "name={{ service_name }}" --format "{{ '{{' }}.Names{{ '}}' }}"
+          register: containers
+          changed_when: false
+
+        - name: Stop orphaned containers if found
+          when: containers.stdout != ''
+          shell: docker stop {{ containers.stdout_lines | join(' ') }} && docker rm {{ containers.stdout_lines | join(' ') }}
+          ignore_errors: true
+
+        - name: Display cleanup result
+          debug:
+            msg: "Service directory not found. Cleaned up {{ containers.stdout_lines | length }} orphaned containers."

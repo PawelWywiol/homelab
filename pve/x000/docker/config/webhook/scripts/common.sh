@@ -170,6 +170,10 @@ send_start_notification() {
             emoji="📦"
             title="$emoji x202 Deploy Started"
             ;;
+        stop)
+            emoji="🛑"
+            title="$emoji x202 Stop Started"
+            ;;
         tofu)
             emoji="🔧"
             title="$emoji OpenTofu Plan Started"
@@ -233,6 +237,17 @@ send_end_notification() {
             else
                 emoji="❌"
                 title="$emoji x202 Deploy Failed"
+                color="$DISCORD_COLOR_FAILURE"
+            fi
+            ;;
+        stop)
+            if [ "$status" = "success" ]; then
+                emoji="✅"
+                title="$emoji x202 Stop Success"
+                color="$DISCORD_COLOR_SUCCESS"
+            else
+                emoji="❌"
+                title="$emoji x202 Stop Failed"
                 color="$DISCORD_COLOR_FAILURE"
             fi
             ;;
@@ -319,6 +334,17 @@ run_deploy() {
 
     log_info "Deploying $service to $target"
     ssh_to_host "${repo_path}/scripts/deploy.sh $target $service"
+}
+
+# Run stop script on host
+# Usage: run_stop "target" "service"
+run_stop() {
+    local target="$1"
+    local service="$2"
+    local repo_path="${REPO_PATH:-~/homelab/pve/x000}"
+
+    log_info "Stopping $service on $target"
+    ssh_to_host "${repo_path}/scripts/stop-service.sh $target $service"
 }
 
 # Run OpenTofu script on host
