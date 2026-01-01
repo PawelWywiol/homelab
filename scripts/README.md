@@ -116,7 +116,7 @@ Synchronize files between local and remote systems using rsync.
 ./scripts/sync-files.sh push NAME
 ```
 
-NAME must match a directory in `pve/` (x000, x201, x202, x250).
+NAME must match a directory in `pve/` (x000, x202, x250).
 
 ### Configuration
 

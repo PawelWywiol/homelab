@@ -129,7 +129,7 @@ GitHub Push → webhook.wywiol.eu (Caddy: IP whitelist)
 
 ```bash
 # Root Makefile shortcuts
-make pull NAME   # Server -> Local (NAME = x000|x201|x202|x250)
+make pull NAME   # Server -> Local (NAME = x000|x202|x250)
 make push NAME   # Local -> Server
 
 # Direct script
@@ -184,7 +184,6 @@ Config: Copy `pve/NAME/.envrc.example` to `.envrc` and set `REMOTE_HOST`.
 │   │       ├── cloudflared/  # Cloudflare tunnel
 │   │       └── pihole/       # DNS + ad-blocking
 │   ├── legacy/               # Legacy services (deprecated)
-│   ├── x201/                 # DNS services (VM)
 │   ├── x202/                 # Web services (primary VM)
 │   │   ├── Makefile          # Service orchestration
 │   │   └── docker/config/SERVICE/

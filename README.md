@@ -22,7 +22,7 @@ make pull NAME  # e.g., make pull x202
 make push NAME  # e.g., make push x202
 ```
 
-NAME must match a directory in `pve/` (x000, x201, x202, x250).
+NAME must match a directory in `pve/` (x000, x202, x250).
 
 **Direct script usage:**
 ```bash
