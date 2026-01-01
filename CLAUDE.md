@@ -38,7 +38,6 @@ make SERVICE [up|down|restart|pull|logs]
 
 | Service | Description |
 |---------|-------------|
-| caddy | Reverse proxy (Cloudflare DNS) |
 | portainer | Container management UI |
 | postgres | PostgreSQL + pgAdmin |
 | redis | Redis cache |
