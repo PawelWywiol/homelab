@@ -260,17 +260,13 @@ send_end_notification() {
             ;;
     esac
 
-    # Build message with output
-    local output_label="Output"
-    [ "$status" = "failure" ] && output_label="Error"
-
-    local truncated_output
-    truncated_output=$(truncate_output "$output")
-
+    # Build message - only show output on failure
     local message
-    if [ -n "$truncated_output" ]; then
-        message=$(printf "%s\n**Duration:** %s\n━━━━━━━━━━━━━━━━━━━━━━\n**%s**\n\`\`\`\n%s\n\`\`\`" \
-            "$commit_info" "$duration_str" "$output_label" "$truncated_output")
+    if [ "$status" = "failure" ] && [ -n "$output" ]; then
+        local truncated_output
+        truncated_output=$(truncate_output "$output")
+        message=$(printf "%s\n**Duration:** %s\n━━━━━━━━━━━━━━━━━━━━━━\n**Error**\n\`\`\`\n%s\n\`\`\`" \
+            "$commit_info" "$duration_str" "$truncated_output")
     else
         message=$(printf "%s\n**Duration:** %s" "$commit_info" "$duration_str")
     fi
