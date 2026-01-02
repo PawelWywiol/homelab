@@ -47,7 +47,7 @@
           ignore_errors: true
 
         - name: Start service
-          command: docker compose up -d --remove-orphans --pull always
+          command: docker compose up -d --build --remove-orphans --pull always
           args:
             chdir: "{{ base_path }}/{{ service_name }}"
           register: up_result

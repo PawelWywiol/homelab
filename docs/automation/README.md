@@ -141,7 +141,7 @@ curl https://webhook.wywiol.eu/hooks/health
 4. Webhook handler verifies HMAC signature
 5. `trigger-homelab.sh` analyzes files by change type:
    - **Added files** → Start new containers
-   - **Modified files** → Restart existing containers
+   - **Modified files** → Rebuild (if Dockerfile) or restart containers
    - **Removed files** → Stop & remove containers
 6. Routes to appropriate host:
    - `pve/x000/docker/config/*` → Ansible deploy to x000

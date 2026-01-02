@@ -12,7 +12,7 @@
   ignore_errors: true
 
 - name: "Start {{ svc_path | basename }}"
-  command: docker compose up -d --remove-orphans --pull always
+  command: docker compose up -d --build --remove-orphans --pull always
   args:
     chdir: "{{ svc_path }}"
   register: up_result
