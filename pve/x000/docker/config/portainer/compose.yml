@@ -1,3 +1,4 @@
+---
 services:
   portainer:
     container_name: portainer
@@ -5,11 +6,11 @@ services:
     ports:
       - 9443:9443
     volumes:
-      - portainer_data:/data
       - /var/run/docker.sock:/var/run/docker.sock
-    restart: unless-stopped
+      - portainer_data:/data
     networks:
       - homelab
+    restart: unless-stopped
 
 volumes:
   portainer_data:
