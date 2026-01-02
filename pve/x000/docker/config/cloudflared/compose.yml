@@ -14,4 +14,3 @@ networks:
   homelab:
     name: homelab
     external: true
-
