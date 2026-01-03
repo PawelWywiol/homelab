@@ -4,6 +4,7 @@ services:
     image: n8nio/n8n:2.1.4
     restart: unless-stopped
     environment:
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=${N8N_BLOCK_ENV_ACCESS_IN_NODE}
       - DOMAIN_NAME=${DOMAIN_NAME}
       - SUBDOMAIN=${SUBDOMAIN}
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
