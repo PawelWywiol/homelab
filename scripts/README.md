@@ -8,6 +8,7 @@ Initialization and utility scripts for homelab setup.
 |--------|---------|
 | `init-host.sh` | Universal host initialization (VM, LXC, RPi, bare metal) |
 | `sync-files.sh` | Bidirectional file sync (rsync wrapper) |
+| `health-monitor.sh` | Generate system/Docker health reports for AI analysis |
 
 ## init-host.sh
 
@@ -158,6 +159,104 @@ With `REMOTE_HOST="code@server:/opt/data/"` and `REMOTE_FILES=("config/app.yml")
 - `make push NAME` copies `pve/NAME/config/app.yml` to `code@server:/opt/data/config/app.yml`
 - `make pull NAME` copies `code@server:/opt/data/config/app.yml` to `pve/NAME/config/app.yml`
 
+## health-monitor.sh
+
+Generate system and Docker health reports for AI analysis. Supports Debian, Ubuntu, and Raspberry Pi OS.
+
+### Features
+
+**System Checks:**
+- CPU usage (via /proc/stat)
+- Memory usage (via free)
+- Disk usage per mount point
+- Network connectivity (ping 8.8.8.8, 1.1.1.1)
+- System logs analysis (journalctl errors/warnings)
+
+**Docker Checks:**
+- Daemon status (installed, running)
+- Container states (running, stopped, exited)
+- Unexpected exits (non-zero exit codes)
+- Resource usage (CPU, memory per container)
+- Restart counts (detect unstable containers)
+- Containers created but not running
+- Stopped containers not removed
+- Long-running containers (>30 days default)
+- Container disk usage
+- Log errors (ERROR, FATAL, CRITICAL, Exception, panic, failed)
+- Security issues (privileged, capabilities, host network, docker socket mount)
+- Missing resource limits (memory, CPU)
+- Network configuration
+- Volume mounts
+
+### Usage
+
+```bash
+./scripts/health-monitor.sh [OPTIONS]
+
+# Options:
+#   --format FORMAT     Output format: json, yaml, markdown (default: json)
+#   --output FILE       Write report to file (default: stdout)
+#   --config FILE       Load configuration from file
+#   --quiet             Suppress progress output
+#   --help              Show help
+
+# Examples:
+./scripts/health-monitor.sh                           # JSON to stdout
+./scripts/health-monitor.sh --format markdown         # Markdown to stdout
+./scripts/health-monitor.sh --format yaml --output /tmp/report.yaml
+./scripts/health-monitor.sh --quiet --output /tmp/report.json
+```
+
+### Configuration
+
+Create `.env.health-monitor` file (optional):
+
+```bash
+# System thresholds (percentage)
+CPU_THRESHOLD=80
+MEMORY_THRESHOLD=80
+DISK_THRESHOLD=85
+
+# Container thresholds
+CONTAINER_CPU_THRESHOLD=80
+CONTAINER_MEMORY_THRESHOLD=80
+CONTAINER_RESTART_THRESHOLD=3
+
+# Log analysis
+LOG_HOURS=24
+LOG_PATTERNS="ERROR|FATAL|CRITICAL|Exception|panic|failed"
+
+# Long-running container threshold (days)
+LONG_RUNNING_DAYS=30
+```
+
+See `.env.health-monitor.example` for template.
+
+### Output Formats
+
+**JSON** (default): Structured data for programmatic analysis
+```json
+{
+  "report_metadata": { "generated_at": "...", "server_name": "..." },
+  "overall_status": "OK|WARNING|CRITICAL",
+  "summary": { "total_checks": 20, "passed": 18, "warnings": 2 },
+  "checks": { "system": {...}, "docker": {...} },
+  "recommendations": ["Container 'redis' exceeds memory threshold"]
+}
+```
+
+**YAML**: Human-readable structured data
+
+**Markdown**: Report format for documentation/sharing
+
+### Report Status Levels
+
+| Status | Meaning |
+|--------|---------|
+| OK | All checks within thresholds |
+| WARNING | Non-critical issues detected |
+| CRITICAL | Critical issues (docker not running, high error count) |
+
 ## Tests
 
 Test suite located in `scripts/tests/`:
@@ -168,4 +267,7 @@ Test suite located in `scripts/tests/`:
 
 # Test init-host.sh
 ./scripts/tests/test-init-host.sh
+
+# Test health-monitor.sh
+./scripts/tests/test-health-monitor.sh
 ```
