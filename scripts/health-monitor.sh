@@ -437,11 +437,11 @@ check_containers_status() {
     local exited=0
 
     while IFS=$'\t' read -r id name state status image; do
-        ((total++))
+        ((total++)) || true
         case "$state" in
-            running) ((running++)) ;;
-            exited) ((exited++)) ;;
-            *) ((stopped++)) ;;
+            running) ((running++)) || true ;;
+            exited) ((exited++)) || true ;;
+            *) ((stopped++)) || true ;;
         esac
 
         if [[ "$first" == true ]]; then
@@ -480,7 +480,7 @@ check_exited_containers() {
 
     while IFS=$'\t' read -r id name exit_code; do
         if [[ "$exit_code" != "0" && -n "$exit_code" ]]; then
-            ((issue_count++))
+            ((issue_count++)) || true
             if [[ "$first" == true ]]; then
                 first=false
             else
@@ -496,7 +496,7 @@ check_exited_containers() {
         local exit_code=$(docker inspect --format '{{.State.ExitCode}}' "$id" 2>/dev/null)
         if [[ "$exit_code" != "0" && -n "$exit_code" ]]; then
             if [[ "$issues_json" != *"$id"* ]]; then
-                ((issue_count++))
+                ((issue_count++)) || true
                 if [[ "$first" == true ]]; then
                     first=false
                 else
@@ -627,7 +627,7 @@ check_created_not_running() {
     local count=0
 
     while IFS=$'\t' read -r id name status; do
-        ((count++))
+        ((count++)) || true
         if [[ "$first" == true ]]; then
             first=false
         else
@@ -662,7 +662,7 @@ check_stopped_not_removed() {
     local count=0
 
     while IFS=$'\t' read -r id name status; do
-        ((count++))
+        ((count++)) || true
         if [[ "$first" == true ]]; then
             first=false
         else
@@ -737,7 +737,7 @@ check_long_running_containers() {
             local running_days=$((running_seconds / 86400))
 
             if [[ "$running_seconds" -gt "$threshold_seconds" ]]; then
-                ((count++))
+                ((count++)) || true
                 if [[ "$first" == true ]]; then
                     first=false
                 else
@@ -948,7 +948,7 @@ check_resource_limits() {
 
         if [[ "$memory_limit" == "0" || -z "$memory_limit" ]]; then
             has_memory_limit="false"
-            ((missing_limits++))
+            ((missing_limits++)) || true
             add_recommendation "Container '$name' has no memory limit"
         fi
 
