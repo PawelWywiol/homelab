@@ -818,7 +818,10 @@ check_container_logs() {
     local since="${LOG_HOURS}h"
 
     while IFS=$'\t' read -r id name; do
-        local error_count=$(docker logs --since "$since" "$id" 2>&1 | grep -ciE "$LOG_PATTERNS" || echo "0")
+        local error_count
+        error_count=$(docker logs --since "$since" "$id" 2>&1 | grep -ciE "$LOG_PATTERNS" 2>/dev/null || echo "0")
+        error_count="${error_count//[^0-9]/}"  # Remove non-numeric chars
+        [[ -z "$error_count" ]] && error_count=0
 
         if [[ "$error_count" -gt 0 ]]; then
             any_errors=true
