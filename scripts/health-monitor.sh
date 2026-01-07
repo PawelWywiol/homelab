@@ -253,14 +253,13 @@ json_string_array_to_list() {
     content="${content%\]}"
 
     # Use awk to properly split on "," while respecting escaped quotes
-    echo "$content" | awk -v RS='","' '
-    BEGIN { first=1 }
+    printf '%s' "$content" | awk -v RS='","' '
     {
         line = $0
-        # Remove leading quote from first element
-        if (first) { sub(/^"/, "", line); first=0 }
-        # Remove trailing quote from last element (when RS not found)
-        sub(/"$/, "", line)
+        # Remove leading/trailing quotes (first element has leading, last has trailing)
+        if (substr(line, 1, 1) == "\"") line = substr(line, 2)
+        len = length(line)
+        if (len > 0 && substr(line, len, 1) == "\"") line = substr(line, 1, len - 1)
         # Unescape JSON: \" -> " and \\ -> \
         gsub(/\\"/, "\"", line)
         gsub(/\\\\/, "\\", line)
