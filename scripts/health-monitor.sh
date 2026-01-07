@@ -129,6 +129,30 @@ get_ip() {
     hostname -I 2>/dev/null | awk '{print $1}' || ip addr show 2>/dev/null | grep 'inet ' | grep -v '127.0.0.1' | head -1 | awk '{print $2}' | cut -d/ -f1 || echo "unknown"
 }
 
+get_os_name() {
+    if [[ -f /etc/os-release ]]; then
+        grep "^NAME=" /etc/os-release | cut -d'"' -f2
+    elif command -v lsb_release &>/dev/null; then
+        lsb_release -si
+    else
+        uname -s
+    fi
+}
+
+get_os_version() {
+    if [[ -f /etc/os-release ]]; then
+        grep "^VERSION=" /etc/os-release | cut -d'"' -f2
+    elif command -v lsb_release &>/dev/null; then
+        lsb_release -sr
+    else
+        uname -r
+    fi
+}
+
+get_kernel_version() {
+    uname -r
+}
+
 timestamp() {
     date -u +"%Y-%m-%dT%H:%M:%SZ"
 }
@@ -1275,6 +1299,9 @@ generate_json_report() {
     "reporting_period_hours": $LOG_HOURS,
     "server_name": "$(get_hostname)",
     "server_ip": "$(get_ip)",
+    "os_name": "$(get_os_name)",
+    "os_version": "$(get_os_version)",
+    "kernel_version": "$(get_kernel_version)",
     "script_version": "1.0.0"
   },
   "overall_status": "$(get_overall_status)",
@@ -1428,6 +1455,8 @@ generate_markdown_report() {
 ## Metadata
 - **Generated:** $(timestamp)
 - **Server:** $(get_hostname) ($(get_ip))
+- **OS:** $(get_os_name) $(get_os_version)
+- **Kernel:** $(get_kernel_version)
 - **Period:** Last ${LOG_HOURS} hours
 - **Script Version:** 1.0.0
 
