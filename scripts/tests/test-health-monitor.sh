@@ -478,6 +478,105 @@ run_test "Markdown output contains Recommendations section" \
     false true
 
 # =============================================================================
+echo -e "\n${YELLOW}=== Markdown Parity Tests ===${NC}"
+# =============================================================================
+
+run_test "Markdown contains Disk Details section" \
+    "./scripts/health-monitor.sh --quiet --format markdown" \
+    "#### Disk Details" \
+    false true
+
+run_test "Markdown contains Network Connectivity Details" \
+    "./scripts/health-monitor.sh --quiet --format markdown" \
+    "#### Connectivity Details" \
+    false true
+
+run_test "Markdown contains Log Errors section" \
+    "./scripts/health-monitor.sh --quiet --format markdown" \
+    "#### Log Errors" \
+    false true
+
+run_test "Markdown contains Container List section" \
+    "./scripts/health-monitor.sh --quiet --format markdown" \
+    "#### Container List" \
+    false true
+
+run_test "Markdown contains Exited Container Issues section" \
+    "./scripts/health-monitor.sh --quiet --format markdown" \
+    "### Exited Container Issues" \
+    false true
+
+run_test "Markdown contains Container Resources section" \
+    "./scripts/health-monitor.sh --quiet --format markdown" \
+    "### Container Resources" \
+    false true
+
+run_test "Markdown contains Container Restarts section" \
+    "./scripts/health-monitor.sh --quiet --format markdown" \
+    "### Container Restarts" \
+    false true
+
+run_test "Markdown contains Created But Not Running section" \
+    "./scripts/health-monitor.sh --quiet --format markdown" \
+    "### Created But Not Running" \
+    false true
+
+run_test "Markdown contains Stopped But Not Removed section" \
+    "./scripts/health-monitor.sh --quiet --format markdown" \
+    "### Stopped But Not Removed" \
+    false true
+
+run_test "Markdown contains Container Disk Usage section" \
+    "./scripts/health-monitor.sh --quiet --format markdown" \
+    "### Container Disk Usage" \
+    false true
+
+run_test "Markdown contains Long Running Containers section" \
+    "./scripts/health-monitor.sh --quiet --format markdown" \
+    "### Long Running Containers" \
+    false true
+
+run_test "Markdown contains Container Images section" \
+    "./scripts/health-monitor.sh --quiet --format markdown" \
+    "### Container Images" \
+    false true
+
+run_test "Markdown contains Container Logs section" \
+    "./scripts/health-monitor.sh --quiet --format markdown" \
+    "### Container Logs" \
+    false true
+
+run_test "Markdown contains Security Issues section" \
+    "./scripts/health-monitor.sh --quiet --format markdown" \
+    "### Security Issues" \
+    false true
+
+run_test "Markdown contains Resource Limits section" \
+    "./scripts/health-monitor.sh --quiet --format markdown" \
+    "### Resource Limits" \
+    false true
+
+run_test "Markdown contains Network Configuration section" \
+    "./scripts/health-monitor.sh --quiet --format markdown" \
+    "### Network Configuration" \
+    false true
+
+run_test "Markdown contains Volume Mounts section" \
+    "./scripts/health-monitor.sh --quiet --format markdown" \
+    "### Volume Mounts" \
+    false true
+
+run_test "Markdown contains memory threshold" \
+    "./scripts/health-monitor.sh --quiet --format markdown" \
+    "Threshold.*%$" \
+    false true
+
+run_test "Markdown contains script version" \
+    "./scripts/health-monitor.sh --quiet --format markdown" \
+    "Script Version" \
+    false true
+
+# =============================================================================
 echo -e "\n${YELLOW}=== Output File Tests ===${NC}"
 # =============================================================================
 

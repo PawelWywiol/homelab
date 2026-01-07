@@ -192,6 +192,63 @@ json_array() {
     echo "$result"
 }
 
+# Markdown helpers - parse JSON arrays and output tables
+# Usage: json_to_md_table "$json_array" "col1|col2|col3" "key1|key2|key3"
+json_to_md_table() {
+    local json="$1"
+    local headers="$2"
+    local keys="$3"
+
+    # Empty or null array
+    if [[ -z "$json" || "$json" == "[]" || "$json" == "null" ]]; then
+        echo "*No data*"
+        return
+    fi
+
+    # Print header row
+    local IFS='|'
+    local header_arr=($headers)
+    local key_arr=($keys)
+
+    printf "| %s |\n" "${headers//|/ | }"
+    printf "|"
+    for _ in "${header_arr[@]}"; do
+        printf "---|"
+    done
+    printf "\n"
+
+    # Parse JSON objects - simple extraction using sed/grep
+    # Split by },{ to get individual objects
+    local objects=$(echo "$json" | sed 's/^\[//' | sed 's/\]$//' | sed 's/},{/}\n{/g')
+
+    while IFS= read -r obj; do
+        [[ -z "$obj" ]] && continue
+        printf "|"
+        for key in "${key_arr[@]}"; do
+            # Extract value for key - handles strings and numbers
+            local val=$(echo "$obj" | sed -n "s/.*\"$key\":\s*\"\?\([^,\"]*\)\"\?.*/\1/p" | head -1)
+            [[ -z "$val" ]] && val="-"
+            printf " %s |" "$val"
+        done
+        printf "\n"
+    done <<< "$objects"
+}
+
+# Simple list from JSON array of strings
+json_string_array_to_list() {
+    local json="$1"
+
+    if [[ -z "$json" || "$json" == "[]" || "$json" == "null" ]]; then
+        echo "*No entries*"
+        return
+    fi
+
+    # Extract strings from array
+    echo "$json" | sed 's/^\[//' | sed 's/\]$//' | sed 's/","/\n/g' | sed 's/^"//;s/"$//' | while read -r line; do
+        [[ -n "$line" ]] && echo "- $line"
+    done
+}
+
 # =============================================================================
 # System Checks
 # =============================================================================
@@ -360,7 +417,7 @@ check_system_logs() {
         errors=$(journalctl --since "$since" -p err --no-pager -q 2>/dev/null | wc -l || echo "0")
         warnings=$(journalctl --since "$since" -p warning --no-pager -q 2>/dev/null | wc -l || echo "0")
 
-        # Get sample errors (last 5)
+        # Get all errors
         while IFS= read -r line; do
             if [[ "$first" == true ]]; then
                 first=false
@@ -368,7 +425,7 @@ check_system_logs() {
                 sample_errors+=","
             fi
             sample_errors+="\"$(json_escape "$line")\""
-        done < <(journalctl --since "$since" -p err --no-pager -q 2>/dev/null | tail -5)
+        done < <(journalctl --since "$since" -p err --no-pager -q 2>/dev/null)
     elif [[ -f /var/log/syslog ]]; then
         local cutoff_time=$(date -d "${LOG_HOURS} hours ago" +%s 2>/dev/null || echo "0")
         errors=$(grep -ciE "$LOG_PATTERNS" /var/log/syslog 2>/dev/null || echo "0")
@@ -831,12 +888,19 @@ check_container_logs() {
                 logs_json+=","
             fi
 
-            # Get sample errors
-            local sample_errors=$(docker logs --since "$since" "$id" 2>&1 | grep -iE "$LOG_PATTERNS" | tail -3 | while read -r line; do
-                echo "$(json_escape "$line")"
-            done | paste -sd',' -)
+            # Get all errors
+            local all_errors=""
+            local err_first=true
+            while IFS= read -r line; do
+                if [[ "$err_first" == true ]]; then
+                    err_first=false
+                else
+                    all_errors+=","
+                fi
+                all_errors+="\"$(json_escape "$line")\""
+            done < <(docker logs --since "$since" "$id" 2>&1 | grep -iE "$LOG_PATTERNS")
 
-            logs_json+="{\"id\":\"$id\",\"name\":\"$name\",\"error_count\":$error_count,\"samples\":[$sample_errors]}"
+            logs_json+="{\"id\":\"$id\",\"name\":\"$name\",\"error_count\":$error_count,\"errors\":[$all_errors]}"
 
             if [[ "$error_count" -gt 50 ]]; then
                 add_recommendation "Container '$name' has $error_count log errors in last ${LOG_HOURS}h"
@@ -1194,6 +1258,7 @@ generate_markdown_report() {
 - **Generated:** $(timestamp)
 - **Server:** $(get_hostname) ($(get_ip))
 - **Period:** Last ${LOG_HOURS} hours
+- **Script Version:** 1.0.0
 
 ## Overall Status: $status_emoji $status
 
@@ -1217,14 +1282,37 @@ generate_markdown_report() {
 - **Usage:** ${REPORT_memory_value:-0}%
 - **Total:** ${REPORT_memory_total_mb:-0} MB
 - **Available:** ${REPORT_memory_available_mb:-0} MB
+- **Threshold:** ${REPORT_memory_threshold:-$MEMORY_THRESHOLD}%
+
+### Disk
+- **Status:** ${REPORT_disk_status:-SKIPPED}
+- **Threshold:** ${REPORT_disk_threshold:-$DISK_THRESHOLD}%
+
+#### Disk Details
+EOF
+    json_to_md_table "$REPORT_disk_details" "Mount|Filesystem|Size|Used|Available|Use%|Status" "mount|filesystem|size|used|available|use_percent|status"
+
+    cat <<EOF
 
 ### Network
 - **Status:** ${REPORT_network_status:-SKIPPED}
+
+#### Connectivity Details
+EOF
+    json_to_md_table "$REPORT_network_details" "Endpoint|Status" "endpoint|status"
+
+    cat <<EOF
 
 ### System Logs
 - **Status:** ${REPORT_system_logs_status:-SKIPPED}
 - **Errors:** ${REPORT_system_logs_errors:-0}
 - **Warnings:** ${REPORT_system_logs_warnings:-0}
+
+#### Log Errors
+EOF
+    json_string_array_to_list "$REPORT_system_logs_sample"
+
+    cat <<EOF
 
 ## Docker
 
@@ -1232,18 +1320,155 @@ generate_markdown_report() {
 - **Installed:** ${REPORT_docker_installed:-false}
 - **Status:** ${REPORT_docker_daemon_status:-SKIPPED}
 
-### Containers
+### Container Summary
 - **Total:** ${REPORT_containers_total:-0}
 - **Running:** ${REPORT_containers_running:-0}
 - **Stopped:** ${REPORT_containers_stopped:-0}
 - **Exited:** ${REPORT_containers_exited:-0}
 
-### Security
+#### Container List
+EOF
+    json_to_md_table "$REPORT_containers_list" "ID|Name|State|Status|Image" "id|name|state|status|image"
+
+    cat <<EOF
+
+### Exited Container Issues
+- **Status:** ${REPORT_exited_containers_status:-SKIPPED}
+
+#### Issues
+EOF
+    json_to_md_table "$REPORT_exited_containers_issues" "ID|Name|Exit Code" "id|name|exit_code"
+
+    cat <<EOF
+
+### Container Resources
+- **Status:** ${REPORT_container_resources_status:-SKIPPED}
+
+#### Resource Usage
+EOF
+    json_to_md_table "$REPORT_container_resources_details" "ID|Name|CPU%|Memory%|Memory Usage|Status" "id|name|cpu_percent|memory_percent|memory_usage|status"
+
+    cat <<EOF
+
+### Container Restarts
+- **Status:** ${REPORT_container_restarts_status:-SKIPPED}
+
+#### Restart Details
+EOF
+    json_to_md_table "$REPORT_container_restarts_details" "ID|Name|Restart Count|Status" "id|name|restart_count|status"
+
+    cat <<EOF
+
+### Created But Not Running
+- **Status:** ${REPORT_created_not_running_status:-SKIPPED}
+- **Count:** ${REPORT_created_not_running_count:-0}
+
+#### Details
+EOF
+    json_to_md_table "$REPORT_created_not_running_details" "ID|Name|Status" "id|name|status"
+
+    cat <<EOF
+
+### Stopped But Not Removed
+- **Status:** ${REPORT_stopped_not_removed_status:-SKIPPED}
+- **Count:** ${REPORT_stopped_not_removed_count:-0}
+
+#### Details
+EOF
+    json_to_md_table "$REPORT_stopped_not_removed_details" "ID|Name|Status" "id|name|status"
+
+    cat <<EOF
+
+### Container Disk Usage
+- **Status:** ${REPORT_container_disk_status:-SKIPPED}
+- **Total Docker Disk:** ${REPORT_container_disk_total:-unknown}
+
+#### Per-Container Disk
+EOF
+    json_to_md_table "$REPORT_container_disk_details" "ID|Name|Size" "id|name|size"
+
+    cat <<EOF
+
+### Long Running Containers
+- **Status:** ${REPORT_long_running_status:-SKIPPED}
+- **Count:** ${REPORT_long_running_count:-0}
+- **Threshold:** ${REPORT_long_running_threshold_days:-$LONG_RUNNING_DAYS} days
+
+#### Details
+EOF
+    json_to_md_table "$REPORT_long_running_details" "ID|Name|Running Days" "id|name|running_days"
+
+    cat <<EOF
+
+### Container Images
+- **Status:** ${REPORT_outdated_images_status:-SKIPPED}
+
+#### Image Details
+EOF
+    json_to_md_table "$REPORT_outdated_images_details" "ID|Name|Image|Registry|Local Digest|Created" "id|name|image|registry|local_digest|created"
+
+    cat <<EOF
+
+### Container Logs
+- **Status:** ${REPORT_container_logs_status:-SKIPPED}
+
+#### Log Errors by Container
+EOF
+    # Special handling for container logs - need to show errors per container
+    if [[ -n "$REPORT_container_logs_details" && "$REPORT_container_logs_details" != "[]" ]]; then
+        local objects=$(echo "$REPORT_container_logs_details" | sed 's/^\[//' | sed 's/\]$//' | sed 's/},{/}\n{/g')
+        while IFS= read -r obj; do
+            [[ -z "$obj" ]] && continue
+            local cname=$(echo "$obj" | sed -n 's/.*"name":"\([^"]*\)".*/\1/p')
+            local cerr=$(echo "$obj" | sed -n 's/.*"error_count":\([0-9]*\).*/\1/p')
+            echo "**$cname** ($cerr errors):"
+            # Extract errors array
+            local errors_json=$(echo "$obj" | sed -n 's/.*"errors":\(\[[^]]*\]\).*/\1/p')
+            json_string_array_to_list "$errors_json"
+            echo ""
+        done <<< "$objects"
+    else
+        echo "*No container log errors*"
+    fi
+
+    cat <<EOF
+
+### Security Issues
 - **Status:** ${REPORT_security_status:-SKIPPED}
+
+#### Security Details
+EOF
+    json_to_md_table "$REPORT_security_details" "ID|Name|Issues" "id|name|issues"
+
+    cat <<EOF
 
 ### Resource Limits
 - **Status:** ${REPORT_resource_limits_status:-SKIPPED}
 - **Missing Limits:** ${REPORT_resource_limits_missing:-0}
+
+#### Limit Details
+EOF
+    json_to_md_table "$REPORT_resource_limits_details" "ID|Name|Memory Limit|CPU Limit|Has Memory|Has CPU" "id|name|memory_limit|cpu_limit|has_memory_limit|has_cpu_limit"
+
+    cat <<EOF
+
+### Network Configuration
+- **Status:** ${REPORT_network_config_status:-SKIPPED}
+
+#### Network Details
+EOF
+    json_to_md_table "$REPORT_network_config_details" "ID|Name|Network Mode|Published Ports" "id|name|network_mode|published_ports"
+
+    cat <<EOF
+
+### Volume Mounts
+- **Status:** ${REPORT_volume_mounts_status:-SKIPPED}
+
+#### Mount Details
+EOF
+    json_to_md_table "$REPORT_volume_mounts_details" "ID|Name|Mounts" "id|name|mounts"
+
+    cat <<EOF
 
 ## Recommendations
 EOF
