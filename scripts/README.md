@@ -207,6 +207,21 @@ Generate system and Docker health reports for AI analysis. Supports Debian, Ubun
 ./scripts/health-monitor.sh --quiet --output /tmp/report.json
 ```
 
+### Run from URL
+
+Execute latest version directly without downloading:
+
+```bash
+# JSON output (default)
+bash <(curl -fsSL https://raw.githubusercontent.com/PawelWywiol/homelab/main/scripts/health-monitor.sh)
+
+# Markdown output, quiet mode
+bash <(curl -fsSL https://raw.githubusercontent.com/PawelWywiol/homelab/main/scripts/health-monitor.sh) --quiet --format markdown
+
+# Save report to file
+bash <(curl -fsSL https://raw.githubusercontent.com/PawelWywiol/homelab/main/scripts/health-monitor.sh) --quiet --format markdown > health-report.md
+```
+
 ### Configuration
 
 Create `.env.health-monitor` file (optional):
