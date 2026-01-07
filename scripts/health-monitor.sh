@@ -494,8 +494,8 @@ check_docker_daemon() {
     if ! command -v docker &>/dev/null; then
         REPORT_docker_installed="false"
         REPORT_docker_daemon_status="NOT_INSTALLED"
-        record_check "WARNING"
-        add_recommendation "Docker is not installed"
+        # Not a warning - Docker is optional, just skip Docker checks
+        log "Docker not installed, skipping Docker checks"
         return 1
     fi
 
