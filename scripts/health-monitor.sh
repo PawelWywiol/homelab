@@ -248,10 +248,26 @@ json_string_array_to_list() {
         return
     fi
 
-    # Extract strings from array
-    echo "$json" | sed 's/^\[//' | sed 's/\]$//' | sed 's/","/\n/g' | sed 's/^"//;s/"$//' | while read -r line; do
-        [[ -n "$line" ]] && echo "- $line"
-    done
+    # Remove outer brackets
+    local content="${json#\[}"
+    content="${content%\]}"
+
+    # Use awk to properly split on "," while respecting escaped quotes
+    echo "$content" | awk -v RS='","' '
+    BEGIN { first=1 }
+    {
+        line = $0
+        # Remove leading quote from first element
+        if (first) { sub(/^"/, "", line); first=0 }
+        # Remove trailing quote from last element (when RS not found)
+        sub(/"$/, "", line)
+        # Unescape JSON: \" -> " and \\ -> \
+        gsub(/\\"/, "\"", line)
+        gsub(/\\\\/, "\\", line)
+        gsub(/\\n/, "\n", line)
+        gsub(/\\t/, "\t", line)
+        if (length(line) > 0) print "- " line
+    }'
 }
 
 # =============================================================================
@@ -1427,8 +1443,8 @@ EOF
             local cname=$(echo "$obj" | sed -n 's/.*"name":"\([^"]*\)".*/\1/p')
             local cerr=$(echo "$obj" | sed -n 's/.*"error_count":\([0-9]*\).*/\1/p')
             echo "**$cname** ($cerr errors):"
-            # Extract errors array
-            local errors_json=$(echo "$obj" | sed -n 's/.*"errors":\(\[[^]]*\]\).*/\1/p')
+            # Extract errors array - use greedy match since errors is last field
+            local errors_json=$(echo "$obj" | sed -n 's/.*"errors":\(\[.*\]\)}/\1/p')
             json_string_array_to_list "$errors_json"
             echo ""
         done <<< "$objects"
