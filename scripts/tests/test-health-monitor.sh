@@ -566,6 +566,11 @@ run_test "Markdown contains Volume Mounts section" \
     "### Volume Mounts" \
     false true
 
+run_test "Markdown contains Network Traffic section" \
+    "./scripts/health-monitor.sh --quiet --format markdown" \
+    "### Network Traffic" \
+    false true
+
 run_test "Markdown contains memory threshold" \
     "./scripts/health-monitor.sh --quiet --format markdown" \
     "Threshold.*%$" \

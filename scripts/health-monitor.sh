@@ -99,6 +99,8 @@ REPORT_network_config_status=""
 REPORT_network_config_details=""
 REPORT_volume_mounts_status=""
 REPORT_volume_mounts_details=""
+REPORT_network_traffic_status=""
+REPORT_network_traffic_details=""
 
 # =============================================================================
 # Helper Functions
@@ -1133,6 +1135,36 @@ check_volume_mounts() {
     REPORT_volume_mounts_details="$volumes_json"
 }
 
+check_network_traffic() {
+    log "Checking container network traffic..."
+
+    if [[ "${REPORT_docker_installed}" != "true" ]]; then
+        return
+    fi
+
+    local traffic_json="["
+    local first=true
+
+    while IFS=$'\t' read -r id name net_io; do
+        # Parse NET I/O format: "1.5MB / 2.3MB" -> rx and tx
+        local rx=$(echo "$net_io" | cut -d'/' -f1 | xargs)
+        local tx=$(echo "$net_io" | cut -d'/' -f2 | xargs)
+
+        if [[ "$first" == true ]]; then
+            first=false
+        else
+            traffic_json+=","
+        fi
+        traffic_json+="{\"id\":\"$id\",\"name\":\"$name\",\"rx\":\"$rx\",\"tx\":\"$tx\"}"
+    done < <(docker stats --no-stream --format '{{.ID}}\t{{.Name}}\t{{.NetIO}}' 2>/dev/null)
+
+    traffic_json+="]"
+
+    record_check "OK"
+    REPORT_network_traffic_status="OK"
+    REPORT_network_traffic_details="$traffic_json"
+}
+
 # =============================================================================
 # Report Generation
 # =============================================================================
@@ -1255,6 +1287,10 @@ generate_json_report() {
       "volume_mounts": {
         "status": "${REPORT_volume_mounts_status:-SKIPPED}",
         "details": ${REPORT_volume_mounts_details:-[]}
+      },
+      "network_traffic": {
+        "status": "${REPORT_network_traffic_status:-SKIPPED}",
+        "details": ${REPORT_network_traffic_details:-[]}
       }
     }
   },
@@ -1502,6 +1538,15 @@ EOF
 
     cat <<EOF
 
+### Network Traffic
+- **Status:** ${REPORT_network_traffic_status:-SKIPPED}
+
+#### Traffic Details
+EOF
+    json_to_md_table "$REPORT_network_traffic_details" "ID|Name|Received|Transmitted" "id|name|rx|tx"
+
+    cat <<EOF
+
 ## Recommendations
 EOF
 
@@ -1637,6 +1682,7 @@ main() {
         check_resource_limits
         check_network_config
         check_volume_mounts
+        check_network_traffic
     fi
 
     log "Generating report..."
