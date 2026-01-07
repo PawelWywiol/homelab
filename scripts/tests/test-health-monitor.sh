@@ -496,6 +496,11 @@ run_test "Markdown contains Log Errors section" \
     "#### Log Errors" \
     false true
 
+run_test "Markdown contains Systemd Services section" \
+    "./scripts/health-monitor.sh --quiet --format markdown" \
+    "### Systemd Services" \
+    false true
+
 run_test "Markdown contains Container List section" \
     "./scripts/health-monitor.sh --quiet --format markdown" \
     "#### Container List" \

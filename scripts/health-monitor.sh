@@ -60,6 +60,11 @@ REPORT_system_logs_status=""
 REPORT_system_logs_errors=""
 REPORT_system_logs_warnings=""
 REPORT_system_logs_sample=""
+REPORT_systemd_status=""
+REPORT_systemd_total=""
+REPORT_systemd_running=""
+REPORT_systemd_failed=""
+REPORT_systemd_details=""
 REPORT_docker_installed=""
 REPORT_docker_daemon_status=""
 REPORT_containers_total=""
@@ -145,6 +150,24 @@ record_check() {
         WARNING) ((CHECKS_WARNING++)) || true ;;
         CRITICAL|FAIL) ((CHECKS_CRITICAL++)) || true ;;
     esac
+}
+
+# Convert bytes to human readable format
+bytes_to_human() {
+    local bytes=$1
+    if [[ -z "$bytes" || "$bytes" == "0" || ! "$bytes" =~ ^[0-9]+$ ]]; then
+        echo "0B"
+        return
+    fi
+    if [[ $bytes -lt 1024 ]]; then
+        echo "${bytes}B"
+    elif [[ $bytes -lt 1048576 ]]; then
+        echo "$(( bytes / 1024 ))KB"
+    elif [[ $bytes -lt 1073741824 ]]; then
+        echo "$(( bytes / 1048576 ))MB"
+    else
+        echo "$(( bytes / 1073741824 ))GB"
+    fi
 }
 
 # JSON helpers
@@ -482,6 +505,79 @@ check_system_logs() {
     REPORT_system_logs_errors="$errors"
     REPORT_system_logs_warnings="$warnings"
     REPORT_system_logs_sample="$sample_errors"
+}
+
+check_systemd_services() {
+    log "Checking systemd services..."
+
+    # Check if systemctl is available
+    if ! command -v systemctl &>/dev/null; then
+        log "systemctl not available, skipping systemd checks"
+        REPORT_systemd_status="NOT_AVAILABLE"
+        return
+    fi
+
+    local services_json="["
+    local first=true
+    local total=0
+    local running=0
+    local failed=0
+    local any_failed=false
+
+    # Get enabled services
+    while IFS= read -r service; do
+        [[ -z "$service" ]] && continue
+        ((total++)) || true
+
+        # Get service properties
+        local active_state=$(systemctl show "$service" --property=ActiveState --value 2>/dev/null)
+        local sub_state=$(systemctl show "$service" --property=SubState --value 2>/dev/null)
+        local memory=$(systemctl show "$service" --property=MemoryCurrent --value 2>/dev/null)
+        local cpu_ns=$(systemctl show "$service" --property=CPUUsageNSec --value 2>/dev/null)
+        local ip_in=$(systemctl show "$service" --property=IPIngressBytes --value 2>/dev/null)
+        local ip_out=$(systemctl show "$service" --property=IPEgressBytes --value 2>/dev/null)
+
+        # Convert to human readable
+        local memory_human=$(bytes_to_human "$memory")
+        local ip_in_human=$(bytes_to_human "$ip_in")
+        local ip_out_human=$(bytes_to_human "$ip_out")
+
+        # CPU time in seconds (from nanoseconds)
+        local cpu_sec="0"
+        if [[ -n "$cpu_ns" && "$cpu_ns" =~ ^[0-9]+$ && "$cpu_ns" != "0" ]]; then
+            cpu_sec=$(( cpu_ns / 1000000000 ))
+        fi
+
+        # Track status
+        if [[ "$active_state" == "active" ]]; then
+            ((running++)) || true
+        elif [[ "$active_state" == "failed" ]]; then
+            ((failed++)) || true
+            any_failed=true
+            add_recommendation "Systemd service '$service' is in failed state"
+        fi
+
+        if [[ "$first" == true ]]; then
+            first=false
+        else
+            services_json+=","
+        fi
+        services_json+="{\"name\":\"$service\",\"active_state\":\"$active_state\",\"sub_state\":\"$sub_state\",\"memory\":\"$memory_human\",\"cpu_seconds\":$cpu_sec,\"rx\":\"$ip_in_human\",\"tx\":\"$ip_out_human\"}"
+    done < <(systemctl list-unit-files --type=service --state=enabled --no-pager --no-legend 2>/dev/null | awk '{print $1}')
+
+    services_json+="]"
+
+    local status="OK"
+    if [[ "$any_failed" == true ]]; then
+        status="CRITICAL"
+    fi
+
+    record_check "$status"
+    REPORT_systemd_status="$status"
+    REPORT_systemd_total="$total"
+    REPORT_systemd_running="$running"
+    REPORT_systemd_failed="$failed"
+    REPORT_systemd_details="$services_json"
 }
 
 # =============================================================================
@@ -1216,6 +1312,13 @@ generate_json_report() {
         "errors": ${REPORT_system_logs_errors:-0},
         "warnings": ${REPORT_system_logs_warnings:-0},
         "sample": ${REPORT_system_logs_sample:-[]}
+      },
+      "systemd": {
+        "status": "${REPORT_systemd_status:-SKIPPED}",
+        "total": ${REPORT_systemd_total:-0},
+        "running": ${REPORT_systemd_running:-0},
+        "failed": ${REPORT_systemd_failed:-0},
+        "details": ${REPORT_systemd_details:-[]}
       }
     },
     "docker": {
@@ -1379,6 +1482,18 @@ EOF
 #### Log Errors
 EOF
     json_string_array_to_list "$REPORT_system_logs_sample"
+
+    cat <<EOF
+
+### Systemd Services
+- **Status:** ${REPORT_systemd_status:-SKIPPED}
+- **Total Enabled:** ${REPORT_systemd_total:-0}
+- **Running:** ${REPORT_systemd_running:-0}
+- **Failed:** ${REPORT_systemd_failed:-0}
+
+#### Service Details
+EOF
+    json_to_md_table "$REPORT_systemd_details" "Service|State|Sub-State|Memory|CPU (sec)|RX|TX" "name|active_state|sub_state|memory|cpu_seconds|rx|tx"
 
     cat <<EOF
 
@@ -1665,6 +1780,7 @@ main() {
     check_disk
     check_network
     check_system_logs
+    check_systemd_services
 
     # Docker checks
     if check_docker_daemon; then
