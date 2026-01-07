@@ -206,19 +206,24 @@ json_to_md_table() {
     fi
 
     # Print header row
-    local IFS='|'
-    local header_arr=($headers)
-    local key_arr=($keys)
-
     printf "| %s |\n" "${headers//|/ | }"
+
+    # Count columns and print separator row
+    local col_count=$(echo "$headers" | tr -cd '|' | wc -c)
+    col_count=$((col_count + 1))
     printf "|"
-    for _ in "${header_arr[@]}"; do
-        printf "---|"
+    for ((i=0; i<col_count; i++)); do
+        printf -- "---|"
     done
     printf "\n"
 
-    # Parse JSON objects - simple extraction using sed/grep
-    # Split by },{ to get individual objects
+    # Parse keys into array (save/restore IFS)
+    local old_ifs="$IFS"
+    IFS='|'
+    local key_arr=($keys)
+    IFS="$old_ifs"
+
+    # Parse JSON objects - split by },{ to get individual objects
     local objects=$(echo "$json" | sed 's/^\[//' | sed 's/\]$//' | sed 's/},{/}\n{/g')
 
     while IFS= read -r obj; do
