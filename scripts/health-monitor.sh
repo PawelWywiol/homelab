@@ -230,8 +230,20 @@ json_to_md_table() {
         [[ -z "$obj" ]] && continue
         printf "|"
         for key in "${key_arr[@]}"; do
-            # Extract value for key - handles strings and numbers
-            local val=$(echo "$obj" | sed -n "s/.*\"$key\":\s*\"\?\([^,\"]*\)\"\?.*/\1/p" | head -1)
+            local val=""
+            # Check if value is an array
+            if echo "$obj" | grep -q "\"$key\":\s*\["; then
+                # Array value - extract and format
+                val=$(echo "$obj" | sed -n "s/.*\"$key\":\s*\(\[[^]]*\]\).*/\1/p" | head -1)
+                # Convert array to readable format: ["a","b"] -> a, b
+                val=$(echo "$val" | sed 's/^\[//;s/\]$//;s/","/, /g;s/"//g')
+            elif echo "$obj" | grep -q "\"$key\":\s*\""; then
+                # String value - extract quoted content
+                val=$(echo "$obj" | sed -n "s/.*\"$key\":\s*\"\([^\"]*\)\".*/\1/p" | head -1)
+            else
+                # Number or boolean - extract until comma or closing brace
+                val=$(echo "$obj" | sed -n "s/.*\"$key\":\s*\([^,}]*\).*/\1/p" | head -1)
+            fi
             [[ -z "$val" ]] && val="-"
             printf " %s |" "$val"
         done
@@ -1076,7 +1088,7 @@ check_network_config() {
 
     while IFS=$'\t' read -r id name; do
         local network_mode=$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$id" 2>/dev/null)
-        local ports=$(docker inspect --format '{{range $p, $conf := .NetworkSettings.Ports}}{{$p}}:{{range $conf}}{{.HostPort}}{{end}} {{end}}' "$id" 2>/dev/null)
+        local ports=$(docker inspect --format '{{range $p, $conf := .NetworkSettings.Ports}}{{$p}}:{{range $i, $c := $conf}}{{if $i}},{{end}}{{$c.HostPort}}{{end}} {{end}}' "$id" 2>/dev/null)
 
         if [[ "$first" == true ]]; then
             first=false
