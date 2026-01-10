@@ -22,7 +22,7 @@ services:
       - n8n_data:/home/node/.n8n
       - n8n_files:/files
     networks:
-      - caddy_network
+      - homelab
     ports:
       - 5678:5678
   n8n_db:
@@ -37,7 +37,7 @@ services:
       - n8n_db:/var/lib/postgresql
       - n8n_db_data:/var/lib/postgresql/data
     networks:
-      - caddy_network
+      - homelab
 
 volumes:
   n8n_data:
@@ -54,6 +54,6 @@ volumes:
     driver: local
 
 networks:
-  caddy_network:
-    name: caddy_network
+  homelab:
+    name: homelab
     external: true
