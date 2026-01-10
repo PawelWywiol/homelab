@@ -10,7 +10,6 @@
 - beszel - System monitoring
 
 **Applications**:
-- n8n - Workflow automation
 - wakapi - Activity tracker
 - ntfy - Push notifications
 
@@ -52,7 +51,6 @@ make help                        # Show all commands
 ```bash
 make caddy up           # Start Caddy reverse proxy
 make postgres add mydb  # Create PostgreSQL database
-make n8n restart        # Restart n8n workflows
 make redis pull         # Pull latest Redis image
 ```
 

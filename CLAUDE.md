@@ -45,7 +45,6 @@ make SERVICE [up|down|restart|pull|logs]
 | rabbitmq | Message broker |
 | influxdb | Time-series DB |
 | grafana | Dashboards |
-| n8n | Workflow automation |
 | wakapi | Coding activity tracker |
 | beszel | System monitoring |
 | glitchtip | Error tracking |

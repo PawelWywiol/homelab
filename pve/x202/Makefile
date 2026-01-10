@@ -7,7 +7,7 @@ help:
 	@echo "- Generic app management:"
 	@echo " "
 	@echo "  make APP [up|down|restart|pull|logs] - Manage any app in docker/config/"
-	@echo "    Examples: make caddy up, make portainer down, make n8n logs"
+	@echo "    Examples: make caddy up, make portainer down, make redis logs"
 	@echo " "
 	@echo "- Special commands:"
 	@echo " "
