@@ -343,6 +343,9 @@ ssh_to_host() {
     log_info "Executing on host via SSH: $command"
 
     if ! ssh -i "$ssh_key" \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=3 \
             -o StrictHostKeyChecking=accept-new \
             -o UserKnownHostsFile="${HOME}/.ssh/known_hosts" \
             -o LogLevel=ERROR \
