@@ -1,0 +1,292 @@
+{
+  "name": "Domain Health Check",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "triggerAtHour": 6 }]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [-600, 100],
+      "id": "schedule-1",
+      "name": "Daily 6 AM"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-600, 300],
+      "id": "manual-1",
+      "name": "Manual Trigger"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "returnAll": true,
+        "databaseId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [-400, 200],
+      "id": "notion-env",
+      "name": "Get Env Vars"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst env = {};\nfor (const item of items) {\n  const key = item.json.property_key || item.json.properties?.key?.title?.[0]?.plain_text;\n  const value = item.json.property_value || item.json.properties?.value?.rich_text?.[0]?.plain_text;\n  if (key && value) env[key] = value;\n}\nreturn { json: { env } };",
+        "mode": "runOnceForAllItems"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-200, 200],
+      "id": "code-env",
+      "name": "Parse Env Vars"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "returnAll": true,
+        "databaseId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [20, 200],
+      "id": "notion-get",
+      "name": "Get Domains"
+    },
+    {
+      "parameters": {
+        "url": "=https://{{ $json.property_domain }}",
+        "options": {
+          "timeout": 10000,
+          "batching": { "batch": { "batchSize": 1, "batchInterval": 1000 } },
+          "response": { "response": { "fullResponse": true } }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 200],
+      "id": "http-alive",
+      "name": "Check Alive",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item;\nconst originalItem = $('Get Domains').item;\nconst domain = originalItem.json.property_domain;\nconst pageId = originalItem.json.id;\nconst statusCode = item.json.statusCode || 0;\nconst isAlive = statusCode > 0;\n\n// Helper to extract date string (YYYY-MM-DD only) from Notion date objects\nconst getDateStr = (v) => {\n  const raw = (typeof v === 'object' && v?.start) ? v.start : (v || '');\n  return raw.includes('T') ? raw.split('T')[0] : raw;\n};\n\n// Store original values for change detection\nconst oldAlive = originalItem.json.property_alive || '';\nconst oldExpires = getDateStr(originalItem.json.property_expires);\nconst oldIp = originalItem.json.property_ip || '';\nconst oldHosting = originalItem.json.property_hosting_provider || '';\nconst oldRegistrar = originalItem.json.property_registrar || '';\n\nreturn {\n  json: {\n    domain,\n    pageId,\n    alive: isAlive ? 'yes' : 'no',\n    old: { alive: oldAlive, expires: oldExpires, ip: oldIp, hosting_provider: oldHosting, registrar: oldRegistrar }\n  }\n};",
+        "mode": "runOnceForEachItem"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 200],
+      "id": "code-alive",
+      "name": "Parse Alive Status"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.ip2whois.com/v2?key={{ $('Parse Env Vars').first().json.env.IP2WHOIS_API_KEY }}&domain={{ $json.domain }}",
+        "options": {
+          "timeout": 15000,
+          "batching": { "batch": { "batchSize": 1, "batchInterval": 500 } }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 200],
+      "id": "http-whois",
+      "name": "WHOIS Lookup",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item;\nconst prev = $('Parse Alive Status').item.json;\nconst w = item.json;\nlet expires = null;\nlet registrar = null;\n\ntry {\n  expires = w.expire_date || null;\n  if (expires && expires.includes('T')) expires = expires.split('T')[0];\n  registrar = (typeof w.registrar === 'object' ? w.registrar?.name : w.registrar) || null;\n} catch (e) {}\n\nreturn {\n  json: {\n    pageId: prev.pageId,\n    domain: prev.domain,\n    alive: prev.alive,\n    expires,\n    registrar,\n    old: prev.old\n  }\n};",
+        "mode": "runOnceForEachItem"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 200],
+      "id": "code-whois",
+      "name": "Extract WHOIS Data"
+    },
+    {
+      "parameters": {
+        "url": "=http://ip-api.com/json/{{ $json.domain }}",
+        "options": {
+          "timeout": 10000,
+          "batching": { "batch": { "batchSize": 1, "batchInterval": 500 } }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 200],
+      "id": "http-ip",
+      "name": "Get IP & Hosting",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item;\nconst prev = $('Extract WHOIS Data').item.json;\n\nconst formatDate = (d) => d ? d : '';\n\nreturn {\n  json: {\n    pageId: prev.pageId,\n    domain: prev.domain,\n    alive: prev.alive,\n    expires: formatDate(prev.expires),\n    registrar: prev.registrar || '',\n    ip: item.json.query || '',\n    hosting_provider: item.json.isp || item.json.org || '',\n    checked_at: new Date().toISOString().split('T')[0],\n    old: prev.old\n  }\n};",
+        "mode": "runOnceForEachItem"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 200],
+      "id": "code-aggregate",
+      "name": "Aggregate Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item;\nconst d = item.json;\nconst old = d.old || {};\n\nconst changes = [];\nconst fields = ['alive', 'expires', 'hosting_provider', 'registrar'];\n\nfor (const f of fields) {\n  const oldVal = (old[f] || '').toString().trim();\n  const newVal = (d[f] || '').toString().trim();\n  if (oldVal !== newVal) {\n    changes.push({ field: f, old: oldVal || '(empty)', new: newVal || '(empty)' });\n  }\n}\n\nreturn {\n  json: {\n    ...d,\n    hasChanges: changes.length > 0,\n    changes\n  }\n};",
+        "mode": "runOnceForEachItem"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 200],
+      "id": "code-compare",
+      "name": "Compare Changes"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "" },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.hasChanges }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1780, 200],
+      "id": "if-changes",
+      "name": "Has Changes?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item;\nconst d = item.json;\n\nconst fields = d.changes.map(c => ({\n  name: c.field,\n  value: `\\`${c.old}\\` → \\`${c.new}\\``,\n  inline: true\n}));\n\nreturn {\n  json: {\n    ...d,\n    discordPayload: {\n      embeds: [{\n        title: `🔄 Domain Changed: ${d.domain}`,\n        color: 3447003,\n        fields,\n        footer: { text: `Checked at ${d.checked_at}` }\n      }]\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 100],
+      "id": "code-discord",
+      "name": "Build Discord Embed"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Parse Env Vars').first().json.env.DISCORD_WEBHOOK_URL }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.discordPayload) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 100],
+      "id": "http-discord",
+      "name": "Send Discord",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.pageId }}"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            { "key": "alive|rich_text", "textContent": "={{ $json.alive }}" },
+            { "key": "expires|date", "date": "={{ $json.expires }}" },
+            { "key": "ip|rich_text", "textContent": "={{ $json.ip }}" },
+            { "key": "hosting_provider|rich_text", "textContent": "={{ $json.hosting_provider }}" },
+            { "key": "registrar|rich_text", "textContent": "={{ $json.registrar }}" },
+            { "key": "checked_at|date", "date": "={{ $json.checked_at }}" }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [2440, 200],
+      "id": "notion-update",
+      "name": "Update Notion"
+    }
+  ],
+  "connections": {
+    "Daily 6 AM": {
+      "main": [[{ "node": "Get Env Vars", "type": "main", "index": 0 }]]
+    },
+    "Manual Trigger": {
+      "main": [[{ "node": "Get Env Vars", "type": "main", "index": 0 }]]
+    },
+    "Get Env Vars": {
+      "main": [[{ "node": "Parse Env Vars", "type": "main", "index": 0 }]]
+    },
+    "Parse Env Vars": {
+      "main": [[{ "node": "Get Domains", "type": "main", "index": 0 }]]
+    },
+    "Get Domains": {
+      "main": [[{ "node": "Check Alive", "type": "main", "index": 0 }]]
+    },
+    "Check Alive": {
+      "main": [[{ "node": "Parse Alive Status", "type": "main", "index": 0 }]]
+    },
+    "Parse Alive Status": {
+      "main": [[{ "node": "WHOIS Lookup", "type": "main", "index": 0 }]]
+    },
+    "WHOIS Lookup": {
+      "main": [[{ "node": "Extract WHOIS Data", "type": "main", "index": 0 }]]
+    },
+    "Extract WHOIS Data": {
+      "main": [[{ "node": "Get IP & Hosting", "type": "main", "index": 0 }]]
+    },
+    "Get IP & Hosting": {
+      "main": [[{ "node": "Aggregate Data", "type": "main", "index": 0 }]]
+    },
+    "Aggregate Data": {
+      "main": [[{ "node": "Compare Changes", "type": "main", "index": 0 }]]
+    },
+    "Compare Changes": {
+      "main": [[{ "node": "Has Changes?", "type": "main", "index": 0 }]]
+    },
+    "Has Changes?": {
+      "main": [
+        [{ "node": "Build Discord Embed", "type": "main", "index": 0 }],
+        [{ "node": "Update Notion", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Discord Embed": {
+      "main": [
+        [
+          { "node": "Send Discord", "type": "main", "index": 0 },
+          { "node": "Update Notion", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Send Discord": {
+      "main": []
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

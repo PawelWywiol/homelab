@@ -1,0 +1,59 @@
+services:
+  n8n:
+    container_name: n8n
+    image: n8nio/n8n:2.1.4
+    restart: unless-stopped
+    environment:
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=${N8N_BLOCK_ENV_ACCESS_IN_NODE}
+      - DOMAIN_NAME=${DOMAIN_NAME}
+      - SUBDOMAIN=${SUBDOMAIN}
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+      - N8N_HOST=${N8N_HOST}
+      - N8N_PROTOCOL=${N8N_PROTOCOL}
+      - WEBHOOK_URL=${WEBHOOK_URL}
+      - N8N_SECURE_COOKIE=${N8N_SECURE_COOKIE}
+      - NODE_ENV=${NODE_ENV}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - IP2WHOIS_API_KEY=${IP2WHOIS_API_KEY}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - n8n_files:/files
+    networks:
+      - caddy_network
+    ports:
+      - 5678:5678
+  n8n_db:
+    image: postgres:16
+    container_name: n8n_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    restart: unless-stopped
+    volumes:
+      - n8n_db:/var/lib/postgresql
+      - n8n_db_data:/var/lib/postgresql/data
+    networks:
+      - caddy_network
+
+volumes:
+  n8n_data:
+    name: n8n_data
+    driver: local
+  n8n_files:
+    name: n8n_files
+    driver: local
+  n8n_db:
+    name: n8n_db
+    driver: local
+  n8n_db_data:
+    name: n8n_db_data
+    driver: local
+
+networks:
+  caddy_network:
+    name: caddy_network
+    external: true
