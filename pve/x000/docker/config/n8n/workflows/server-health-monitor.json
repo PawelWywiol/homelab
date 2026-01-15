@@ -1,0 +1,376 @@
+{
+  "name": "Server Health Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "triggerAtHour": 2 }]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [-600, 200],
+      "id": "schedule-1",
+      "name": "Daily 2 AM"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-600, 400],
+      "id": "manual-1",
+      "name": "Manual Trigger"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "returnAll": true,
+        "databaseId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [-400, 300],
+      "id": "notion-env",
+      "name": "Get Env Vars"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst env = {};\nfor (const item of items) {\n  const key = item.json.property_key || item.json.properties?.key?.title?.[0]?.plain_text;\n  const value = item.json.property_value || item.json.properties?.value?.rich_text?.[0]?.plain_text;\n  if (key && value) env[key] = value;\n}\nreturn { json: { env } };",
+        "mode": "runOnceForAllItems"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-200, 300],
+      "id": "code-env",
+      "name": "Parse Env Vars"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "returnAll": true,
+        "databaseId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "filterType": "formula",
+        "filterJson": "{\"or\": [{\"property\": \"status\", \"status\": {\"equals\": \"Not started\"}}, {\"property\": \"status\", \"status\": {\"equals\": \"In progress\"}}]}"
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [20, 200],
+      "id": "notion-issues",
+      "name": "Get Existing Issues"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst issues = items.map(item => {\n  const json = item.json;\n  const props = json.properties || {};\n  return {\n    server: json.property_server || props.server?.select?.name || props.server?.rich_text?.[0]?.plain_text || '',\n    check_type: json.property_check_type || props.check_type?.select?.name || props.check_type?.rich_text?.[0]?.plain_text || '',\n    title: json.property_name || json.Name || props.title?.title?.[0]?.plain_text || props.Name?.title?.[0]?.plain_text || '',\n    status: json.property_status || props.status?.status?.name || '',\n    priority: json.property_priority || props.priority?.select?.name || ''\n  };\n}).filter(i => i.server && i.check_type);\nreturn { json: { existingIssues: issues } };",
+        "mode": "runOnceForAllItems"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 200],
+      "id": "code-format-issues",
+      "name": "Format Existing Issues"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "returnAll": true,
+        "databaseId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [20, 400],
+      "id": "notion-hosts",
+      "name": "Get Hosts"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst hosts = items.map(item => {\n  const json = item.json;\n  const props = json.properties || {};\n  \n  const name = json.property_name || props.name?.title?.[0]?.plain_text || props.Name?.title?.[0]?.plain_text || '';\n  let user = json.property_user || props.user?.rich_text?.[0]?.plain_text || '';\n  let sshHost = json.property_host || props.host?.rich_text?.[0]?.plain_text || '';\n  \n  // Handle case where host field contains user@host format\n  if (sshHost.includes('@')) {\n    const parts = sshHost.split('@');\n    if (!user) user = parts[0];\n    sshHost = parts[1];\n  }\n  \n  if (!user || !sshHost) return null;\n  \n  return {\n    name,\n    user,\n    sshHost,\n    host: `${user}@${sshHost}`\n  };\n}).filter(h => h && h.name && h.sshHost);\nreturn hosts.map(h => ({ json: h }));",
+        "mode": "runOnceForAllItems"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "id": "code-parse-hosts",
+      "name": "Parse Hosts"
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "host": "={{ $json.sshHost }}",
+        "port": 22,
+        "user": "={{ $json.user }}",
+        "command": "curl -fsSL https://raw.githubusercontent.com/PawelWywiol/homelab/main/scripts/health-monitor.sh | bash -s -- --quiet --format json"
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [460, 400],
+      "id": "ssh-health",
+      "name": "Run Health Check",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const host = $('Parse Hosts').item.json;\nconst result = $input.item.json;\nconst stdout = result.stdout || '';\nconst stderr = result.stderr || '';\n\nif (!stdout.trim()) {\n  return {\n    json: {\n      server: host.name,\n      host: host.host,\n      sshFailed: true,\n      error: stderr || 'No output from health check',\n      healthReport: null\n    }\n  };\n}\n\ntry {\n  const report = JSON.parse(stdout);\n  return {\n    json: {\n      server: host.name,\n      host: host.host,\n      sshFailed: false,\n      healthReport: report\n    }\n  };\n} catch (e) {\n  return {\n    json: {\n      server: host.name,\n      host: host.host,\n      sshFailed: true,\n      error: `JSON parse error: ${e.message}`,\n      healthReport: null\n    }\n  };\n}",
+        "mode": "runOnceForEachItem"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 400],
+      "id": "code-handle-result",
+      "name": "Handle Result"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {
+          "outputFormat": "singleItem"
+        }
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [900, 400],
+      "id": "aggregate-health",
+      "name": "Aggregate Health"
+    },
+    {
+      "parameters": {
+        "jsCode": "const env = $('Parse Env Vars').first().json.env;\nconst existingIssues = $('Format Existing Issues').first().json.existingIssues;\nconst healthResults = $('Aggregate Health').first().json.data || [];\n\n// Validation\nif (!env.AI_SSH || !env.AI_SSH.includes('@')) {\n  throw new Error('AI_SSH env var missing or invalid format (expected user@host)');\n}\nif (!env.DISCORD_WEBHOOK_URL) {\n  throw new Error('DISCORD_WEBHOOK_URL env var missing');\n}\nif (healthResults.length === 0) {\n  throw new Error('No hosts found to check');\n}\n\nconst checkTypes = [\n  'cpu', 'memory', 'disk', 'network', 'systemd_service',\n  'docker_daemon', 'container_exit', 'container_restart',\n  'container_resource', 'container_security', 'ssh_connection'\n];\n\nconst reportsSection = healthResults.map(r => {\n  if (r.sshFailed) {\n    return `### ${r.server} (${r.host})\\n**SSH FAILED**\\nError: ${r.error}`;\n  }\n  return `### ${r.server} (${r.host})\\n\\`\\`\\`json\\n${JSON.stringify(r.healthReport, null, 2)}\\n\\`\\`\\``;\n}).join('\\n\\n');\n\nconst systemPrompt = `You are a server health analyst. Analyze the health reports and identify issues that need attention.\n\nRules:\n1. Only create issues for WARNING or CRITICAL status checks\n2. Deduplicate: Do NOT create an issue if existingIssues already has same server + check_type combo\n3. Use ONLY these check_types: ${checkTypes.join(', ')}\n4. Priority mapping: CRITICAL->critical, WARNING with >90% usage->high, WARNING->medium, informational->low\n5. For SSH failures, use check_type=\"ssh_connection\"\n6. Be concise in descriptions - actionable info only\n7. Return ONLY a JSON array, no other text\n\nOutput format:\n[{\"server\": \"name\", \"check_type\": \"type\", \"title\": \"Short title\", \"priority\": \"low|medium|high|critical\", \"description\": \"Brief actionable description\"}]\n\nReturn empty array [] if no new issues found.`;\n\nconst userPrompt = `## Existing Issues (do not duplicate these server+check_type combos)\\n${JSON.stringify(existingIssues, null, 2)}\\n\\n## Health Reports\\n${reportsSection}`;\n\nconst fullPrompt = systemPrompt + '\\n\\n' + userPrompt;\nconst promptB64 = Buffer.from(fullPrompt).toString('base64');\n\nreturn {\n  json: {\n    promptB64,\n    aiSsh: env.AI_SSH,\n    discordWebhook: env.DISCORD_WEBHOOK_URL,\n    healthResults\n  }\n};",
+        "mode": "runOnceForAllItems"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 400],
+      "id": "code-build-prompt",
+      "name": "Build Claude Prompt"
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "host": "={{ $json.aiSsh.split('@')[1] }}",
+        "port": 22,
+        "user": "={{ $json.aiSsh.split('@')[0] }}",
+        "command": "={{ 'echo ' + JSON.stringify($json.promptB64) + ' | base64 -d | claude --output-format json' }}"
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [1340, 400],
+      "id": "ssh-claude",
+      "name": "Run Claude Analysis"
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $('Build Claude Prompt').first().json;\nconst result = $input.first().json;\nconst stdout = result.stdout || '';\n\nlet newIssues = [];\ntry {\n  const match = stdout.match(/\\[.*\\]/s);\n  if (match) {\n    newIssues = JSON.parse(match[0]);\n  }\n} catch (e) {\n  console.log('Failed to parse Claude response:', e.message);\n}\n\nreturn {\n  json: {\n    newIssues,\n    hasNewIssues: newIssues.length > 0,\n    discordWebhook: prev.discordWebhook,\n    healthResults: prev.healthResults\n  }\n};",
+        "mode": "runOnceForAllItems"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 400],
+      "id": "code-parse-claude",
+      "name": "Parse Claude Response"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.hasNewIssues }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1780, 400],
+      "id": "if-new-issues",
+      "name": "Has New Issues?"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "newIssues",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [2000, 300],
+      "id": "split-issues",
+      "name": "Split Issues"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            { "key": "title|title", "title": "={{ $json.title }}" },
+            { "key": "status|status", "statusValue": "Not started" },
+            { "key": "priority|select", "selectValue": "={{ $json.priority }}" },
+            { "key": "description|rich_text", "textContent": "={{ $json.description }}" },
+            { "key": "server|select", "selectValue": "={{ $json.server }}" },
+            { "key": "check_type|select", "selectValue": "={{ $json.check_type }}" }
+          ]
+        },
+        "options": {
+          "batching": { "batch": { "batchSize": 1, "batchInterval": 500 } }
+        }
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [2220, 300],
+      "id": "notion-create-issue",
+      "name": "Create Notion Issue",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": { "outputFormat": "singleItem" }
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [2440, 300],
+      "id": "aggregate-created",
+      "name": "Aggregate Created"
+    },
+    {
+      "parameters": {
+        "jsCode": "const parsed = $('Parse Claude Response').first().json;\nconst newIssues = parsed.newIssues;\nconst discordWebhook = parsed.discordWebhook;\n\nconst priorityEmoji = {\n  critical: '\\uD83D\\uDD34',\n  high: '\\uD83D\\uDFE0',\n  medium: '\\uD83D\\uDFE1',\n  low: '\\uD83D\\uDFE2'\n};\n\nconst fields = newIssues.slice(0, 10).map(issue => ({\n  name: `${priorityEmoji[issue.priority] || '\\u26AA'} ${issue.server} - ${issue.check_type}`,\n  value: issue.title,\n  inline: false\n}));\n\nif (newIssues.length > 10) {\n  fields.push({\n    name: '...',\n    value: `And ${newIssues.length - 10} more issues`,\n    inline: false\n  });\n}\n\nconst hasCI = newIssues.some(i => i.priority === 'critical');\nconst hasHi = newIssues.some(i => i.priority === 'high');\nconst color = hasCI ? 16711680 : hasHi ? 16744448 : 16776960;\n\nconst embed = {\n  title: `\\uD83C\\uDFE5 Health Monitor: ${newIssues.length} New Issue${newIssues.length !== 1 ? 's' : ''} Found`,\n  color,\n  fields,\n  footer: { text: `Checked at ${new Date().toISOString().split('T')[0]}` },\n  timestamp: new Date().toISOString()\n};\n\nreturn {\n  json: {\n    discordWebhook,\n    payload: { embeds: [embed] }\n  }\n};",
+        "mode": "runOnceForAllItems"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2660, 300],
+      "id": "code-discord-summary",
+      "name": "Build Discord Summary"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.discordWebhook }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2880, 300],
+      "id": "http-discord",
+      "name": "Send Discord",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [2000, 500],
+      "id": "no-issues",
+      "name": "No Issues"
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1000, 300],
+      "id": "merge-data",
+      "name": "Merge Data"
+    }
+  ],
+  "connections": {
+    "Daily 2 AM": {
+      "main": [[{ "node": "Get Env Vars", "type": "main", "index": 0 }]]
+    },
+    "Manual Trigger": {
+      "main": [[{ "node": "Get Env Vars", "type": "main", "index": 0 }]]
+    },
+    "Get Env Vars": {
+      "main": [[{ "node": "Parse Env Vars", "type": "main", "index": 0 }]]
+    },
+    "Parse Env Vars": {
+      "main": [
+        [
+          { "node": "Get Existing Issues", "type": "main", "index": 0 },
+          { "node": "Get Hosts", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Get Existing Issues": {
+      "main": [[{ "node": "Format Existing Issues", "type": "main", "index": 0 }]]
+    },
+    "Format Existing Issues": {
+      "main": [[{ "node": "Merge Data", "type": "main", "index": 0 }]]
+    },
+    "Get Hosts": {
+      "main": [[{ "node": "Parse Hosts", "type": "main", "index": 0 }]]
+    },
+    "Parse Hosts": {
+      "main": [[{ "node": "Run Health Check", "type": "main", "index": 0 }]]
+    },
+    "Run Health Check": {
+      "main": [[{ "node": "Handle Result", "type": "main", "index": 0 }]]
+    },
+    "Handle Result": {
+      "main": [[{ "node": "Aggregate Health", "type": "main", "index": 0 }]]
+    },
+    "Aggregate Health": {
+      "main": [[{ "node": "Merge Data", "type": "main", "index": 1 }]]
+    },
+    "Merge Data": {
+      "main": [[{ "node": "Build Claude Prompt", "type": "main", "index": 0 }]]
+    },
+    "Build Claude Prompt": {
+      "main": [[{ "node": "Run Claude Analysis", "type": "main", "index": 0 }]]
+    },
+    "Run Claude Analysis": {
+      "main": [[{ "node": "Parse Claude Response", "type": "main", "index": 0 }]]
+    },
+    "Parse Claude Response": {
+      "main": [[{ "node": "Has New Issues?", "type": "main", "index": 0 }]]
+    },
+    "Has New Issues?": {
+      "main": [
+        [{ "node": "Split Issues", "type": "main", "index": 0 }],
+        [{ "node": "No Issues", "type": "main", "index": 0 }]
+      ]
+    },
+    "Split Issues": {
+      "main": [[{ "node": "Create Notion Issue", "type": "main", "index": 0 }]]
+    },
+    "Create Notion Issue": {
+      "main": [[{ "node": "Aggregate Created", "type": "main", "index": 0 }]]
+    },
+    "Aggregate Created": {
+      "main": [[{ "node": "Build Discord Summary", "type": "main", "index": 0 }]]
+    },
+    "Build Discord Summary": {
+      "main": [[{ "node": "Send Discord", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

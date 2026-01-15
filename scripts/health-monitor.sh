@@ -1,5 +1,6 @@
 #!/bin/bash
-set -e
+# Note: No 'set -e' - let script continue on non-critical failures
+# Each check function handles errors gracefully
 
 # =============================================================================
 # Health Monitoring Script
