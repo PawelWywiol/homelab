@@ -163,7 +163,7 @@
         "host": "={{ $json.aiSsh.split('@')[1] }}",
         "port": 22,
         "user": "={{ $json.aiSsh.split('@')[0] }}",
-        "command": "={{ 'echo ' + JSON.stringify($json.promptB64) + ' | base64 -d | claude --output-format json' }}"
+        "command": "={{ 'echo ' + JSON.stringify($json.promptB64) + ' | base64 -d | /home/code/.local/bin/claude --output-format json' }}"
       },
       "type": "n8n-nodes-base.ssh",
       "typeVersion": 1,
