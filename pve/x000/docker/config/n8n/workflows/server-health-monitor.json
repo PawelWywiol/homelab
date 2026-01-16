@@ -59,7 +59,7 @@
           "mode": "list",
           "value": ""
         },
-        "filterType": "formula",
+        "filterType": "json",
         "filterJson": "{\"or\": [{\"property\": \"status\", \"status\": {\"equals\": \"Not started\"}}, {\"property\": \"status\", \"status\": {\"equals\": \"In progress\"}}]}"
       },
       "type": "n8n-nodes-base.notion",
@@ -224,10 +224,9 @@
         },
         "propertiesUi": {
           "propertyValues": [
-            { "key": "title|title", "title": "={{ $json.title }}" },
+            { "key": "name|title", "title": "={{ $json.title }}" },
             { "key": "status|status", "statusValue": "Not started" },
             { "key": "priority|select", "selectValue": "={{ $json.priority }}" },
-            { "key": "description|rich_text", "textContent": "={{ $json.description }}" },
             { "key": "server|select", "selectValue": "={{ $json.server }}" },
             { "key": "check_type|select", "selectValue": "={{ $json.check_type }}" }
           ]
@@ -241,6 +240,31 @@
       "position": [2220, 300],
       "id": "notion-create-issue",
       "name": "Create Notion Issue",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "block",
+        "operation": "append",
+        "blockId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "blockUi": {
+          "blockValues": [
+            {
+              "type": "paragraph",
+              "textContent": "={{ $('Split Issues').item.json.description }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [2330, 300],
+      "id": "notion-append-desc",
+      "name": "Append Description",
       "onError": "continueRegularOutput"
     },
     {
@@ -361,6 +385,9 @@
       "main": [[{ "node": "Create Notion Issue", "type": "main", "index": 0 }]]
     },
     "Create Notion Issue": {
+      "main": [[{ "node": "Append Description", "type": "main", "index": 0 }]]
+    },
+    "Append Description": {
       "main": [[{ "node": "Aggregate Created", "type": "main", "index": 0 }]]
     },
     "Aggregate Created": {
