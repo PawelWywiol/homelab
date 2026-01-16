@@ -1852,7 +1852,7 @@ main() {
     log "Done. Status: $(get_overall_status)"
 }
 
-# Run main if not sourced
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+# Run main if not sourced (handles both direct execution and curl | bash -s)
+if [[ -z "${BASH_SOURCE[0]}" ]] || [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"
 fi
