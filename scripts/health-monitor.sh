@@ -36,8 +36,6 @@ OUTPUT_FILE=""
 QUIET=false
 
 # Report data (accumulated during checks - using individual variables for bash 3.x compat)
-RECOMMENDATIONS=""
-RECOMMENDATIONS_COUNT=0
 CHECKS_TOTAL=0
 CHECKS_PASSED=0
 CHECKS_WARNING=0
@@ -107,6 +105,10 @@ REPORT_volume_mounts_status=""
 REPORT_volume_mounts_details=""
 REPORT_network_traffic_status=""
 REPORT_network_traffic_details=""
+REPORT_image_updates_status=""
+REPORT_image_updates_method=""
+REPORT_image_updates_count=""
+REPORT_image_updates_details=""
 
 # =============================================================================
 # Helper Functions
@@ -158,15 +160,6 @@ timestamp() {
     date -u +"%Y-%m-%dT%H:%M:%SZ"
 }
 
-add_recommendation() {
-    if [[ -z "$RECOMMENDATIONS" ]]; then
-        RECOMMENDATIONS="$1"
-    else
-        RECOMMENDATIONS="$RECOMMENDATIONS|$1"
-    fi
-    ((RECOMMENDATIONS_COUNT++)) || true
-}
-
 record_check() {
     local status=$1
     ((CHECKS_TOTAL++)) || true
@@ -204,26 +197,6 @@ json_escape() {
     str="${str//$'\r'/\\r}"
     str="${str//$'\t'/\\t}"
     echo "$str"
-}
-
-json_array_from_pipe() {
-    local pipe_str="$1"
-    local result="["
-    local first=true
-
-    if [[ -n "$pipe_str" ]]; then
-        local IFS='|'
-        for item in $pipe_str; do
-            if [[ "$first" == true ]]; then
-                first=false
-            else
-                result+=","
-            fi
-            result+="\"$(json_escape "$item")\""
-        done
-    fi
-    result+="]"
-    echo "$result"
 }
 
 json_array() {
@@ -362,7 +335,6 @@ check_cpu() {
     local status="OK"
     if [[ "$cpu_usage" -ge "$CPU_THRESHOLD" ]]; then
         status="WARNING"
-        add_recommendation "CPU usage ($cpu_usage%) exceeds threshold ($CPU_THRESHOLD%)"
     fi
 
     record_check "$status"
@@ -392,7 +364,6 @@ check_memory() {
     local status="OK"
     if [[ "$mem_used_pct" -ge "$MEMORY_THRESHOLD" ]]; then
         status="WARNING"
-        add_recommendation "Memory usage ($mem_used_pct%) exceeds threshold ($MEMORY_THRESHOLD%)"
     fi
 
     record_check "$status"
@@ -421,7 +392,6 @@ check_disk() {
         if [[ "$use_pct" -ge "$DISK_THRESHOLD" ]]; then
             status="WARNING"
             any_warning=true
-            add_recommendation "Disk $mount ($use_pct% used) exceeds threshold ($DISK_THRESHOLD%)"
         fi
 
         if [[ "$first" == true ]]; then
@@ -472,7 +442,6 @@ check_network() {
     local overall_status="OK"
     if [[ "$any_fail" == true ]]; then
         overall_status="WARNING"
-        add_recommendation "Network connectivity issues detected"
     fi
 
     record_check "$overall_status"
@@ -519,10 +488,8 @@ check_system_logs() {
     local status="OK"
     if [[ "$errors" -gt 100 ]]; then
         status="CRITICAL"
-        add_recommendation "High number of system errors ($errors) in last ${LOG_HOURS}h"
     elif [[ "$errors" -gt 10 ]]; then
         status="WARNING"
-        add_recommendation "Elevated system errors ($errors) in last ${LOG_HOURS}h"
     fi
 
     record_check "$status"
@@ -579,7 +546,6 @@ check_systemd_services() {
         elif [[ "$active_state" == "failed" ]]; then
             ((failed++)) || true
             any_failed=true
-            add_recommendation "Systemd service '$service' is in failed state"
         fi
 
         if [[ "$first" == true ]]; then
@@ -625,7 +591,6 @@ check_docker_daemon() {
     if ! docker info &>/dev/null; then
         REPORT_docker_daemon_status="NOT_RUNNING"
         record_check "CRITICAL"
-        add_recommendation "Docker daemon is not running"
         return 1
     fi
 
@@ -699,7 +664,6 @@ check_exited_containers() {
                 issues_json+=","
             fi
             issues_json+="{\"id\":\"$id\",\"name\":\"$name\",\"exit_code\":$exit_code}"
-            add_recommendation "Container '$name' exited with code $exit_code"
         fi
     done < <(docker ps -a --filter "status=exited" --format '{{.ID}}\t{{.Names}}\t{{.Label "exitCode"}}' 2>/dev/null)
 
@@ -715,7 +679,6 @@ check_exited_containers() {
                     issues_json+=","
                 fi
                 issues_json+="{\"id\":\"$id\",\"name\":\"$name\",\"exit_code\":$exit_code}"
-                add_recommendation "Container '$name' exited with code $exit_code"
             fi
         fi
     done < <(docker ps -a --filter "status=exited" --format '{{.ID}}\t{{.Names}}' 2>/dev/null)
@@ -756,12 +719,10 @@ check_container_resources() {
         if [[ "$cpu_int" -ge "$CONTAINER_CPU_THRESHOLD" ]]; then
             status="WARNING"
             any_warning=true
-            add_recommendation "Container '$name' CPU usage ($cpu_pct%) exceeds threshold ($CONTAINER_CPU_THRESHOLD%)"
         fi
         if [[ "$mem_int" -ge "$CONTAINER_MEMORY_THRESHOLD" ]]; then
             status="WARNING"
             any_warning=true
-            add_recommendation "Container '$name' memory usage ($mem_pct%) exceeds threshold ($CONTAINER_MEMORY_THRESHOLD%)"
         fi
 
         if [[ "$first" == true ]]; then
@@ -802,7 +763,6 @@ check_container_restarts() {
         if [[ "$restart_count" -ge "$CONTAINER_RESTART_THRESHOLD" ]]; then
             status="WARNING"
             any_warning=true
-            add_recommendation "Container '$name' has restarted $restart_count times"
         fi
 
         if [[ "$restart_count" -gt 0 ]]; then
@@ -846,7 +806,6 @@ check_created_not_running() {
             containers_json+=","
         fi
         containers_json+="{\"id\":\"$id\",\"name\":\"$name\",\"status\":\"$(json_escape "$status")\"}"
-        add_recommendation "Container '$name' is created but not running"
     done < <(docker ps -a --filter "status=created" --format '{{.ID}}\t{{.Names}}\t{{.Status}}' 2>/dev/null)
 
     containers_json+="]"
@@ -888,7 +847,6 @@ check_stopped_not_removed() {
     local status="OK"
     if [[ "$count" -gt 5 ]]; then
         status="WARNING"
-        add_recommendation "$count stopped containers not removed - consider cleanup"
     fi
 
     record_check "$status"
@@ -1056,10 +1014,6 @@ check_container_logs() {
             done < <(docker logs --since "$since" "$id" 2>&1 | grep -iE "$LOG_PATTERNS")
 
             logs_json+="{\"id\":\"$id\",\"name\":\"$name\",\"error_count\":$error_count,\"errors\":[$all_errors]}"
-
-            if [[ "$error_count" -gt 50 ]]; then
-                add_recommendation "Container '$name' has $error_count log errors in last ${LOG_HOURS}h"
-            fi
         fi
     done < <(docker ps --format '{{.ID}}\t{{.Names}}' 2>/dev/null)
 
@@ -1131,10 +1085,6 @@ check_security_issues() {
             fi
             local issues_array=$(json_array "${issues[@]}")
             security_json+="{\"id\":\"$id\",\"name\":\"$name\",\"issues\":$issues_array}"
-
-            for issue in "${issues[@]}"; do
-                add_recommendation "Container '$name' has security concern: $issue"
-            done
         fi
     done < <(docker ps --format '{{.ID}}\t{{.Names}}' 2>/dev/null)
 
@@ -1171,7 +1121,6 @@ check_resource_limits() {
         if [[ "$memory_limit" == "0" || -z "$memory_limit" ]]; then
             has_memory_limit="false"
             ((missing_limits++)) || true
-            add_recommendation "Container '$name' has no memory limit"
         fi
 
         if [[ "$cpu_limit" == "0" || -z "$cpu_limit" ]]; then
@@ -1286,13 +1235,118 @@ check_network_traffic() {
     REPORT_network_traffic_details="$traffic_json"
 }
 
+check_docker_updates() {
+    log "Checking for Docker image updates..."
+
+    if [[ "${REPORT_docker_installed}" != "true" ]]; then
+        return
+    fi
+
+    local updates_json="["
+    local first=true
+    local update_count=0
+    local check_method="none"
+
+    # Determine available method for registry queries
+    if command -v skopeo &>/dev/null; then
+        check_method="skopeo"
+    elif docker manifest inspect --help &>/dev/null 2>&1; then
+        check_method="docker_manifest"
+    fi
+
+    if [[ "$check_method" == "none" ]]; then
+        log "No registry query method available (skopeo or docker manifest required)"
+        REPORT_image_updates_status="UNAVAILABLE"
+        REPORT_image_updates_method="none"
+        REPORT_image_updates_count="0"
+        REPORT_image_updates_details="[]"
+        return
+    fi
+
+    while IFS=$'\t' read -r id name image; do
+        [[ -z "$image" ]] && continue
+
+        # Skip local/unnamed images
+        if [[ "$image" == *"<none>"* || "$image" == sha256:* ]]; then
+            continue
+        fi
+
+        # Get local image digest
+        local local_digest=$(docker inspect --format '{{.Image}}' "$id" 2>/dev/null)
+        local_digest="${local_digest#sha256:}"
+        local_digest="${local_digest:0:12}"
+
+        # Normalize image name for registry query
+        local full_image="$image"
+        # Add library/ prefix for official images without namespace
+        if [[ "$image" != *"/"* && "$image" != *"."*"/"* ]]; then
+            full_image="library/$image"
+        fi
+        # Add docker.io prefix if no registry specified
+        if [[ "$full_image" != *"."*"/"* ]]; then
+            full_image="docker.io/$full_image"
+        fi
+        # Add :latest tag if no tag specified
+        if [[ "$full_image" != *":"* ]]; then
+            full_image="${full_image}:latest"
+        fi
+
+        local remote_digest=""
+        local update_available="false"
+        local error=""
+
+        # Query remote registry with timeout
+        if [[ "$check_method" == "skopeo" ]]; then
+            remote_digest=$(timeout 5 skopeo inspect --no-tags "docker://$full_image" 2>/dev/null | grep -o '"Digest":\s*"sha256:[^"]*"' | cut -d'"' -f4 | cut -d':' -f2 | head -c 12)
+            if [[ -z "$remote_digest" ]]; then
+                error="registry_query_failed"
+            fi
+        elif [[ "$check_method" == "docker_manifest" ]]; then
+            remote_digest=$(timeout 5 docker manifest inspect "$full_image" 2>/dev/null | grep -o '"digest":\s*"sha256:[^"]*"' | head -1 | cut -d'"' -f4 | cut -d':' -f2 | head -c 12)
+            if [[ -z "$remote_digest" ]]; then
+                error="registry_query_failed"
+            fi
+        fi
+
+        # Compare digests if we got a remote one
+        if [[ -n "$remote_digest" && -n "$local_digest" && "$remote_digest" != "$local_digest" ]]; then
+            update_available="true"
+            ((update_count++)) || true
+        fi
+
+        if [[ "$first" == true ]]; then
+            first=false
+        else
+            updates_json+=","
+        fi
+
+        updates_json+="{\"container\":\"$name\",\"image\":\"$image\",\"local_digest\":\"${local_digest:-unknown}\",\"remote_digest\":\"${remote_digest:-unknown}\",\"update_available\":$update_available"
+        if [[ -n "$error" ]]; then
+            updates_json+=",\"error\":\"$error\""
+        fi
+        updates_json+="}"
+
+    done < <(docker ps --format '{{.ID}}\t{{.Names}}\t{{.Image}}' 2>/dev/null)
+
+    updates_json+="]"
+
+    local status="OK"
+    if [[ "$update_count" -gt 0 ]]; then
+        status="WARNING"
+    fi
+
+    record_check "$status"
+    REPORT_image_updates_status="$status"
+    REPORT_image_updates_method="$check_method"
+    REPORT_image_updates_count="$update_count"
+    REPORT_image_updates_details="$updates_json"
+}
+
 # =============================================================================
 # Report Generation
 # =============================================================================
 
 generate_json_report() {
-    local recommendations_array=$(json_array_from_pipe "$RECOMMENDATIONS")
-
     cat <<EOF
 {
   "report_metadata": {
@@ -1422,10 +1476,15 @@ generate_json_report() {
       "network_traffic": {
         "status": "${REPORT_network_traffic_status:-SKIPPED}",
         "details": ${REPORT_network_traffic_details:-[]}
+      },
+      "image_updates": {
+        "status": "${REPORT_image_updates_status:-SKIPPED}",
+        "method": "${REPORT_image_updates_method:-none}",
+        "updates_available": ${REPORT_image_updates_count:-0},
+        "details": ${REPORT_image_updates_details:-[]}
       }
     }
-  },
-  "recommendations": $recommendations_array
+  }
 }
 EOF
 }
@@ -1692,17 +1751,14 @@ EOF
 
     cat <<EOF
 
-## Recommendations
-EOF
+### Image Updates
+- **Status:** ${REPORT_image_updates_status:-SKIPPED}
+- **Check Method:** ${REPORT_image_updates_method:-none}
+- **Updates Available:** ${REPORT_image_updates_count:-0}
 
-    if [[ -z "$RECOMMENDATIONS" ]]; then
-        echo "No recommendations - all checks passed."
-    else
-        local IFS='|'
-        for rec in $RECOMMENDATIONS; do
-            echo "- $rec"
-        done
-    fi
+#### Update Details
+EOF
+    json_to_md_table "$REPORT_image_updates_details" "Container|Image|Local Digest|Remote Digest|Update Available" "container|image|local_digest|remote_digest|update_available"
 }
 
 get_overall_status() {
@@ -1829,6 +1885,7 @@ main() {
         check_network_config
         check_volume_mounts
         check_network_traffic
+        check_docker_updates
     fi
 
     log "Generating report..."
