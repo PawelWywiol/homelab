@@ -244,26 +244,36 @@
     },
     {
       "parameters": {
-        "resource": "block",
-        "operation": "append",
-        "blockId": {
-          "__rl": true,
-          "mode": "id",
-          "value": "={{ $json.id }}"
-        },
-        "blockUi": {
-          "blockValues": [
-            {
-              "type": "paragraph",
-              "textContent": "={{ $('Split Issues').item.json.description }}"
-            }
-          ]
-        }
+        "jsCode": "const pageId = $json.id;\nconst description = $('Split Issues').item.json.description || '';\n\n// Split description into chunks of 1900 chars (Notion limit is 2000)\nconst chunkSize = 1900;\nconst chunks = [];\nlet remaining = description;\n\nwhile (remaining.length > 0) {\n  if (remaining.length <= chunkSize) {\n    chunks.push(remaining);\n    break;\n  }\n  // Find a good break point (newline or space)\n  let breakPoint = remaining.lastIndexOf('\\n', chunkSize);\n  if (breakPoint < chunkSize / 2) {\n    breakPoint = remaining.lastIndexOf(' ', chunkSize);\n  }\n  if (breakPoint < chunkSize / 2) {\n    breakPoint = chunkSize;\n  }\n  chunks.push(remaining.substring(0, breakPoint));\n  remaining = remaining.substring(breakPoint).trim();\n}\n\n// Build Notion blocks array\nconst children = chunks.map(chunk => ({\n  object: 'block',\n  type: 'paragraph',\n  paragraph: {\n    rich_text: [{ type: 'text', text: { content: chunk } }]\n  }\n}));\n\nreturn {\n  json: {\n    pageId,\n    children,\n    description\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
-      "type": "n8n-nodes-base.notion",
-      "typeVersion": 2.2,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [2330, 300],
-      "id": "notion-append-desc",
+      "id": "code-prepare-blocks",
+      "name": "Prepare Description Blocks"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.notion.com/v1/blocks/{{ $json.pageId }}/children",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Notion-Version", "value": "2022-06-28" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ children: $json.children }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 300],
+      "id": "http-notion-append",
       "name": "Append Description",
       "onError": "continueRegularOutput"
     },
@@ -274,18 +284,18 @@
       },
       "type": "n8n-nodes-base.aggregate",
       "typeVersion": 1,
-      "position": [2440, 300],
+      "position": [2560, 300],
       "id": "aggregate-created",
       "name": "Aggregate Created"
     },
     {
       "parameters": {
-        "jsCode": "const parsed = $('Parse Claude Response').first().json;\nconst newIssues = parsed.newIssues;\nconst discordWebhook = parsed.discordWebhook;\n\nconst priorityEmoji = {\n  critical: '\\uD83D\\uDD34',\n  high: '\\uD83D\\uDFE0',\n  medium: '\\uD83D\\uDFE1',\n  low: '\\uD83D\\uDFE2'\n};\n\nconst fields = newIssues.slice(0, 10).map(issue => ({\n  name: `${priorityEmoji[issue.priority] || '\\u26AA'} ${issue.server} - ${issue.check_type}`,\n  value: issue.title,\n  inline: false\n}));\n\nif (newIssues.length > 10) {\n  fields.push({\n    name: '...',\n    value: `And ${newIssues.length - 10} more issues`,\n    inline: false\n  });\n}\n\nconst hasCI = newIssues.some(i => i.priority === 'critical');\nconst hasHi = newIssues.some(i => i.priority === 'high');\nconst color = hasCI ? 16711680 : hasHi ? 16744448 : 16776960;\n\nconst embed = {\n  title: `\\uD83C\\uDFE5 Health Monitor: ${newIssues.length} New Issue${newIssues.length !== 1 ? 's' : ''} Found`,\n  color,\n  fields,\n  footer: { text: `Checked at ${new Date().toISOString().split('T')[0]}` },\n  timestamp: new Date().toISOString()\n};\n\nreturn {\n  json: {\n    discordWebhook,\n    payload: { embeds: [embed] }\n  }\n};",
+        "jsCode": "const parsed = $('Parse Claude Response').first().json;\nconst newIssues = parsed.newIssues;\nconst discordWebhook = parsed.discordWebhook;\n\nconst priorityEmoji = {\n  critical: '\\uD83D\\uDD34',\n  high: '\\uD83D\\uDFE0',\n  medium: '\\uD83D\\uDFE1',\n  low: '\\uD83D\\uDFE2'\n};\n\n// Helper to extract first section from description\nconst getPreview = (desc) => {\n  if (!desc) return 'No description';\n  // Get Root Cause section or first 200 chars\n  const rootCause = desc.match(/## Root Cause\\n([\\s\\S]*?)(?=\\n## |$)/);\n  if (rootCause && rootCause[1]) {\n    const text = rootCause[1].trim();\n    return text.length > 200 ? text.substring(0, 200) + '...' : text;\n  }\n  return desc.length > 200 ? desc.substring(0, 200) + '...' : desc;\n};\n\nconst fields = newIssues.slice(0, 5).map(issue => ({\n  name: `${priorityEmoji[issue.priority] || '\\u26AA'} ${issue.server} - ${issue.check_type}`,\n  value: `**${issue.title}**\\n${getPreview(issue.description)}`,\n  inline: false\n}));\n\nif (newIssues.length > 5) {\n  fields.push({\n    name: '...',\n    value: `And ${newIssues.length - 5} more issues`,\n    inline: false\n  });\n}\n\nconst hasCI = newIssues.some(i => i.priority === 'critical');\nconst hasHi = newIssues.some(i => i.priority === 'high');\nconst color = hasCI ? 16711680 : hasHi ? 16744448 : 16776960;\n\nconst embed = {\n  title: `\\uD83C\\uDFE5 Health Monitor: ${newIssues.length} New Issue${newIssues.length !== 1 ? 's' : ''} Found`,\n  color,\n  fields,\n  footer: { text: `Checked at ${new Date().toISOString().split('T')[0]}` },\n  timestamp: new Date().toISOString()\n};\n\nreturn {\n  json: {\n    discordWebhook,\n    payload: { embeds: [embed] }\n  }\n};",
         "mode": "runOnceForAllItems"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2660, 300],
+      "position": [2780, 300],
       "id": "code-discord-summary",
       "name": "Build Discord Summary"
     },
@@ -300,7 +310,7 @@
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2880, 300],
+      "position": [3000, 300],
       "id": "http-discord",
       "name": "Send Discord",
       "onError": "continueRegularOutput"
@@ -385,6 +395,9 @@
       "main": [[{ "node": "Create Notion Issue", "type": "main", "index": 0 }]]
     },
     "Create Notion Issue": {
+      "main": [[{ "node": "Prepare Description Blocks", "type": "main", "index": 0 }]]
+    },
+    "Prepare Description Blocks": {
       "main": [[{ "node": "Append Description", "type": "main", "index": 0 }]]
     },
     "Append Description": {
