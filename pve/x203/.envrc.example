@@ -1,0 +1,9 @@
+# Remote sync configuration for x202
+# Copy this file to .envrc and fill in REMOTE_HOST
+
+REMOTE_HOST=""
+REMOTE_FILES=(
+  ".env"
+  "docker/config"
+  "Makefile"
+)

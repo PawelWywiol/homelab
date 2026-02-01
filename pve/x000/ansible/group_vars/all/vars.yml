@@ -13,9 +13,9 @@ repo_base_path: /home/code/homelab
 repo_url: https://github.com/PawelWywiol/homelab.git
 
 # Compose file locations relative to repo
-# Currently managing x202, extensible for future hosts
 compose_paths:
   "pve/x202": "{{ repo_base_path }}/pve/x202"
+  "pve/x203": "{{ repo_base_path }}/pve/x203"
 
 # Docker Compose command
 docker_compose_cmd: docker compose
