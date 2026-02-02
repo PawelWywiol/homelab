@@ -39,6 +39,7 @@ services:
       - 8080:8080 # qbittorrent web interface
       - 6881:6881 # qbittorrent torrent port
       - 6881:6881/udp
+      - 8082:8082
       - 3000:3000
       - 3001:3001
     volumes:
