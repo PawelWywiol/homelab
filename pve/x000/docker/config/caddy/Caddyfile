@@ -106,6 +106,13 @@ http://*.wywiol.eu {
         reverse_proxy 192.168.0.203:3000
     }
 
+    @portainer_x203 host portainer-x203.local.wywiol.eu
+    handle @portainer_x203 {
+        reverse_proxy https://192.168.0.203:9443 {
+            import insecure_proxy
+        }
+    }
+
     @sitespeed host sitespeed.local.wywiol.eu
     handle @sitespeed {
         reverse_proxy 192.168.0.107:3000
