@@ -103,7 +103,9 @@ http://*.wywiol.eu {
 
     @browser host browser.local.wywiol.eu
     handle @browser {
-        reverse_proxy 192.168.0.203:3000
+        reverse_proxy 192.168.0.203:3000 {
+            flush_interval -1
+        }
     }
 
     @portainer_x203 host portainer-x203.local.wywiol.eu
