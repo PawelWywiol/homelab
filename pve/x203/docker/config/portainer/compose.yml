@@ -8,16 +8,9 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
-    networks:
-      - caddy_network
     restart: unless-stopped
 
 volumes:
   portainer_data:
     name: portainer_data
     driver: local
-
-networks:
-  caddy_network:
-    name: caddy_network
-    external: true
