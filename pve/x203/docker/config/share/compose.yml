@@ -5,6 +5,9 @@ services:
     container_name: qt
     labels:
       deunhealth.restart.on.unhealthy: true
+    depends_on:
+      gluetun:
+        condition: service_healthy
     env_file: .env
     environment:
       - PUID=1000
@@ -39,7 +42,6 @@ services:
       - 8080:8080 # qbittorrent web interface
       - 6881:6881 # qbittorrent torrent port
       - 6881:6881/udp
-      - 8082:8082
       - 3000:3000
       - 3001:3001
     volumes:
@@ -121,10 +123,11 @@ services:
     ports:
       - 80:8080
     depends_on:
-      - romm-db
+      romm-db:
+        condition: service_healthy
 
   romm-db:
-    image: mariadb:latest # if you experience issues, try: linuxserver/mariadb:latest
+    image: mariadb:latest
     container_name: romm-db
     restart: unless-stopped
     environment:
@@ -134,8 +137,12 @@ services:
       - MYSQL_PASSWORD=${DB_PASSWD}
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
 volumes:
   mysql_data:
-  romm_resources:
   romm_redis_data:
