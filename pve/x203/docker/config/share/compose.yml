@@ -96,7 +96,7 @@ services:
     restart: unless-stopped
 
   romm:
-    image: rommapp/romm:3.7.3
+    image: rommapp/romm:latest
     container_name: romm
     restart: unless-stopped
     user: '1000:1000' # Change to your user and group ID
