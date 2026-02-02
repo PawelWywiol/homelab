@@ -93,7 +93,17 @@ http://*.wywiol.eu {
 
     @retro host retro.local.wywiol.eu
     handle @retro {
-        reverse_proxy 192.168.0.111:80
+        reverse_proxy 192.168.0.203:80
+    }
+
+    @qt host qt.local.wywiol.eu
+    handle @qt {
+        reverse_proxy 192.168.0.203:8080
+    }
+
+    @browser host browser.local.wywiol.eu
+    handle @browser {
+        reverse_proxy 192.168.0.203:3000
     }
 
     @sitespeed host sitespeed.local.wywiol.eu
@@ -106,7 +116,6 @@ http://*.wywiol.eu {
         reverse_proxy 192.168.0.202:3003
     }
 
-    # x202 Services
     @portainer_x202 host portainer-x202.local.wywiol.eu
     handle @portainer_x202 {
         reverse_proxy https://192.168.0.202:9443 {
