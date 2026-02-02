@@ -77,6 +77,9 @@ services:
     image: lscr.io/linuxserver/chromium:latest
     container_name: chromium
     network_mode: service:gluetun
+    depends_on:
+      gluetun:
+        condition: service_healthy
     security_opt:
       - seccomp:unconfined #optional
     environment:
