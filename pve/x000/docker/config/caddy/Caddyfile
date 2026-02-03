@@ -96,9 +96,14 @@ http://*.wywiol.eu {
         reverse_proxy 192.168.0.203:80
     }
 
+    @roms host roms.local.wywiol.eu
+    handle @roms {
+        reverse_proxy 192.168.0.203:8080
+    }
+
     @qt host qt.local.wywiol.eu
     handle @qt {
-        reverse_proxy 192.168.0.203:8080
+        reverse_proxy 192.168.0.203:8081
     }
 
     @browser host browser.local.wywiol.eu
