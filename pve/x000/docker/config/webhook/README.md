@@ -210,13 +210,51 @@ make webhook logs
 
 Test SSH from webhook container:
 ```bash
-docker exec -it webhook ssh -o StrictHostKeyChecking=no code@host.docker.internal "echo OK"
+docker exec webhook ssh -i /home/webhook/.ssh/id_ed25519 code@host.docker.internal "echo OK"
 ```
 
 **Common issues:**
 - SSH key not mounted in container
 - SSH key permissions wrong (should be 600)
 - Host user doesn't accept key
+
+#### "Is a directory" error
+```
+Load key "/home/webhook/.ssh/id_ed25519": Is a directory
+```
+
+**Cause**: Container started before SSH key existed. Docker creates directories for missing bind-mount sources.
+
+**Fix**:
+```bash
+# 1. Stop and remove container
+cd ~/homelab/pve/x000
+docker compose -f docker/config/webhook/compose.yml down
+docker rm -f webhook 2>/dev/null
+
+# 2. Verify SSH key exists
+ls -la ~/.ssh/ansible_ed25519
+
+# 3. Recreate container
+make webhook up
+
+# 4. Verify mount is now a file
+docker exec webhook ls -la /home/webhook/.ssh/
+# Should show: -rw------- ... id_ed25519 (not drwxr-xr-x)
+```
+
+#### "Host key verification failed" error
+
+**Cause**: `host.docker.internal` not in known_hosts file.
+
+**Fix**:
+```bash
+# Scan host key from inside container
+docker exec webhook sh -c 'ssh-keyscan host.docker.internal 2>/dev/null' >> ~/.ssh/known_hosts
+
+# Test SSH
+docker exec webhook ssh -i /home/webhook/.ssh/id_ed25519 code@host.docker.internal 'echo OK'
+```
 
 ### Signature Verification Failed
 
