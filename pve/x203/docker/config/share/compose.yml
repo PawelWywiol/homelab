@@ -88,8 +88,8 @@ services:
       - PGID=1000
       - TZ=${TZ}
     env_file: .env
-    volumes:
-      - ${BROWSER_CONFIG_PATH}:/config
+    tmpfs:
+      - /config:size=1G
     # ports:
     #   - 3000:3000
     #   - 3001:3001
