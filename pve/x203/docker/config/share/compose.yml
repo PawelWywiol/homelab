@@ -117,7 +117,7 @@ services:
     user: '${UID:-1000}:${GID:-1000}'
     volumes:
       - ../../data/filebrowser:/data
-    command: sh -c "touch /data/filebrowser.db && [ -f /data/settings.json ] || echo '{}' > /data/settings.json"
+    command: sh -c "touch /data/filebrowser.db && [ -f /data/settings.json ] || echo '{\"database\":\"/database.db\"}' > /data/settings.json"
     restart: "no"
 
   filebrowser:
