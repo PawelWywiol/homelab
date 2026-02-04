@@ -182,3 +182,4 @@ services:
 
 volumes:
   mysql_data:
+  romm_redis_data:
