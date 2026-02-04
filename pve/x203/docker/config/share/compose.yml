@@ -81,6 +81,8 @@ services:
     image: lscr.io/linuxserver/chromium:latest
     container_name: chromium
     network_mode: service:gluetun
+    devices:
+      - /dev/dri:/dev/dri
     depends_on:
       gluetun:
         condition: service_healthy
@@ -90,6 +92,8 @@ services:
       - TZ=${TZ}
       - FILE_MANAGER_PATH=/mnt/downloads
       - CHROME_CLI=https://ipleak.net/
+      - LC_ALL=en_US.UTF-8
+      - DRI_NODE=/dev/dri/renderD128
     env_file: .env
     tmpfs:
       - /config:size=1G
