@@ -88,6 +88,8 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=${TZ}
+      - FILE_MANAGER_PATH=/mnt/downloads
+      - CHROME_CLI=https://ipleak.net/
     env_file: .env
     tmpfs:
       - /config:size=1G
