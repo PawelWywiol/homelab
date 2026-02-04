@@ -111,28 +111,16 @@ services:
       - /mnt/retro/library/roms:/app/data
     restart: unless-stopped
 
-  filebrowser-init:
-    image: busybox
-    container_name: filebrowser-init
-    user: '${UID:-1000}:${GID:-1000}'
-    volumes:
-      - ../../data/filebrowser:/data
-    command: sh -c "touch /data/filebrowser.db && [ -f /data/settings.json ] || echo '{\"database\":\"/database.db\"}' > /data/settings.json"
-    restart: "no"
-
   filebrowser:
     image: filebrowser/filebrowser:latest
     container_name: filebrowser
     user: '${UID:-1000}:${GID:-1000}'
-    depends_on:
-      filebrowser-init:
-        condition: service_completed_successfully
     ports:
       - 8083:80
     volumes:
       - /mnt:/srv
-      - ../../data/filebrowser/filebrowser.db:/database.db
-      - ../../data/filebrowser/settings.json:/config/settings.json
+      - ../../data/filebrowser/database:/database
+      - ../../data/filebrowser/config:/config
     restart: unless-stopped
 
   romm:
