@@ -8,7 +8,8 @@
         widget:
           type: glances
           url: http://host.docker.internal:61208
-          metric: info
+          version: 4
+          metric: cpu
     - Caddy:
         icon: caddy
         description: Reverse proxy
@@ -61,7 +62,8 @@
         widget:
           type: glances
           url: http://192.168.0.202:61208
-          metric: info
+          version: 4
+          metric: cpu
     - Portainer:
         href: https://portainer-x202.local.wywiol.eu
         icon: portainer
@@ -127,7 +129,8 @@
         widget:
           type: glances
           url: http://192.168.0.203:61208
-          metric: info
+          version: 4
+          metric: cpu
     - Portainer:
         href: https://portainer-x203.local.wywiol.eu
         icon: portainer

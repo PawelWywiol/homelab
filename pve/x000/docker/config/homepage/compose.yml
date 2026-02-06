@@ -8,8 +8,7 @@ services:
       PGID: ${PGID-1000}
       HOMEPAGE_ALLOWED_HOSTS: homepage.local.wywiol.eu
     volumes:
-      - ./config:/app/config # Make sure your local config directory exists
-      - /var/run/docker.sock:/var/run/docker.sock:ro # (optional) For docker integrations
+      - ./config:/app/config
     ports:
       - 3000:3000
     restart: unless-stopped
