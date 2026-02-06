@@ -1,0 +1,21 @@
+services:
+  homepage:
+    container_name: homepage
+    image: ghcr.io/gethomepage/homepage:latest
+    env_file: .env
+    environment:
+      PUID: ${PUID-1000}
+      PGID: ${PGID-1000}
+      HOMEPAGE_ALLOWED_HOSTS: homepage.local.wywiol.eu
+    volumes:
+      - ./config:/app/config # Make sure your local config directory exists
+      - /var/run/docker.sock:/var/run/docker.sock:ro # (optional) For docker integrations
+    ports:
+      - 3000:3000
+    restart: unless-stopped
+    networks:
+      - homelab
+
+networks:
+  homelab:
+    external: true

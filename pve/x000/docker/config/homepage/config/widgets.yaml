@@ -1,0 +1,14 @@
+- resources:
+    cpu: true
+    memory: true
+    disk: /
+    label: x000
+
+- search:
+    provider: google
+    target: _blank
+
+- datetime:
+    format:
+      dateStyle: short
+      timeStyle: short

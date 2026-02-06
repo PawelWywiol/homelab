@@ -1,0 +1,150 @@
+- Control Node:
+    - Portainer:
+        href: https://portainer.local.wywiol.eu
+        icon: portainer
+        description: Container management (x000)
+        server: x000
+        container: portainer
+    - Pi-hole:
+        href: https://pihole.local.wywiol.eu
+        icon: pi-hole
+        description: DNS & ad-blocking
+        server: x000
+        container: pihole
+        widget:
+          type: pihole
+          url: http://pihole:80
+    - n8n:
+        href: https://n8n.local.wywiol.eu
+        icon: n8n
+        description: Workflow automation
+        server: x000
+        container: n8n
+    - Webhook:
+        icon: webhook
+        description: GitHub webhook handler
+        server: x000
+        container: webhook
+    - Caddy:
+        icon: caddy
+        description: Reverse proxy
+        server: x000
+        container: caddy
+    - Cloudflared:
+        icon: cloudflare
+        description: Tunnel
+        server: x000
+        container: cloudflared
+
+- Databases:
+    - pgAdmin:
+        href: https://pgadmin.local.wywiol.eu
+        icon: pgadmin
+        description: PostgreSQL admin
+        server: x202
+        container: pgadmin
+    - Mongo Express:
+        href: https://mongo.local.wywiol.eu
+        icon: mongodb
+        description: MongoDB admin
+        server: x202
+        container: mongo-express
+    - Redis:
+        href: https://redis.local.wywiol.eu
+        icon: redis
+        description: Redis cache UI
+        server: x202
+        container: redis
+    - InfluxDB:
+        href: https://influxdb.local.wywiol.eu
+        icon: influxdb
+        description: Time-series database
+        server: x202
+        container: influxdb
+
+- Monitoring:
+    - Grafana:
+        href: https://grafana.local.wywiol.eu
+        icon: grafana
+        description: Dashboards
+        server: x202
+        container: grafana
+    - Beszel:
+        href: https://beszel.local.wywiol.eu
+        icon: mdi-monitor-dashboard
+        description: System monitoring
+        server: x202
+        container: beszel
+    - Wakapi:
+        href: https://wakapi.local.wywiol.eu
+        icon: wakatime
+        description: Coding activity
+        server: x202
+        container: wakapi
+    - GlitchTip:
+        href: https://glitchtip.local.wywiol.eu
+        icon: glitchtip
+        description: Error tracking
+        server: x202
+        container: glitchtip_web
+
+- Gaming:
+    - RomM:
+        href: https://romm.local.wywiol.eu
+        icon: mdi-gamepad-variant
+        description: Game library manager
+        server: x203
+        container: romm
+    - Romifleur:
+        href: https://roms.local.wywiol.eu
+        icon: mdi-disc
+        description: ROM downloader
+        server: x203
+        container: romifleur
+    - Filebrowser:
+        href: https://files.local.wywiol.eu
+        icon: filebrowser
+        description: File manager
+        server: x203
+        container: filebrowser
+    - qBittorrent:
+        href: https://qt.local.wywiol.eu
+        icon: qbittorrent
+        description: Torrent client
+        server: x203
+        container: qt
+    - Chromium:
+        href: https://browser.local.wywiol.eu
+        icon: chromium
+        description: Browser via VPN
+        server: x203
+        container: chromium
+
+- Infrastructure:
+    - Proxmox:
+        href: https://proxmox.local.wywiol.eu
+        icon: proxmox
+        description: Hypervisor
+        siteMonitor: https://proxmox.local.wywiol.eu
+    - Passbolt:
+        href: https://passbolt.local.wywiol.eu
+        icon: passbolt
+        description: Password manager
+        siteMonitor: https://passbolt.local.wywiol.eu
+    - Portainer x202:
+        href: https://portainer-x202.local.wywiol.eu
+        icon: portainer
+        description: Containers (x202)
+        server: x202
+        container: portainer
+    - Portainer x203:
+        href: https://portainer-x203.local.wywiol.eu
+        icon: portainer
+        description: Containers (x203)
+        server: x203
+        container: portainer
+    - SiteSpeed:
+        href: https://sitespeed.local.wywiol.eu
+        icon: mdi-speedometer
+        description: Performance monitoring
+        siteMonitor: https://sitespeed.local.wywiol.eu

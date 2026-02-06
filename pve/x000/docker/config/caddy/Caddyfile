@@ -91,14 +91,19 @@ http://*.wywiol.eu {
         }
     }
 
-    @retro host retro.local.wywiol.eu
-    handle @retro {
+    @romm host romm.local.wywiol.eu
+    handle @romm {
         reverse_proxy 192.168.0.203:80
     }
 
     @roms host roms.local.wywiol.eu
     handle @roms {
         reverse_proxy 192.168.0.203:8080
+    }
+
+    @files host files.local.wywiol.eu
+    handle @files {
+        reverse_proxy 192.168.0.203:8083
     }
 
     @qt host qt.local.wywiol.eu
@@ -145,6 +150,11 @@ http://*.wywiol.eu {
     @n8n host n8n.local.wywiol.eu
     handle @n8n {
         reverse_proxy n8n:5678
+    }
+
+    @homepage host homepage.local.wywiol.eu
+    handle @homepage {
+        reverse_proxy homepage:3000
     }
 
     @grafana host grafana.local.wywiol.eu

@@ -1,0 +1,7 @@
+# TODO: Create API token in Proxmox with PVEAuditor role
+# Datacenter > Permissions > API Tokens > Add
+# Then set PROXMOX_TOKEN and PROXMOX_SECRET in .env
+pve:
+  url: https://192.168.0.200:8006
+  token: {{HOMEPAGE_VAR_PROXMOX_TOKEN}}
+  secret: {{HOMEPAGE_VAR_PROXMOX_SECRET}}
