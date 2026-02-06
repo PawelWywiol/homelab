@@ -6,13 +6,15 @@ statusStyle: dot
 showStats: true
 
 layout:
-  Control Node:
+  x000 (Control Node):
     icon: mdi-server-network
-  Databases:
+    style: column
+  x202 (Primary):
     icon: mdi-database
-  Monitoring:
-    icon: mdi-chart-line
-  Gaming:
+    style: column
+  x203 (Gaming):
     icon: mdi-gamepad-variant
+    style: column
   Infrastructure:
     icon: mdi-cloud-cog
+    style: column

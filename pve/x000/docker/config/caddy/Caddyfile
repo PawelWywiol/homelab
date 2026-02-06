@@ -182,6 +182,21 @@ http://*.wywiol.eu {
         reverse_proxy 192.168.0.202:8090
     }
 
+    @glances host glances.local.wywiol.eu
+    handle @glances {
+        reverse_proxy host.docker.internal:61208
+    }
+
+    @glances_x202 host glances-x202.local.wywiol.eu
+    handle @glances_x202 {
+        reverse_proxy 192.168.0.202:61208
+    }
+
+    @glances_x203 host glances-x203.local.wywiol.eu
+    handle @glances_x203 {
+        reverse_proxy 192.168.0.203:61208
+    }
+
     # Fallback for undefined subdomains
     handle {
         respond "x000 Control Node" 200

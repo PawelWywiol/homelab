@@ -1,12 +1,27 @@
-- Control Node:
+- x000 (Control Node):
+    - Glances:
+        href: https://glances.local.wywiol.eu
+        icon: glances
+        description: System stats
+        server: x000
+        container: glances
+        widget:
+          type: glances
+          url: http://host.docker.internal:61208
+          metric: info
+    - Caddy:
+        icon: caddy
+        description: Reverse proxy
+        server: x000
+        container: caddy
     - Portainer:
         href: https://portainer.local.wywiol.eu
         icon: portainer
-        description: Container management (x000)
+        description: Container management
         server: x000
         container: portainer
     - Pi-hole:
-        href: https://pihole.local.wywiol.eu
+        href: https://pihole.local.wywiol.eu/admin/
         icon: pi-hole
         description: DNS & ad-blocking
         server: x000
@@ -20,23 +35,63 @@
         description: Workflow automation
         server: x000
         container: n8n
+    - Homepage:
+        icon: homepage
+        description: Dashboard
+        server: x000
+        container: homepage
     - Webhook:
         icon: webhook
         description: GitHub webhook handler
         server: x000
         container: webhook
-    - Caddy:
-        icon: caddy
-        description: Reverse proxy
-        server: x000
-        container: caddy
     - Cloudflared:
         icon: cloudflare
         description: Tunnel
         server: x000
         container: cloudflared
 
-- Databases:
+- x202 (Primary):
+    - Glances:
+        href: https://glances-x202.local.wywiol.eu
+        icon: glances
+        description: System stats
+        server: x202
+        container: glances
+        widget:
+          type: glances
+          url: http://192.168.0.202:61208
+          metric: info
+    - Portainer:
+        href: https://portainer-x202.local.wywiol.eu
+        icon: portainer
+        description: Container management
+        server: x202
+        container: portainer
+    - Grafana:
+        href: https://grafana.local.wywiol.eu
+        icon: grafana
+        description: Dashboards
+        server: x202
+        container: grafana
+    - Beszel:
+        href: https://beszel.local.wywiol.eu
+        icon: mdi-monitor-dashboard
+        description: System monitoring
+        server: x202
+        container: beszel
+    - Wakapi:
+        href: https://wakapi.local.wywiol.eu
+        icon: wakatime
+        description: Coding activity
+        server: x202
+        container: wakapi
+    - GlitchTip:
+        href: https://glitchtip.local.wywiol.eu
+        icon: glitchtip
+        description: Error tracking
+        server: x202
+        container: glitchtip_web
     - pgAdmin:
         href: https://pgadmin.local.wywiol.eu
         icon: pgadmin
@@ -62,33 +117,23 @@
         server: x202
         container: influxdb
 
-- Monitoring:
-    - Grafana:
-        href: https://grafana.local.wywiol.eu
-        icon: grafana
-        description: Dashboards
-        server: x202
-        container: grafana
-    - Beszel:
-        href: https://beszel.local.wywiol.eu
-        icon: mdi-monitor-dashboard
-        description: System monitoring
-        server: x202
-        container: beszel
-    - Wakapi:
-        href: https://wakapi.local.wywiol.eu
-        icon: wakatime
-        description: Coding activity
-        server: x202
-        container: wakapi
-    - GlitchTip:
-        href: https://glitchtip.local.wywiol.eu
-        icon: glitchtip
-        description: Error tracking
-        server: x202
-        container: glitchtip_web
-
-- Gaming:
+- x203 (Gaming):
+    - Glances:
+        href: https://glances-x203.local.wywiol.eu
+        icon: glances
+        description: System stats
+        server: x203
+        container: glances
+        widget:
+          type: glances
+          url: http://192.168.0.203:61208
+          metric: info
+    - Portainer:
+        href: https://portainer-x203.local.wywiol.eu
+        icon: portainer
+        description: Container management
+        server: x203
+        container: portainer
     - RomM:
         href: https://romm.local.wywiol.eu
         icon: mdi-gamepad-variant
@@ -131,18 +176,6 @@
         icon: passbolt
         description: Password manager
         siteMonitor: https://passbolt.local.wywiol.eu
-    - Portainer x202:
-        href: https://portainer-x202.local.wywiol.eu
-        icon: portainer
-        description: Containers (x202)
-        server: x202
-        container: portainer
-    - Portainer x203:
-        href: https://portainer-x203.local.wywiol.eu
-        icon: portainer
-        description: Containers (x203)
-        server: x203
-        container: portainer
     - SiteSpeed:
         href: https://sitespeed.local.wywiol.eu
         icon: mdi-speedometer
