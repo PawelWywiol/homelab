@@ -29,7 +29,7 @@
         container: pihole
         widget:
           type: pihole
-          url: http://pihole:80
+          url: http://pihole
           version: 6
           key: {{HOMEPAGE_VAR_PIHOLE_KEY}}
     - n8n:
