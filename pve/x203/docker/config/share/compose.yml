@@ -18,7 +18,7 @@ services:
     network_mode: service:gluetun
     volumes:
       - ../../data/qt/config:/config
-      - /mnt/downloads:/downloads
+      - /mnt/qt/downloads:/downloads
     # ports:
     #   - 8081:8081
     #   - 6881:6881
@@ -90,13 +90,16 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=${TZ}
-      - FILE_MANAGER_PATH=/mnt/downloads
+      - FILE_MANAGER_PATH=/mnt/qt/downloads
       - CHROME_CLI=https://ipleak.net/
       - LC_ALL=en_US.UTF-8
       - DRI_NODE=/dev/dri/renderD128
     env_file: .env
-    tmpfs:
-      - /config:size=1G
+    # tmpfs:
+    # - /config:size=1G
+    volumes:
+      - /mnt/qt/browser/config:/config
+      - /mnt/qt/downloads:/mnt/downloads
     # ports:
     #   - 3000:3000
     #   - 3001:3001
@@ -145,10 +148,11 @@ services:
       - IGDB_CLIENT_SECRET=${IGDB_CLIENT_SECRET} # https://api-docs.igdb.com/#account-creation
       - MOBYGAMES_API_KEY=${MOBYGAMES_API_KEY} # https://www.mobygames.com/info/api/
       - STEAMGRIDDB_API_KEY=${STEAMGRIDDB_API_KEY} # https://github.com/rommapp/romm/wiki/Generate-API-Keys#steamgriddb
+      - RETROACHIEVEMENTS_API_KEY=${RETROACHIEVEMENTS_API_KEY}
     volumes:
-      - /mnt/retro/romm_resources:/romm/resources # Resources fetched from IGDB (covers, screenshots, etc.)
       - romm_redis_data:/redis-data # Cached data for background tasks
       - /mnt/retro/library:/romm/library # Your game library
+      - /mnt/retro/romm/resources:/romm/resources # Resources fetched from IGDB (covers, screenshots, etc.)
       - /mnt/retro/romm/assets:/romm/assets # Uploaded saves, states, etc.
       - /mnt/retro/romm/config:/romm/config # Path where config.yml is stored
     ports:
