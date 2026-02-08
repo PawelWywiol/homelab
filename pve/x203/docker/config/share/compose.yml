@@ -149,6 +149,11 @@ services:
       - MOBYGAMES_API_KEY=${MOBYGAMES_API_KEY} # https://www.mobygames.com/info/api/
       - STEAMGRIDDB_API_KEY=${STEAMGRIDDB_API_KEY} # https://github.com/rommapp/romm/wiki/Generate-API-Keys#steamgriddb
       - RETROACHIEVEMENTS_API_KEY=${RETROACHIEVEMENTS_API_KEY}
+      - LAUNCHBOX_API_ENABLED=${LAUNCHBOX_API_ENABLED} # Set to "true" to enable LaunchBox API integration
+      - PLAYMATCH_API_ENABLED=${PLAYMATCH_API_ENABLED} # Set to "true" to enable PlayMatch API integration
+      - HASHEOUS_API_ENABLED=${HASHEOUS_API_ENABLED} # Set to "true" to enable Hasheous API integration
+      - FLASHPOINT_API_ENABLED=${FLASHPOINT_API_ENABLED} # Set to "true" to enable Flashpoint API integration
+      - HLTB_API_ENABLED=${HLTB_API_ENABLED} # Set to "true" to enable HowLongToBeat API integration
     volumes:
       - romm_redis_data:/redis-data # Cached data for background tasks
       - /mnt/retro/library:/romm/library # Your game library
