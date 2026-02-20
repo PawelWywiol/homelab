@@ -1,0 +1,24 @@
+---
+services:
+  samba:
+    container_name: samba
+    image: dperson/samba:latest
+    ports:
+      - 139:139
+      - 445:445
+    volumes:
+      - ./samba:/etc/samba
+      - /mnt/retro:/mnt/retro:z
+    environment:
+      - TZ=Europe/Warsaw
+    read_only: true
+    tmpfs:
+      - /tmp
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    networks:
+      - default
+
+networks:
+  default:
