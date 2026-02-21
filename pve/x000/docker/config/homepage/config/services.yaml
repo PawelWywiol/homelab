@@ -169,6 +169,11 @@
         description: Browser via VPN
         server: x203
         container: chromium
+    - Samba:
+        icon: mdi-folder-network
+        description: Network file share
+        server: x203
+        container: samba
 
 - Infrastructure:
     - Proxmox:
