@@ -197,6 +197,11 @@ http://*.wywiol.eu {
         reverse_proxy 192.168.0.203:61208
     }
 
+    @openclaw host openclaw.local.wywiol.eu
+    handle @openclaw {
+        reverse_proxy 192.168.0.201:18789
+    }
+
     # Fallback for undefined subdomains
     handle {
         respond "x000 Control Node" 200

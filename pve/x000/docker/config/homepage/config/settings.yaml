@@ -9,6 +9,9 @@ layout:
   x000 (Control Node):
     icon: mdi-server-network
     style: column
+  x201 (OpenClaw):
+    icon: mdi-robot-industrial
+    style: column
   x202 (Primary):
     icon: mdi-database
     style: column

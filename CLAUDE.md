@@ -23,6 +23,7 @@ make push NAME   # Local -> Server
 | ID | Purpose | Services | Makefile |
 |----|---------|----------|----------|
 | x000 | Control node | caddy, webhook, portainer, cloudflared, pihole | `pve/x000/Makefile` |
+| x201 | OpenClaw | OpenClaw (standalone) | - |
 | x202 | Web/App (primary) | 16 services | `pve/x202/Makefile` |
 
 **Path pattern:** `pve/ENV/docker/config/SERVICE/`
