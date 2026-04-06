@@ -54,13 +54,6 @@
         server: x000
         container: cloudflared
 
-- x201 (OpenClaw):
-    - OpenClaw:
-        href: https://openclaw.local.wywiol.eu
-        icon: mdi-robot-industrial
-        description: Claw machine game
-        siteMonitor: http://192.168.0.201:18789
-
 - x202 (Primary):
     - Glances:
         href: https://glances-x202.local.wywiol.eu
@@ -198,3 +191,8 @@
         icon: mdi-speedometer
         description: Performance monitoring
         siteMonitor: https://sitespeed.local.wywiol.eu
+    - OpenClaw:
+        href: https://openclaw.local.wywiol.eu
+        icon: mdi-robot-industrial
+        description: Claw machine game
+        siteMonitor: http://192.168.0.201:18789
