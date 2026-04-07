@@ -12,3 +12,16 @@ datasources:
       tlsSkipVerify: true
     secureJsonData:
       token: CpSfr3GuCsJKJ6f-E9B4U9GAj4jNPZNdJ97cS1-3YPEPlTeQIxEWkWvL-ENjzP6imHvZ3Q-LOHfDSz5N-n3_lQ==
+
+  - name: claude-influxdb
+    uid: claude-influxdb
+    type: influxdb
+    url: http://influxdb:8086
+    isDefault: false
+    jsonData:
+      version: Flux
+      organization: k6io
+      defaultBucket: claude
+      tlsSkipVerify: true
+    secureJsonData:
+      token: CpSfr3GuCsJKJ6f-E9B4U9GAj4jNPZNdJ97cS1-3YPEPlTeQIxEWkWvL-ENjzP6imHvZ3Q-LOHfDSz5N-n3_lQ==

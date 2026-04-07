@@ -1,0 +1,561 @@
+{
+  "uid": "claude-code-metrics",
+  "title": "Claude Code Metrics",
+  "tags": ["claude", "metrics"],
+  "schemaVersion": 39,
+  "editable": true,
+  "style": "dark",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "host",
+        "type": "query",
+        "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+        "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"claude\", tag: \"host\")",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "current": {"selected": true, "text": ["All"], "value": ["$__all"]}
+      },
+      {
+        "name": "model",
+        "type": "query",
+        "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+        "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"claude\", tag: \"model\")",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "current": {"selected": true, "text": ["All"], "value": ["$__all"]}
+      },
+      {
+        "name": "project",
+        "type": "query",
+        "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+        "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"claude\", tag: \"project\")",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "current": {"selected": true, "text": ["All"], "value": ["$__all"]}
+      },
+      {
+        "name": "worktree",
+        "type": "query",
+        "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+        "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"claude\", tag: \"worktree\")",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "current": {"selected": true, "text": ["All"], "value": ["$__all"]}
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Session Cost",
+      "type": "stat",
+      "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 0},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"cost\")\n  |> last()"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{"color": "green", "value": null}]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Context Window",
+      "type": "gauge",
+      "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+      "gridPos": {"h": 5, "w": 6, "x": 6, "y": 0},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"ctx_pct\")\n  |> last()"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 60},
+              {"color": "red", "value": 80}
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "5h Rate Limit",
+      "type": "gauge",
+      "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+      "gridPos": {"h": 5, "w": 6, "x": 12, "y": 0},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"five_pct\")\n  |> last()"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 60},
+              {"color": "red", "value": 80}
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "7d Rate Limit",
+      "type": "gauge",
+      "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+      "gridPos": {"h": 5, "w": 6, "x": 18, "y": 0},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"week_pct\")\n  |> last()"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 60},
+              {"color": "red", "value": 80}
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Cost Over Time",
+      "type": "timeseries",
+      "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 5},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"cost\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "auto"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{"color": "green", "value": null}]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": ["lastNotNull"]
+        },
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      }
+    },
+    {
+      "id": 6,
+      "title": "Context Usage Over Time",
+      "type": "timeseries",
+      "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 5},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"ctx_pct\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 60},
+              {"color": "red", "value": 80}
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": ["lastNotNull"]
+        },
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      }
+    },
+    {
+      "id": 7,
+      "title": "Token Usage",
+      "type": "timeseries",
+      "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 13},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"in_tok\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"Input Tokens\")"
+        },
+        {
+          "refId": "B",
+          "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"cache_rd\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"Cache Read\")"
+        },
+        {
+          "refId": "C",
+          "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"cache_cr\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"Cache Create\")"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 30,
+            "stacking": {"mode": "normal", "group": "A"},
+            "pointSize": 5,
+            "showPoints": "auto"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{"color": "green", "value": null}]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byFrameRefID", "options": "A"},
+            "properties": [{"id": "displayName", "value": "Input Tokens"}]
+          },
+          {
+            "matcher": {"id": "byFrameRefID", "options": "B"},
+            "properties": [{"id": "displayName", "value": "Cache Read"}]
+          },
+          {
+            "matcher": {"id": "byFrameRefID", "options": "C"},
+            "properties": [{"id": "displayName", "value": "Cache Create"}]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": ["lastNotNull", "max"]
+        },
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      }
+    },
+    {
+      "id": 8,
+      "title": "Token Distribution",
+      "type": "piechart",
+      "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 13},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"in_tok\")\n  |> last()\n  |> set(key: \"_field\", value: \"Input Tokens\")"
+        },
+        {
+          "refId": "B",
+          "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"cache_rd\")\n  |> last()\n  |> set(key: \"_field\", value: \"Cache Read\")"
+        },
+        {
+          "refId": "C",
+          "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"cache_cr\")\n  |> last()\n  |> set(key: \"_field\", value: \"Cache Create\")"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{"color": "green", "value": null}]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "right",
+          "values": ["percent"]
+        },
+        "pieType": "pie",
+        "tooltip": {"mode": "multi"},
+        "displayLabels": ["percent"]
+      }
+    },
+    {
+      "id": 9,
+      "title": "Lines Changed",
+      "type": "timeseries",
+      "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 21},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"lines_add\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"Added\")"
+        },
+        {
+          "refId": "B",
+          "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"lines_rm\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"Removed\")"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "pointSize": 5,
+            "showPoints": "never"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{"color": "green", "value": null}]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byFrameRefID", "options": "A"},
+            "properties": [
+              {"id": "displayName", "value": "Added"},
+              {"id": "color", "value": {"mode": "fixed", "fixedColor": "green"}}
+            ]
+          },
+          {
+            "matcher": {"id": "byFrameRefID", "options": "B"},
+            "properties": [
+              {"id": "displayName", "value": "Removed"},
+              {"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": ["lastNotNull", "max"]
+        },
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      }
+    },
+    {
+      "id": 10,
+      "title": "Rate Limits Over Time",
+      "type": "timeseries",
+      "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 21},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"five_pct\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"5h Limit\")"
+        },
+        {
+          "refId": "B",
+          "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"week_pct\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"7d Limit\")"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 60},
+              {"color": "red", "value": 80}
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byFrameRefID", "options": "A"},
+            "properties": [{"id": "displayName", "value": "5h Limit"}]
+          },
+          {
+            "matcher": {"id": "byFrameRefID", "options": "B"},
+            "properties": [{"id": "displayName", "value": "7d Limit"}]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": ["lastNotNull"]
+        },
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      }
+    },
+    {
+      "id": 11,
+      "title": "Sessions Summary",
+      "type": "table",
+      "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 29},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
+          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> last()\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{"color": "green", "value": null}]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "cost"},
+            "properties": [{"id": "unit", "value": "currencyUSD"}]
+          },
+          {
+            "matcher": {"id": "byName", "options": "ctx_pct"},
+            "properties": [{"id": "unit", "value": "percent"}]
+          },
+          {
+            "matcher": {"id": "byName", "options": "five_pct"},
+            "properties": [{"id": "unit", "value": "percent"}]
+          },
+          {
+            "matcher": {"id": "byName", "options": "week_pct"},
+            "properties": [{"id": "unit", "value": "percent"}]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [{"displayName": "_time", "desc": true}]
+      }
+    }
+  ]
+}
