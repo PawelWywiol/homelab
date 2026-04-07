@@ -10,6 +10,7 @@ services:
       - GF_AUTH_ANONYMOUS_ENABLED=${GRAFANA_AUTH_ANONYMOUS_ENABLED}
       - GF_AUTH_BASIC_ENABLED=${GRAFANA_AUTH_BASIC_ENABLED}
       - GF_SERVER_SERVE_FROM_SUB_PATH=${GRAFANA_SERVER_SERVE_FROM_SUB_PATH}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
     volumes:
       - ./provisioning:/etc/grafana/provisioning/
     networks:

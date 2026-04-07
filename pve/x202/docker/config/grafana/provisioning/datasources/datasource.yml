@@ -11,7 +11,7 @@ datasources:
       defaultBucket: k6io
       tlsSkipVerify: true
     secureJsonData:
-      token: CpSfr3GuCsJKJ6f-E9B4U9GAj4jNPZNdJ97cS1-3YPEPlTeQIxEWkWvL-ENjzP6imHvZ3Q-LOHfDSz5N-n3_lQ==
+      token: $INFLUXDB_TOKEN
 
   - name: claude-influxdb
     uid: claude-influxdb
