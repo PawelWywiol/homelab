@@ -16,40 +16,44 @@
         "name": "host",
         "type": "query",
         "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
-        "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"claude\", tag: \"host\")",
+        "query": "SHOW TAG VALUES FROM \"claude_session\" WITH KEY = \"host\"",
         "refresh": 1,
         "includeAll": true,
         "multi": true,
+        "sort": 1,
         "current": {"selected": true, "text": ["All"], "value": ["$__all"]}
       },
       {
         "name": "model",
         "type": "query",
         "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
-        "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"claude\", tag: \"model\")",
+        "query": "SHOW TAG VALUES FROM \"claude_session\" WITH KEY = \"model\"",
         "refresh": 1,
         "includeAll": true,
         "multi": true,
+        "sort": 1,
         "current": {"selected": true, "text": ["All"], "value": ["$__all"]}
       },
       {
         "name": "project",
         "type": "query",
         "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
-        "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"claude\", tag: \"project\")",
+        "query": "SHOW TAG VALUES FROM \"claude_session\" WITH KEY = \"project\"",
         "refresh": 1,
         "includeAll": true,
         "multi": true,
+        "sort": 1,
         "current": {"selected": true, "text": ["All"], "value": ["$__all"]}
       },
       {
         "name": "worktree",
         "type": "query",
         "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
-        "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"claude\", tag: \"worktree\")",
+        "query": "SHOW TAG VALUES FROM \"claude_session\" WITH KEY = \"worktree\"",
         "refresh": 1,
         "includeAll": true,
         "multi": true,
+        "sort": 1,
         "current": {"selected": true, "text": ["All"], "value": ["$__all"]}
       }
     ]
@@ -65,7 +69,22 @@
         {
           "refId": "A",
           "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
-          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"cost\")\n  |> last()"
+          "measurement": "claude_session",
+          "select": [[
+            {"type": "field", "params": ["cost"]},
+            {"type": "last", "params": []}
+          ]],
+          "groupBy": [
+            {"type": "time", "params": ["$__interval"]},
+            {"type": "fill", "params": ["null"]}
+          ],
+          "tags": [
+            {"key": "host", "operator": "=~", "value": "/^$host$/"},
+            {"condition": "AND", "key": "model", "operator": "=~", "value": "/^$model$/"},
+            {"condition": "AND", "key": "project", "operator": "=~", "value": "/^$project$/"},
+            {"condition": "AND", "key": "worktree", "operator": "=~", "value": "/^$worktree$/"}
+          ],
+          "alias": "Cost"
         }
       ],
       "fieldConfig": {
@@ -98,7 +117,22 @@
         {
           "refId": "A",
           "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
-          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"ctx_pct\")\n  |> last()"
+          "measurement": "claude_session",
+          "select": [[
+            {"type": "field", "params": ["ctx_pct"]},
+            {"type": "last", "params": []}
+          ]],
+          "groupBy": [
+            {"type": "time", "params": ["$__interval"]},
+            {"type": "fill", "params": ["null"]}
+          ],
+          "tags": [
+            {"key": "host", "operator": "=~", "value": "/^$host$/"},
+            {"condition": "AND", "key": "model", "operator": "=~", "value": "/^$model$/"},
+            {"condition": "AND", "key": "project", "operator": "=~", "value": "/^$project$/"},
+            {"condition": "AND", "key": "worktree", "operator": "=~", "value": "/^$worktree$/"}
+          ],
+          "alias": "Context %"
         }
       ],
       "fieldConfig": {
@@ -135,7 +169,22 @@
         {
           "refId": "A",
           "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
-          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"five_pct\")\n  |> last()"
+          "measurement": "claude_session",
+          "select": [[
+            {"type": "field", "params": ["five_pct"]},
+            {"type": "last", "params": []}
+          ]],
+          "groupBy": [
+            {"type": "time", "params": ["$__interval"]},
+            {"type": "fill", "params": ["null"]}
+          ],
+          "tags": [
+            {"key": "host", "operator": "=~", "value": "/^$host$/"},
+            {"condition": "AND", "key": "model", "operator": "=~", "value": "/^$model$/"},
+            {"condition": "AND", "key": "project", "operator": "=~", "value": "/^$project$/"},
+            {"condition": "AND", "key": "worktree", "operator": "=~", "value": "/^$worktree$/"}
+          ],
+          "alias": "5h Limit"
         }
       ],
       "fieldConfig": {
@@ -172,7 +221,22 @@
         {
           "refId": "A",
           "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
-          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"week_pct\")\n  |> last()"
+          "measurement": "claude_session",
+          "select": [[
+            {"type": "field", "params": ["week_pct"]},
+            {"type": "last", "params": []}
+          ]],
+          "groupBy": [
+            {"type": "time", "params": ["$__interval"]},
+            {"type": "fill", "params": ["null"]}
+          ],
+          "tags": [
+            {"key": "host", "operator": "=~", "value": "/^$host$/"},
+            {"condition": "AND", "key": "model", "operator": "=~", "value": "/^$model$/"},
+            {"condition": "AND", "key": "project", "operator": "=~", "value": "/^$project$/"},
+            {"condition": "AND", "key": "worktree", "operator": "=~", "value": "/^$worktree$/"}
+          ],
+          "alias": "7d Limit"
         }
       ],
       "fieldConfig": {
@@ -209,7 +273,24 @@
         {
           "refId": "A",
           "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
-          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"cost\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")"
+          "measurement": "claude_session",
+          "select": [[
+            {"type": "field", "params": ["cost"]},
+            {"type": "last", "params": []}
+          ]],
+          "groupBy": [
+            {"type": "time", "params": ["$__interval"]},
+            {"type": "tag", "params": ["model"]},
+            {"type": "tag", "params": ["project"]},
+            {"type": "fill", "params": ["null"]}
+          ],
+          "tags": [
+            {"key": "host", "operator": "=~", "value": "/^$host$/"},
+            {"condition": "AND", "key": "model", "operator": "=~", "value": "/^$model$/"},
+            {"condition": "AND", "key": "project", "operator": "=~", "value": "/^$project$/"},
+            {"condition": "AND", "key": "worktree", "operator": "=~", "value": "/^$worktree$/"}
+          ],
+          "alias": "$tag_model - $tag_project"
         }
       ],
       "fieldConfig": {
@@ -248,7 +329,22 @@
         {
           "refId": "A",
           "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
-          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"ctx_pct\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")"
+          "measurement": "claude_session",
+          "select": [[
+            {"type": "field", "params": ["ctx_pct"]},
+            {"type": "last", "params": []}
+          ]],
+          "groupBy": [
+            {"type": "time", "params": ["$__interval"]},
+            {"type": "fill", "params": ["null"]}
+          ],
+          "tags": [
+            {"key": "host", "operator": "=~", "value": "/^$host$/"},
+            {"condition": "AND", "key": "model", "operator": "=~", "value": "/^$model$/"},
+            {"condition": "AND", "key": "project", "operator": "=~", "value": "/^$project$/"},
+            {"condition": "AND", "key": "worktree", "operator": "=~", "value": "/^$worktree$/"}
+          ],
+          "alias": "Context %"
         }
       ],
       "fieldConfig": {
@@ -296,17 +392,62 @@
         {
           "refId": "A",
           "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
-          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"in_tok\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"Input Tokens\")"
+          "measurement": "claude_session",
+          "select": [[
+            {"type": "field", "params": ["in_tok"]},
+            {"type": "last", "params": []}
+          ]],
+          "groupBy": [
+            {"type": "time", "params": ["$__interval"]},
+            {"type": "fill", "params": ["null"]}
+          ],
+          "tags": [
+            {"key": "host", "operator": "=~", "value": "/^$host$/"},
+            {"condition": "AND", "key": "model", "operator": "=~", "value": "/^$model$/"},
+            {"condition": "AND", "key": "project", "operator": "=~", "value": "/^$project$/"},
+            {"condition": "AND", "key": "worktree", "operator": "=~", "value": "/^$worktree$/"}
+          ],
+          "alias": "Input Tokens"
         },
         {
           "refId": "B",
           "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
-          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"cache_rd\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"Cache Read\")"
+          "measurement": "claude_session",
+          "select": [[
+            {"type": "field", "params": ["cache_rd"]},
+            {"type": "last", "params": []}
+          ]],
+          "groupBy": [
+            {"type": "time", "params": ["$__interval"]},
+            {"type": "fill", "params": ["null"]}
+          ],
+          "tags": [
+            {"key": "host", "operator": "=~", "value": "/^$host$/"},
+            {"condition": "AND", "key": "model", "operator": "=~", "value": "/^$model$/"},
+            {"condition": "AND", "key": "project", "operator": "=~", "value": "/^$project$/"},
+            {"condition": "AND", "key": "worktree", "operator": "=~", "value": "/^$worktree$/"}
+          ],
+          "alias": "Cache Read"
         },
         {
           "refId": "C",
           "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
-          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"cache_cr\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"Cache Create\")"
+          "measurement": "claude_session",
+          "select": [[
+            {"type": "field", "params": ["cache_cr"]},
+            {"type": "last", "params": []}
+          ]],
+          "groupBy": [
+            {"type": "time", "params": ["$__interval"]},
+            {"type": "fill", "params": ["null"]}
+          ],
+          "tags": [
+            {"key": "host", "operator": "=~", "value": "/^$host$/"},
+            {"condition": "AND", "key": "model", "operator": "=~", "value": "/^$model$/"},
+            {"condition": "AND", "key": "project", "operator": "=~", "value": "/^$project$/"},
+            {"condition": "AND", "key": "worktree", "operator": "=~", "value": "/^$worktree$/"}
+          ],
+          "alias": "Cache Create"
         }
       ],
       "fieldConfig": {
@@ -325,20 +466,7 @@
             "steps": [{"color": "green", "value": null}]
           }
         },
-        "overrides": [
-          {
-            "matcher": {"id": "byFrameRefID", "options": "A"},
-            "properties": [{"id": "displayName", "value": "Input Tokens"}]
-          },
-          {
-            "matcher": {"id": "byFrameRefID", "options": "B"},
-            "properties": [{"id": "displayName", "value": "Cache Read"}]
-          },
-          {
-            "matcher": {"id": "byFrameRefID", "options": "C"},
-            "properties": [{"id": "displayName", "value": "Cache Create"}]
-          }
-        ]
+        "overrides": []
       },
       "options": {
         "legend": {
@@ -359,17 +487,53 @@
         {
           "refId": "A",
           "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
-          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"in_tok\")\n  |> last()\n  |> set(key: \"_field\", value: \"Input Tokens\")"
+          "measurement": "claude_session",
+          "select": [[
+            {"type": "field", "params": ["in_tok"]},
+            {"type": "last", "params": []}
+          ]],
+          "groupBy": [],
+          "tags": [
+            {"key": "host", "operator": "=~", "value": "/^$host$/"},
+            {"condition": "AND", "key": "model", "operator": "=~", "value": "/^$model$/"},
+            {"condition": "AND", "key": "project", "operator": "=~", "value": "/^$project$/"},
+            {"condition": "AND", "key": "worktree", "operator": "=~", "value": "/^$worktree$/"}
+          ],
+          "alias": "Input Tokens"
         },
         {
           "refId": "B",
           "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
-          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"cache_rd\")\n  |> last()\n  |> set(key: \"_field\", value: \"Cache Read\")"
+          "measurement": "claude_session",
+          "select": [[
+            {"type": "field", "params": ["cache_rd"]},
+            {"type": "last", "params": []}
+          ]],
+          "groupBy": [],
+          "tags": [
+            {"key": "host", "operator": "=~", "value": "/^$host$/"},
+            {"condition": "AND", "key": "model", "operator": "=~", "value": "/^$model$/"},
+            {"condition": "AND", "key": "project", "operator": "=~", "value": "/^$project$/"},
+            {"condition": "AND", "key": "worktree", "operator": "=~", "value": "/^$worktree$/"}
+          ],
+          "alias": "Cache Read"
         },
         {
           "refId": "C",
           "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
-          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"cache_cr\")\n  |> last()\n  |> set(key: \"_field\", value: \"Cache Create\")"
+          "measurement": "claude_session",
+          "select": [[
+            {"type": "field", "params": ["cache_cr"]},
+            {"type": "last", "params": []}
+          ]],
+          "groupBy": [],
+          "tags": [
+            {"key": "host", "operator": "=~", "value": "/^$host$/"},
+            {"condition": "AND", "key": "model", "operator": "=~", "value": "/^$model$/"},
+            {"condition": "AND", "key": "project", "operator": "=~", "value": "/^$project$/"},
+            {"condition": "AND", "key": "worktree", "operator": "=~", "value": "/^$worktree$/"}
+          ],
+          "alias": "Cache Create"
         }
       ],
       "fieldConfig": {
@@ -403,12 +567,42 @@
         {
           "refId": "A",
           "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
-          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"lines_add\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"Added\")"
+          "measurement": "claude_session",
+          "select": [[
+            {"type": "field", "params": ["lines_add"]},
+            {"type": "last", "params": []}
+          ]],
+          "groupBy": [
+            {"type": "time", "params": ["$__interval"]},
+            {"type": "fill", "params": ["null"]}
+          ],
+          "tags": [
+            {"key": "host", "operator": "=~", "value": "/^$host$/"},
+            {"condition": "AND", "key": "model", "operator": "=~", "value": "/^$model$/"},
+            {"condition": "AND", "key": "project", "operator": "=~", "value": "/^$project$/"},
+            {"condition": "AND", "key": "worktree", "operator": "=~", "value": "/^$worktree$/"}
+          ],
+          "alias": "Added"
         },
         {
           "refId": "B",
           "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
-          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"lines_rm\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"Removed\")"
+          "measurement": "claude_session",
+          "select": [[
+            {"type": "field", "params": ["lines_rm"]},
+            {"type": "last", "params": []}
+          ]],
+          "groupBy": [
+            {"type": "time", "params": ["$__interval"]},
+            {"type": "fill", "params": ["null"]}
+          ],
+          "tags": [
+            {"key": "host", "operator": "=~", "value": "/^$host$/"},
+            {"condition": "AND", "key": "model", "operator": "=~", "value": "/^$model$/"},
+            {"condition": "AND", "key": "project", "operator": "=~", "value": "/^$project$/"},
+            {"condition": "AND", "key": "worktree", "operator": "=~", "value": "/^$worktree$/"}
+          ],
+          "alias": "Removed"
         }
       ],
       "fieldConfig": {
@@ -461,12 +655,42 @@
         {
           "refId": "A",
           "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
-          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"five_pct\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"5h Limit\")"
+          "measurement": "claude_session",
+          "select": [[
+            {"type": "field", "params": ["five_pct"]},
+            {"type": "last", "params": []}
+          ]],
+          "groupBy": [
+            {"type": "time", "params": ["$__interval"]},
+            {"type": "fill", "params": ["null"]}
+          ],
+          "tags": [
+            {"key": "host", "operator": "=~", "value": "/^$host$/"},
+            {"condition": "AND", "key": "model", "operator": "=~", "value": "/^$model$/"},
+            {"condition": "AND", "key": "project", "operator": "=~", "value": "/^$project$/"},
+            {"condition": "AND", "key": "worktree", "operator": "=~", "value": "/^$worktree$/"}
+          ],
+          "alias": "5h Limit"
         },
         {
           "refId": "B",
           "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
-          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> filter(fn: (r) => r._field == \"week_pct\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"7d Limit\")"
+          "measurement": "claude_session",
+          "select": [[
+            {"type": "field", "params": ["week_pct"]},
+            {"type": "last", "params": []}
+          ]],
+          "groupBy": [
+            {"type": "time", "params": ["$__interval"]},
+            {"type": "fill", "params": ["null"]}
+          ],
+          "tags": [
+            {"key": "host", "operator": "=~", "value": "/^$host$/"},
+            {"condition": "AND", "key": "model", "operator": "=~", "value": "/^$model$/"},
+            {"condition": "AND", "key": "project", "operator": "=~", "value": "/^$project$/"},
+            {"condition": "AND", "key": "worktree", "operator": "=~", "value": "/^$worktree$/"}
+          ],
+          "alias": "7d Limit"
         }
       ],
       "fieldConfig": {
@@ -493,16 +717,7 @@
             ]
           }
         },
-        "overrides": [
-          {
-            "matcher": {"id": "byFrameRefID", "options": "A"},
-            "properties": [{"id": "displayName", "value": "5h Limit"}]
-          },
-          {
-            "matcher": {"id": "byFrameRefID", "options": "B"},
-            "properties": [{"id": "displayName", "value": "7d Limit"}]
-          }
-        ]
+        "overrides": []
       },
       "options": {
         "legend": {
@@ -523,7 +738,9 @@
         {
           "refId": "A",
           "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
-          "query": "from(bucket: \"claude\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"claude_session\")\n  |> filter(fn: (r) => r.host =~ /${host:regex}/)\n  |> filter(fn: (r) => r.model =~ /${model:regex}/)\n  |> filter(fn: (r) => r.project =~ /${project:regex}/)\n  |> filter(fn: (r) => r.worktree =~ /${worktree:regex}/)\n  |> last()\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()"
+          "rawQuery": true,
+          "query": "SELECT last(\"ctx_pct\") AS \"ctx_pct\", last(\"cost\") AS \"cost\", last(\"five_pct\") AS \"five_pct\", last(\"week_pct\") AS \"week_pct\", last(\"lines_add\") AS \"lines_add\", last(\"lines_rm\") AS \"lines_rm\", last(\"in_tok\") AS \"in_tok\", last(\"cache_rd\") AS \"cache_rd\", last(\"cache_cr\") AS \"cache_cr\" FROM \"claude_session\" WHERE $timeFilter GROUP BY \"model\", \"project\", \"host\", \"worktree\"",
+          "resultFormat": "table"
         }
       ],
       "fieldConfig": {
@@ -554,7 +771,7 @@
       },
       "options": {
         "showHeader": true,
-        "sortBy": [{"displayName": "_time", "desc": true}]
+        "sortBy": [{"displayName": "Time", "desc": true}]
       }
     }
   ]

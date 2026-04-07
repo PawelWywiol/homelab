@@ -18,10 +18,7 @@ datasources:
     type: influxdb
     url: http://influxdb:8086
     isDefault: false
+    database: claude
     jsonData:
-      version: Flux
-      organization: k6io
-      defaultBucket: claude
+      httpMode: GET
       tlsSkipVerify: true
-    secureJsonData:
-      token: CpSfr3GuCsJKJ6f-E9B4U9GAj4jNPZNdJ97cS1-3YPEPlTeQIxEWkWvL-ENjzP6imHvZ3Q-LOHfDSz5N-n3_lQ==
