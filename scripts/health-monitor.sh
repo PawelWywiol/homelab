@@ -664,7 +664,7 @@ cleanup_docker_cache() {
 # Lookup a cached inspect field by container ID
 # Lines: 1=exit_code 2=restart_count 3=started_at 4=image 5=created
 #        6=privileged 7=cap_add 8=pid_mode 9=network_mode 10=mounts
-#        11=memory_limit 12=cpu_limit 13=ports 14=volumes
+#        11=memory_limit 12=cpu_limit 13=ports 14=volumes (mounts detail)
 _inspect_field() {
     local id="$1" line_num="$2"
     local file="$_CACHE_INSPECT_DIR/$id"
@@ -732,7 +732,7 @@ check_exited_containers() {
     while IFS=$'\t' read -r id name state _status _image _size; do
         [[ "$state" != "exited" ]] && continue
         local exit_code
-        exit_code=$(_inspect_field "$id" 2)
+        exit_code=$(_inspect_field "$id" 1)
         if [[ "$exit_code" != "0" && -n "$exit_code" ]]; then
             ((issue_count++)) || true
             if [[ "$first" == true ]]; then
@@ -819,7 +819,7 @@ check_container_restarts() {
 
     while IFS=$'\t' read -r id name _state _status _image _size; do
         local restart_count
-        restart_count=$(_inspect_field "$id" 3)
+        restart_count=$(_inspect_field "$id" 2)
         restart_count="${restart_count:-0}"
 
         local status="OK"
@@ -966,7 +966,7 @@ check_long_running_containers() {
 
     while IFS=$'\t' read -r id name _image; do
         local started_at
-        started_at=$(_inspect_field "$id" 4)
+        started_at=$(_inspect_field "$id" 3)
         if [[ -n "$started_at" && "$started_at" != "0001-01-01T00:00:00Z" ]]; then
             local started_epoch
             started_epoch=$(date -d "$started_at" +%s 2>/dev/null || echo "0")
@@ -1023,13 +1023,13 @@ check_outdated_images() {
 
         # Get local image digest from cache (field 5 = .Image)
         local raw_image
-        raw_image=$(_inspect_field "$id" 5)
+        raw_image=$(_inspect_field "$id" 4)
         local local_digest="${raw_image#sha256:}"
         local_digest="${local_digest:0:12}"
 
         # Get image creation date from cache (field 6 = .Created)
         local created
-        created=$(_inspect_field "$id" 6)
+        created=$(_inspect_field "$id" 5)
         created="${created%%T*}"
 
         if [[ "$first" == true ]]; then
@@ -1120,11 +1120,11 @@ check_security_issues() {
 
         # All from cached inspect
         local privileged cap_add pid_mode network_mode mounts
-        privileged=$(_inspect_field "$id" 7)
-        cap_add=$(_inspect_field "$id" 8)
-        pid_mode=$(_inspect_field "$id" 9)
-        network_mode=$(_inspect_field "$id" 10)
-        mounts=$(_inspect_field "$id" 11)
+        privileged=$(_inspect_field "$id" 6)
+        cap_add=$(_inspect_field "$id" 7)
+        pid_mode=$(_inspect_field "$id" 8)
+        network_mode=$(_inspect_field "$id" 9)
+        mounts=$(_inspect_field "$id" 10)
 
         [[ "$privileged" == "true" ]] && issues+=("privileged_mode")
         [[ "$cap_add" != "[]" && "$cap_add" != "<nil>" && -n "$cap_add" ]] && issues+=("extra_capabilities")
@@ -1170,8 +1170,8 @@ check_resource_limits() {
 
     while IFS=$'\t' read -r id name _image; do
         local memory_limit cpu_limit
-        memory_limit=$(_inspect_field "$id" 12)
-        cpu_limit=$(_inspect_field "$id" 13)
+        memory_limit=$(_inspect_field "$id" 11)
+        cpu_limit=$(_inspect_field "$id" 12)
 
         local has_memory_limit="true"
         local has_cpu_limit="true"
@@ -1218,8 +1218,8 @@ check_network_config() {
 
     while IFS=$'\t' read -r id name _image; do
         local network_mode ports
-        network_mode=$(_inspect_field "$id" 10)
-        ports=$(_inspect_field "$id" 14)
+        network_mode=$(_inspect_field "$id" 9)
+        ports=$(_inspect_field "$id" 13)
 
         if [[ "$first" == true ]]; then
             first=false
@@ -1248,7 +1248,7 @@ check_volume_mounts() {
 
     while IFS=$'\t' read -r id name _image; do
         local mounts
-        mounts=$(_inspect_field "$id" 15)
+        mounts=$(_inspect_field "$id" 14)
 
         if [[ "$first" == true ]]; then
             first=false
@@ -1333,7 +1333,7 @@ check_docker_updates() {
 
         # Get local image digest from cache
         local local_digest
-        local_digest=$(_inspect_field "$id" 5)
+        local_digest=$(_inspect_field "$id" 4)
         local_digest="${local_digest#sha256:}"
         local_digest="${local_digest:0:12}"
 
