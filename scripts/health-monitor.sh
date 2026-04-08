@@ -634,37 +634,14 @@ cache_docker_data() {
     # 3. docker stats --no-stream (one call replaces 2)
     docker stats --no-stream --format '{{.ID}}\t{{.Name}}\t{{.CPUPerc}}\t{{.MemPerc}}\t{{.MemUsage}}\t{{.NetIO}}' 2>/dev/null > "$_CACHE_STATS" || true
 
-    # 4. Inspect all containers — single docker inspect call, jq extracts fields
-    #    Output: 15 lines per container (short_id + 14 fields), separated by NUL
-    local all_ids
-    all_ids=$(awk -F'\t' '{print $1}' "$_CACHE_PS_ALL" 2>/dev/null | tr '\n' ' ')
-    if [[ -n "$all_ids" ]]; then
-        # shellcheck disable=SC2086
-        docker inspect $all_ids 2>/dev/null | jq -r '.[] |
-            (.Id[:12]),
-            (.State.ExitCode // 0 | tostring),
-            (.RestartCount // 0 | tostring),
-            (.State.StartedAt // ""),
-            (.Image // ""),
-            (.Created // ""),
-            (if .HostConfig.Privileged then "true" else "false" end),
-            (.HostConfig.CapAdd // [] | if length == 0 then "[]" else join(",") end),
-            (.HostConfig.PidMode // ""),
-            (.HostConfig.NetworkMode // ""),
-            ([.Mounts[]?.Source // empty] | join(":")),
-            (.HostConfig.Memory // 0 | tostring),
-            (.HostConfig.NanoCpus // 0 | tostring),
-            ([.NetworkSettings.Ports // {} | to_entries[] | .key + ":" + ([.value[]?.HostPort // empty] | join(","))] | join(" ")),
-            ([.Mounts[]? | "\(.Type):\(.Source):\(.Destination):\(.RW)"] | join(","))' | \
-        while IFS= read -r short_id; do
-            local f="$_CACHE_INSPECT_DIR/$short_id"
-            : > "$f"
-            for _i in {1..14}; do
-                IFS= read -r line || true
-                echo "$line" >> "$f"
-            done
-        done
-    fi
+    # 4. Inspect all containers — single docker inspect per container, 14-line cache file
+    #    {{println}} after {{range}} blocks guarantees a line even when range is empty
+    while IFS=$'\t' read -r cid _name _state _status _image _size; do
+        [[ -z "$cid" ]] && continue
+        docker inspect --format \
+'{{println .State.ExitCode}}{{println .RestartCount}}{{println .State.StartedAt}}{{println .Image}}{{println .Created}}{{println .HostConfig.Privileged}}{{println .HostConfig.CapAdd}}{{println .HostConfig.PidMode}}{{println .HostConfig.NetworkMode}}{{range .Mounts}}{{.Source}}:{{end}}{{println}}{{println .HostConfig.Memory}}{{println .HostConfig.NanoCpus}}{{range $p, $conf := .NetworkSettings.Ports}}{{$p}}:{{range $i, $c := $conf}}{{if $i}},{{end}}{{$c.HostPort}}{{end}} {{end}}{{println}}{{range .Mounts}}{{.Type}}:{{.Source}}:{{.Destination}}:{{.RW}},{{end}}{{println}}' \
+            "$cid" > "$_CACHE_INSPECT_DIR/$cid" 2>/dev/null || true
+    done < "$_CACHE_PS_ALL"
 
     log "Docker data collected"
 }
