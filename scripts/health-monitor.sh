@@ -634,20 +634,25 @@ cache_docker_data() {
     # 3. docker stats --no-stream (one call replaces 2)
     docker stats --no-stream --format '{{.ID}}\t{{.Name}}\t{{.CPUPerc}}\t{{.MemPerc}}\t{{.MemUsage}}\t{{.NetIO}}' 2>/dev/null > "$_CACHE_STATS" || true
 
-    # 4. Batch docker inspect for all containers (one call replaces dozens of per-container inspects)
-    local all_ids
-    all_ids=$(awk -F'\t' '{print $1}' "$_CACHE_PS_ALL" 2>/dev/null | tr '\n' ' ')
-    if [[ -n "$all_ids" ]]; then
-        # Get all fields we need in a single inspect call per container using JSON
-        # shellcheck disable=SC2086
-        docker inspect --format '{{.ID}}\t{{.State.ExitCode}}\t{{.RestartCount}}\t{{.State.StartedAt}}\t{{.Image}}\t{{.Created}}\t{{.HostConfig.Privileged}}\t{{.HostConfig.CapAdd}}\t{{.HostConfig.PidMode}}\t{{.HostConfig.NetworkMode}}\t{{range .Mounts}}{{.Source}}:{{end}}\t{{.HostConfig.Memory}}\t{{.HostConfig.NanoCpus}}\t{{range $p, $conf := .NetworkSettings.Ports}}{{$p}}:{{range $i, $c := $conf}}{{if $i}},{{end}}{{$c.HostPort}}{{end}} {{end}}\t{{range .Mounts}}{{.Type}}:{{.Source}}:{{.Destination}}:{{.RW}},{{end}}' $all_ids 2>/dev/null | while IFS=$'\t' read -r cid exit_code restart_count started_at image created privileged cap_add pid_mode network_mode mounts memory_limit cpu_limit ports volumes; do
-            local short_id="${cid:0:12}"
-            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-                "$short_id" "$exit_code" "$restart_count" "$started_at" "$image" "$created" \
-                "$privileged" "$cap_add" "$pid_mode" "$network_mode" "$mounts" \
-                "$memory_limit" "$cpu_limit" "$ports" "$volumes" > "$_CACHE_INSPECT_DIR/$short_id"
-        done
-    fi
+    # 4. Inspect all containers — one docker inspect per container but output is cached
+    #    Each field on its own line to avoid delimiter issues with mounts/ports
+    while IFS=$'\t' read -r cid _name _state _status _image _size; do
+        [[ -z "$cid" ]] && continue
+        docker inspect --format '{{.State.ExitCode}}
+{{.RestartCount}}
+{{.State.StartedAt}}
+{{.Image}}
+{{.Created}}
+{{.HostConfig.Privileged}}
+{{.HostConfig.CapAdd}}
+{{.HostConfig.PidMode}}
+{{.HostConfig.NetworkMode}}
+{{range .Mounts}}{{.Source}}:{{end}}
+{{.HostConfig.Memory}}
+{{.HostConfig.NanoCpus}}
+{{range $p, $conf := .NetworkSettings.Ports}}{{$p}}:{{range $i, $c := $conf}}{{if $i}},{{end}}{{$c.HostPort}}{{end}} {{end}}
+{{range .Mounts}}{{.Type}}:{{.Source}}:{{.Destination}}:{{.RW}},{{end}}' "$cid" > "$_CACHE_INSPECT_DIR/$cid" 2>/dev/null || true
+    done < "$_CACHE_PS_ALL"
 
     log "Docker data collected"
 }
@@ -656,15 +661,15 @@ cleanup_docker_cache() {
     [[ -n "$_CACHE_DIR" && -d "$_CACHE_DIR" ]] && rm -rf "$_CACHE_DIR"
 }
 
-# Lookup a cached inspect field by container ID (short 12-char)
-# Fields: 1=exit_code 2=restart_count 3=started_at 4=image 5=created
-#         6=privileged 7=cap_add 8=pid_mode 9=network_mode 10=mounts
-#         11=memory_limit 12=cpu_limit 13=ports 14=volumes
+# Lookup a cached inspect field by container ID
+# Lines: 1=exit_code 2=restart_count 3=started_at 4=image 5=created
+#        6=privileged 7=cap_add 8=pid_mode 9=network_mode 10=mounts
+#        11=memory_limit 12=cpu_limit 13=ports 14=volumes
 _inspect_field() {
-    local id="$1" field_num="$2"
-    local file="$_CACHE_INSPECT_DIR/${id:0:12}"
+    local id="$1" line_num="$2"
+    local file="$_CACHE_INSPECT_DIR/$id"
     if [[ -f "$file" ]]; then
-        cut -f"$field_num" "$file"
+        sed -n "${line_num}p" "$file"
     fi
 }
 
