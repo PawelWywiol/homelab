@@ -10,7 +10,7 @@
 #      echo '{"statusline_command": "~/.claude/statusline-command.sh"}' > ~/.claude/settings.json
 #      Or add to existing settings.json: "statusline_command": "~/.claude/statusline-command.sh"
 #   4. Set INFLUXDB_URL in ~/.claude/statusline.env (optional, enables metrics):
-#      INFLUXDB_URL=https://influxdb.local.wywiol.eu
+#      INFLUXDB_URL=http://192.168.0.202:8086
 #
 # InfluxDB metrics (optional):
 #   When INFLUXDB_URL is set in ~/.claude/statusline.env, metrics are sent
