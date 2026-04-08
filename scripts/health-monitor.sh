@@ -603,6 +603,71 @@ check_docker_daemon() {
     return 0
 }
 
+# -----------------------------------------------------------------------------
+# Docker Data Cache
+# Collects all docker data upfront in minimal calls to avoid repeated execs
+# -----------------------------------------------------------------------------
+
+# Cache file locations
+_CACHE_DIR=""
+_CACHE_PS_ALL=""
+_CACHE_PS_RUNNING=""
+_CACHE_STATS=""
+_CACHE_INSPECT_DIR=""
+
+cache_docker_data() {
+    log "Collecting Docker data..."
+
+    _CACHE_DIR=$(mktemp -d)
+    _CACHE_PS_ALL="$_CACHE_DIR/ps_all"
+    _CACHE_PS_RUNNING="$_CACHE_DIR/ps_running"
+    _CACHE_STATS="$_CACHE_DIR/stats"
+    _CACHE_INSPECT_DIR="$_CACHE_DIR/inspect"
+    mkdir -p "$_CACHE_INSPECT_DIR"
+
+    # 1. docker ps -a (one call replaces ~7)
+    docker ps -a --format '{{.ID}}\t{{.Names}}\t{{.State}}\t{{.Status}}\t{{.Image}}\t{{.Size}}' 2>/dev/null > "$_CACHE_PS_ALL" || true
+
+    # 2. docker ps (running only, one call replaces ~6)
+    docker ps --format '{{.ID}}\t{{.Names}}\t{{.Image}}' 2>/dev/null > "$_CACHE_PS_RUNNING" || true
+
+    # 3. docker stats --no-stream (one call replaces 2)
+    docker stats --no-stream --format '{{.ID}}\t{{.Name}}\t{{.CPUPerc}}\t{{.MemPerc}}\t{{.MemUsage}}\t{{.NetIO}}' 2>/dev/null > "$_CACHE_STATS" || true
+
+    # 4. Batch docker inspect for all containers (one call replaces dozens of per-container inspects)
+    local all_ids
+    all_ids=$(awk -F'\t' '{print $1}' "$_CACHE_PS_ALL" 2>/dev/null | tr '\n' ' ')
+    if [[ -n "$all_ids" ]]; then
+        # Get all fields we need in a single inspect call per container using JSON
+        # shellcheck disable=SC2086
+        docker inspect --format '{{.ID}}\t{{.State.ExitCode}}\t{{.RestartCount}}\t{{.State.StartedAt}}\t{{.Image}}\t{{.Created}}\t{{.HostConfig.Privileged}}\t{{.HostConfig.CapAdd}}\t{{.HostConfig.PidMode}}\t{{.HostConfig.NetworkMode}}\t{{range .Mounts}}{{.Source}}:{{end}}\t{{.HostConfig.Memory}}\t{{.HostConfig.NanoCpus}}\t{{range $p, $conf := .NetworkSettings.Ports}}{{$p}}:{{range $i, $c := $conf}}{{if $i}},{{end}}{{$c.HostPort}}{{end}} {{end}}\t{{range .Mounts}}{{.Type}}:{{.Source}}:{{.Destination}}:{{.RW}},{{end}}' $all_ids 2>/dev/null | while IFS=$'\t' read -r cid exit_code restart_count started_at image created privileged cap_add pid_mode network_mode mounts memory_limit cpu_limit ports volumes; do
+            local short_id="${cid:0:12}"
+            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+                "$short_id" "$exit_code" "$restart_count" "$started_at" "$image" "$created" \
+                "$privileged" "$cap_add" "$pid_mode" "$network_mode" "$mounts" \
+                "$memory_limit" "$cpu_limit" "$ports" "$volumes" > "$_CACHE_INSPECT_DIR/$short_id"
+        done
+    fi
+
+    log "Docker data collected"
+}
+
+cleanup_docker_cache() {
+    [[ -n "$_CACHE_DIR" && -d "$_CACHE_DIR" ]] && rm -rf "$_CACHE_DIR"
+}
+
+# Lookup a cached inspect field by container ID (short 12-char)
+# Fields: 1=exit_code 2=restart_count 3=started_at 4=image 5=created
+#         6=privileged 7=cap_add 8=pid_mode 9=network_mode 10=mounts
+#         11=memory_limit 12=cpu_limit 13=ports 14=volumes
+_inspect_field() {
+    local id="$1" field_num="$2"
+    local file="$_CACHE_INSPECT_DIR/${id:0:12}"
+    if [[ -f "$file" ]]; then
+        cut -f"$field_num" "$file"
+    fi
+}
+
 check_containers_status() {
     log "Checking container statuses..."
 
@@ -617,7 +682,7 @@ check_containers_status() {
     local stopped=0
     local exited=0
 
-    while IFS=$'\t' read -r id name state status image; do
+    while IFS=$'\t' read -r id name state status image _size; do
         ((total++)) || true
         case "$state" in
             running) ((running++)) || true ;;
@@ -631,7 +696,7 @@ check_containers_status() {
             containers_json+=","
         fi
         containers_json+="{\"id\":\"$id\",\"name\":\"$name\",\"state\":\"$state\",\"status\":\"$(json_escape "$status")\",\"image\":\"$image\"}"
-    done < <(docker ps -a --format '{{.ID}}\t{{.Names}}\t{{.State}}\t{{.Status}}\t{{.Image}}' 2>/dev/null)
+    done < "$_CACHE_PS_ALL"
 
     containers_json+="]"
 
@@ -659,7 +724,10 @@ check_exited_containers() {
     local first=true
     local issue_count=0
 
-    while IFS=$'\t' read -r id name exit_code; do
+    while IFS=$'\t' read -r id name state _status _image _size; do
+        [[ "$state" != "exited" ]] && continue
+        local exit_code
+        exit_code=$(_inspect_field "$id" 2)
         if [[ "$exit_code" != "0" && -n "$exit_code" ]]; then
             ((issue_count++)) || true
             if [[ "$first" == true ]]; then
@@ -669,23 +737,7 @@ check_exited_containers() {
             fi
             issues_json+="{\"id\":\"$id\",\"name\":\"$name\",\"exit_code\":$exit_code}"
         fi
-    done < <(docker ps -a --filter "status=exited" --format '{{.ID}}\t{{.Names}}\t{{.Label "exitCode"}}' 2>/dev/null)
-
-    # Also check via inspect for exit codes
-    while IFS=$'\t' read -r id name; do
-        local exit_code=$(docker inspect --format '{{.State.ExitCode}}' "$id" 2>/dev/null)
-        if [[ "$exit_code" != "0" && -n "$exit_code" ]]; then
-            if [[ "$issues_json" != *"$id"* ]]; then
-                ((issue_count++)) || true
-                if [[ "$first" == true ]]; then
-                    first=false
-                else
-                    issues_json+=","
-                fi
-                issues_json+="{\"id\":\"$id\",\"name\":\"$name\",\"exit_code\":$exit_code}"
-            fi
-        fi
-    done < <(docker ps -a --filter "status=exited" --format '{{.ID}}\t{{.Names}}' 2>/dev/null)
+    done < "$_CACHE_PS_ALL"
 
     issues_json+="]"
 
@@ -710,7 +762,7 @@ check_container_resources() {
     local first=true
     local any_warning=false
 
-    while IFS=$'\t' read -r id name cpu_pct mem_pct mem_usage; do
+    while IFS=$'\t' read -r id name cpu_pct mem_pct mem_usage _net_io; do
         # Remove % signs and parse
         cpu_pct="${cpu_pct//%/}"
         mem_pct="${mem_pct//%/}"
@@ -735,7 +787,7 @@ check_container_resources() {
             resources_json+=","
         fi
         resources_json+="{\"id\":\"$id\",\"name\":\"$name\",\"cpu_percent\":\"$cpu_pct\",\"memory_percent\":\"$mem_pct\",\"memory_usage\":\"$(json_escape "$mem_usage")\",\"status\":\"$status\"}"
-    done < <(docker stats --no-stream --format '{{.ID}}\t{{.Name}}\t{{.CPUPerc}}\t{{.MemPerc}}\t{{.MemUsage}}' 2>/dev/null)
+    done < "$_CACHE_STATS"
 
     resources_json+="]"
 
@@ -760,8 +812,10 @@ check_container_restarts() {
     local first=true
     local any_warning=false
 
-    while IFS=$'\t' read -r id name; do
-        local restart_count=$(docker inspect --format '{{.RestartCount}}' "$id" 2>/dev/null || echo "0")
+    while IFS=$'\t' read -r id name _state _status _image _size; do
+        local restart_count
+        restart_count=$(_inspect_field "$id" 3)
+        restart_count="${restart_count:-0}"
 
         local status="OK"
         if [[ "$restart_count" -ge "$CONTAINER_RESTART_THRESHOLD" ]]; then
@@ -777,7 +831,7 @@ check_container_restarts() {
             fi
             restarts_json+="{\"id\":\"$id\",\"name\":\"$name\",\"restart_count\":$restart_count,\"status\":\"$status\"}"
         fi
-    done < <(docker ps -a --format '{{.ID}}\t{{.Names}}' 2>/dev/null)
+    done < "$_CACHE_PS_ALL"
 
     restarts_json+="]"
 
@@ -802,7 +856,8 @@ check_created_not_running() {
     local first=true
     local count=0
 
-    while IFS=$'\t' read -r id name status; do
+    while IFS=$'\t' read -r id name state status _image _size; do
+        [[ "$state" != "created" ]] && continue
         ((count++)) || true
         if [[ "$first" == true ]]; then
             first=false
@@ -810,7 +865,7 @@ check_created_not_running() {
             containers_json+=","
         fi
         containers_json+="{\"id\":\"$id\",\"name\":\"$name\",\"status\":\"$(json_escape "$status")\"}"
-    done < <(docker ps -a --filter "status=created" --format '{{.ID}}\t{{.Names}}\t{{.Status}}' 2>/dev/null)
+    done < "$_CACHE_PS_ALL"
 
     containers_json+="]"
 
@@ -836,7 +891,8 @@ check_stopped_not_removed() {
     local first=true
     local count=0
 
-    while IFS=$'\t' read -r id name status; do
+    while IFS=$'\t' read -r id name state status _image _size; do
+        [[ "$state" != "exited" ]] && continue
         ((count++)) || true
         if [[ "$first" == true ]]; then
             first=false
@@ -844,7 +900,7 @@ check_stopped_not_removed() {
             containers_json+=","
         fi
         containers_json+="{\"id\":\"$id\",\"name\":\"$name\",\"status\":\"$(json_escape "$status")\"}"
-    done < <(docker ps -a --filter "status=exited" --format '{{.ID}}\t{{.Names}}\t{{.Status}}' 2>/dev/null)
+    done < "$_CACHE_PS_ALL"
 
     containers_json+="]"
 
@@ -868,21 +924,21 @@ check_container_disk_usage() {
 
     local disk_json="["
     local first=true
-    local any_warning=false
 
-    while IFS=$'\t' read -r id name size; do
+    while IFS=$'\t' read -r id name _state _status _image size; do
         if [[ "$first" == true ]]; then
             first=false
         else
             disk_json+=","
         fi
         disk_json+="{\"id\":\"$id\",\"name\":\"$name\",\"size\":\"$(json_escape "$size")\"}"
-    done < <(docker ps -a --format '{{.ID}}\t{{.Names}}\t{{.Size}}' 2>/dev/null)
+    done < "$_CACHE_PS_ALL"
 
     disk_json+="]"
 
     # Check total Docker disk usage
-    local docker_disk_usage=$(docker system df --format '{{.Size}}' 2>/dev/null | head -1 || echo "unknown")
+    local docker_disk_usage
+    docker_disk_usage=$(docker system df --format '{{.Size}}' 2>/dev/null | head -1 || echo "unknown")
 
     record_check "OK"
     REPORT_container_disk_status="OK"
@@ -903,10 +959,12 @@ check_long_running_containers() {
     local first=true
     local count=0
 
-    while IFS=$'\t' read -r id name; do
-        local started_at=$(docker inspect --format '{{.State.StartedAt}}' "$id" 2>/dev/null)
+    while IFS=$'\t' read -r id name _image; do
+        local started_at
+        started_at=$(_inspect_field "$id" 4)
         if [[ -n "$started_at" && "$started_at" != "0001-01-01T00:00:00Z" ]]; then
-            local started_epoch=$(date -d "$started_at" +%s 2>/dev/null || echo "0")
+            local started_epoch
+            started_epoch=$(date -d "$started_at" +%s 2>/dev/null || echo "0")
             local running_seconds=$((now - started_epoch))
             local running_days=$((running_seconds / 86400))
 
@@ -920,7 +978,7 @@ check_long_running_containers() {
                 long_running_json+="{\"id\":\"$id\",\"name\":\"$name\",\"running_days\":$running_days}"
             fi
         fi
-    done < <(docker ps --format '{{.ID}}\t{{.Names}}' 2>/dev/null)
+    done < "$_CACHE_PS_RUNNING"
 
     long_running_json+="]"
 
@@ -958,11 +1016,16 @@ check_outdated_images() {
             fi
         fi
 
-        # Get local image digest
-        local local_digest=$(docker inspect --format '{{.Image}}' "$id" 2>/dev/null | cut -c8-19)
+        # Get local image digest from cache (field 5 = .Image)
+        local raw_image
+        raw_image=$(_inspect_field "$id" 5)
+        local local_digest="${raw_image#sha256:}"
+        local_digest="${local_digest:0:12}"
 
-        # Get image creation date
-        local created=$(docker inspect --format '{{.Created}}' "$id" 2>/dev/null | cut -d'T' -f1)
+        # Get image creation date from cache (field 6 = .Created)
+        local created
+        created=$(_inspect_field "$id" 6)
+        created="${created%%T*}"
 
         if [[ "$first" == true ]]; then
             first=false
@@ -970,7 +1033,7 @@ check_outdated_images() {
             outdated_json+=","
         fi
         outdated_json+="{\"id\":\"$id\",\"name\":\"$name\",\"image\":\"$image\",\"registry\":\"$registry\",\"local_digest\":\"$local_digest\",\"created\":\"$created\"}"
-    done < <(docker ps --format '{{.ID}}\t{{.Names}}\t{{.Image}}' 2>/dev/null)
+    done < "$_CACHE_PS_RUNNING"
 
     outdated_json+="]"
 
@@ -991,35 +1054,38 @@ check_container_logs() {
     local any_errors=false
     local since="${LOG_HOURS}h"
 
-    while IFS=$'\t' read -r id name; do
+    while IFS=$'\t' read -r id name _image; do
+        # Get logs once, grep once
+        local log_errors
+        log_errors=$(docker logs --since "$since" "$id" 2>&1 | grep -iE "$LOG_PATTERNS" 2>/dev/null || true)
+        [[ -z "$log_errors" ]] && continue
+
         local error_count
-        error_count=$(docker logs --since "$since" "$id" 2>&1 | grep -ciE "$LOG_PATTERNS" 2>/dev/null || echo "0")
-        error_count="${error_count//[^0-9]/}"  # Remove non-numeric chars
-        [[ -z "$error_count" ]] && error_count=0
+        error_count=$(echo "$log_errors" | wc -l)
+        error_count="${error_count//[[:space:]]/}"
+        [[ -z "$error_count" || "$error_count" == "0" ]] && continue
 
-        if [[ "$error_count" -gt 0 ]]; then
-            any_errors=true
-            if [[ "$first" == true ]]; then
-                first=false
-            else
-                logs_json+=","
-            fi
-
-            # Get all errors
-            local all_errors=""
-            local err_first=true
-            while IFS= read -r line; do
-                if [[ "$err_first" == true ]]; then
-                    err_first=false
-                else
-                    all_errors+=","
-                fi
-                all_errors+="\"$(json_escape "$line")\""
-            done < <(docker logs --since "$since" "$id" 2>&1 | grep -iE "$LOG_PATTERNS")
-
-            logs_json+="{\"id\":\"$id\",\"name\":\"$name\",\"error_count\":$error_count,\"errors\":[$all_errors]}"
+        any_errors=true
+        if [[ "$first" == true ]]; then
+            first=false
+        else
+            logs_json+=","
         fi
-    done < <(docker ps --format '{{.ID}}\t{{.Names}}' 2>/dev/null)
+
+        # Build errors array from already-captured output
+        local all_errors=""
+        local err_first=true
+        while IFS= read -r line; do
+            if [[ "$err_first" == true ]]; then
+                err_first=false
+            else
+                all_errors+=","
+            fi
+            all_errors+="\"$(json_escape "$line")\""
+        done <<< "$log_errors"
+
+        logs_json+="{\"id\":\"$id\",\"name\":\"$name\",\"error_count\":$error_count,\"errors\":[$all_errors]}"
+    done < "$_CACHE_PS_RUNNING"
 
     logs_json+="]"
 
@@ -1044,41 +1110,23 @@ check_security_issues() {
     local first=true
     local any_issues=false
 
-    while IFS=$'\t' read -r id name; do
+    while IFS=$'\t' read -r id name _image; do
         local issues=()
 
-        # Check privileged mode
-        local privileged=$(docker inspect --format '{{.HostConfig.Privileged}}' "$id" 2>/dev/null)
-        if [[ "$privileged" == "true" ]]; then
-            issues+=("privileged_mode")
-        fi
+        # All from cached inspect
+        local privileged cap_add pid_mode network_mode mounts
+        privileged=$(_inspect_field "$id" 7)
+        cap_add=$(_inspect_field "$id" 8)
+        pid_mode=$(_inspect_field "$id" 9)
+        network_mode=$(_inspect_field "$id" 10)
+        mounts=$(_inspect_field "$id" 11)
 
-        # Check capabilities
-        local cap_add=$(docker inspect --format '{{.HostConfig.CapAdd}}' "$id" 2>/dev/null)
-        if [[ "$cap_add" != "[]" && "$cap_add" != "<nil>" && -n "$cap_add" ]]; then
-            issues+=("extra_capabilities")
-        fi
-
-        # Check PID mode
-        local pid_mode=$(docker inspect --format '{{.HostConfig.PidMode}}' "$id" 2>/dev/null)
-        if [[ "$pid_mode" == "host" ]]; then
-            issues+=("host_pid")
-        fi
-
-        # Check network mode
-        local network_mode=$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$id" 2>/dev/null)
-        if [[ "$network_mode" == "host" ]]; then
-            issues+=("host_network")
-        fi
-
-        # Check for sensitive mounts
-        local mounts=$(docker inspect --format '{{range .Mounts}}{{.Source}}:{{end}}' "$id" 2>/dev/null)
-        if [[ "$mounts" == *"/var/run/docker.sock"* ]]; then
-            issues+=("docker_socket_mounted")
-        fi
-        if [[ "$mounts" == *"/etc:"* || "$mounts" == *"/etc/"* ]]; then
-            issues+=("etc_mounted")
-        fi
+        [[ "$privileged" == "true" ]] && issues+=("privileged_mode")
+        [[ "$cap_add" != "[]" && "$cap_add" != "<nil>" && -n "$cap_add" ]] && issues+=("extra_capabilities")
+        [[ "$pid_mode" == "host" ]] && issues+=("host_pid")
+        [[ "$network_mode" == "host" ]] && issues+=("host_network")
+        [[ "$mounts" == *"/var/run/docker.sock"* ]] && issues+=("docker_socket_mounted")
+        [[ "$mounts" == *"/etc:"* || "$mounts" == *"/etc/"* ]] && issues+=("etc_mounted")
 
         if [[ ${#issues[@]} -gt 0 ]]; then
             any_issues=true
@@ -1090,7 +1138,7 @@ check_security_issues() {
             local issues_array=$(json_array "${issues[@]}")
             security_json+="{\"id\":\"$id\",\"name\":\"$name\",\"issues\":$issues_array}"
         fi
-    done < <(docker ps --format '{{.ID}}\t{{.Names}}' 2>/dev/null)
+    done < "$_CACHE_PS_RUNNING"
 
     security_json+="]"
 
@@ -1115,9 +1163,10 @@ check_resource_limits() {
     local first=true
     local missing_limits=0
 
-    while IFS=$'\t' read -r id name; do
-        local memory_limit=$(docker inspect --format '{{.HostConfig.Memory}}' "$id" 2>/dev/null)
-        local cpu_limit=$(docker inspect --format '{{.HostConfig.NanoCpus}}' "$id" 2>/dev/null)
+    while IFS=$'\t' read -r id name _image; do
+        local memory_limit cpu_limit
+        memory_limit=$(_inspect_field "$id" 12)
+        cpu_limit=$(_inspect_field "$id" 13)
 
         local has_memory_limit="true"
         local has_cpu_limit="true"
@@ -1136,8 +1185,8 @@ check_resource_limits() {
         else
             limits_json+=","
         fi
-        limits_json+="{\"id\":\"$id\",\"name\":\"$name\",\"memory_limit\":$memory_limit,\"cpu_limit\":$cpu_limit,\"has_memory_limit\":$has_memory_limit,\"has_cpu_limit\":$has_cpu_limit}"
-    done < <(docker ps --format '{{.ID}}\t{{.Names}}' 2>/dev/null)
+        limits_json+="{\"id\":\"$id\",\"name\":\"$name\",\"memory_limit\":${memory_limit:-0},\"cpu_limit\":${cpu_limit:-0},\"has_memory_limit\":$has_memory_limit,\"has_cpu_limit\":$has_cpu_limit}"
+    done < "$_CACHE_PS_RUNNING"
 
     limits_json+="]"
 
@@ -1162,9 +1211,10 @@ check_network_config() {
     local network_json="["
     local first=true
 
-    while IFS=$'\t' read -r id name; do
-        local network_mode=$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$id" 2>/dev/null)
-        local ports=$(docker inspect --format '{{range $p, $conf := .NetworkSettings.Ports}}{{$p}}:{{range $i, $c := $conf}}{{if $i}},{{end}}{{$c.HostPort}}{{end}} {{end}}' "$id" 2>/dev/null)
+    while IFS=$'\t' read -r id name _image; do
+        local network_mode ports
+        network_mode=$(_inspect_field "$id" 10)
+        ports=$(_inspect_field "$id" 14)
 
         if [[ "$first" == true ]]; then
             first=false
@@ -1172,7 +1222,7 @@ check_network_config() {
             network_json+=","
         fi
         network_json+="{\"id\":\"$id\",\"name\":\"$name\",\"network_mode\":\"$network_mode\",\"published_ports\":\"$(json_escape "$ports")\"}"
-    done < <(docker ps --format '{{.ID}}\t{{.Names}}' 2>/dev/null)
+    done < "$_CACHE_PS_RUNNING"
 
     network_json+="]"
 
@@ -1191,8 +1241,9 @@ check_volume_mounts() {
     local volumes_json="["
     local first=true
 
-    while IFS=$'\t' read -r id name; do
-        local mounts=$(docker inspect --format '{{range .Mounts}}{{.Type}}:{{.Source}}:{{.Destination}}:{{.RW}},{{end}}' "$id" 2>/dev/null)
+    while IFS=$'\t' read -r id name _image; do
+        local mounts
+        mounts=$(_inspect_field "$id" 15)
 
         if [[ "$first" == true ]]; then
             first=false
@@ -1200,7 +1251,7 @@ check_volume_mounts() {
             volumes_json+=","
         fi
         volumes_json+="{\"id\":\"$id\",\"name\":\"$name\",\"mounts\":\"$(json_escape "$mounts")\"}"
-    done < <(docker ps --format '{{.ID}}\t{{.Names}}' 2>/dev/null)
+    done < "$_CACHE_PS_RUNNING"
 
     volumes_json+="]"
 
@@ -1219,10 +1270,10 @@ check_network_traffic() {
     local traffic_json="["
     local first=true
 
-    while IFS=$'\t' read -r id name net_io; do
+    while IFS=$'\t' read -r id name _cpu_pct _mem_pct _mem_usage net_io; do
         # Parse NET I/O format: "1.5MB / 2.3MB" -> rx and tx
-        local rx=$(echo "$net_io" | cut -d'/' -f1 | xargs)
-        local tx=$(echo "$net_io" | cut -d'/' -f2 | xargs)
+        local rx="${net_io%% /*}"
+        local tx="${net_io##*/ }"
 
         if [[ "$first" == true ]]; then
             first=false
@@ -1230,7 +1281,7 @@ check_network_traffic() {
             traffic_json+=","
         fi
         traffic_json+="{\"id\":\"$id\",\"name\":\"$name\",\"rx\":\"$rx\",\"tx\":\"$tx\"}"
-    done < <(docker stats --no-stream --format '{{.ID}}\t{{.Name}}\t{{.NetIO}}' 2>/dev/null)
+    done < "$_CACHE_STATS"
 
     traffic_json+="]"
 
@@ -1275,8 +1326,9 @@ check_docker_updates() {
             continue
         fi
 
-        # Get local image digest
-        local local_digest=$(docker inspect --format '{{.Image}}' "$id" 2>/dev/null)
+        # Get local image digest from cache
+        local local_digest
+        local_digest=$(_inspect_field "$id" 5)
         local_digest="${local_digest#sha256:}"
         local_digest="${local_digest:0:12}"
 
@@ -1330,7 +1382,7 @@ check_docker_updates() {
         fi
         updates_json+="}"
 
-    done < <(docker ps --format '{{.ID}}\t{{.Names}}\t{{.Image}}' 2>/dev/null)
+    done < "$_CACHE_PS_RUNNING"
 
     updates_json+="]"
 
@@ -1886,6 +1938,7 @@ main() {
 
     # Docker checks
     if check_docker_daemon; then
+        cache_docker_data
         check_containers_status
         check_exited_containers
         check_container_resources
@@ -1902,6 +1955,7 @@ main() {
         check_volume_mounts
         check_network_traffic
         check_docker_updates
+        cleanup_docker_cache
     fi
 
     log "Generating report..."
