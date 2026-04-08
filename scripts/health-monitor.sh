@@ -30,6 +30,10 @@ LOG_HOURS=${LOG_HOURS:-24}
 LONG_RUNNING_DAYS=${LONG_RUNNING_DAYS:-30}
 LOG_PATTERNS=${LOG_PATTERNS:-"ERROR|FATAL|CRITICAL|Exception|panic|failed"}
 
+# Optional checks (default: disabled)
+CHECK_IMAGE_UPDATES=${CHECK_IMAGE_UPDATES:-false}
+CHECK_RESOURCE_LIMITS=${CHECK_RESOURCE_LIMITS:-false}
+
 # Output settings
 OUTPUT_FORMAT="json"
 OUTPUT_FILE=""
@@ -1786,6 +1790,8 @@ OPTIONS:
     --format FORMAT     Output format: json, yaml, markdown (default: json)
     --output FILE       Write report to file (default: stdout)
     --config FILE       Load configuration from file
+    --image-updates     Enable image update checks (default: off)
+    --resource-limits   Enable resource limit checks (default: off)
     --quiet             Suppress progress output
     --help              Show this help message
 
@@ -1800,6 +1806,8 @@ CONFIGURATION:
     - LOG_HOURS (default: 24)
     - LONG_RUNNING_DAYS (default: 30)
     - LOG_PATTERNS (default: ERROR|FATAL|CRITICAL|Exception|panic|failed)
+    - CHECK_IMAGE_UPDATES (default: false)
+    - CHECK_RESOURCE_LIMITS (default: false)
 
 EXAMPLES:
     $(basename "$0")                           # JSON to stdout
@@ -1833,6 +1841,14 @@ parse_args() {
                     exit 1
                 fi
                 shift 2
+                ;;
+            --image-updates)
+                CHECK_IMAGE_UPDATES=true
+                shift
+                ;;
+            --resource-limits)
+                CHECK_RESOURCE_LIMITS=true
+                shift
                 ;;
             --quiet)
                 QUIET=true
@@ -1878,10 +1894,10 @@ main() {
         check_stopped_not_removed
         check_container_disk_usage
         check_long_running_containers
-        check_outdated_images
+        [[ "$CHECK_IMAGE_UPDATES" == "true" ]] && check_outdated_images
         check_container_logs
         check_security_issues
-        check_resource_limits
+        [[ "$CHECK_RESOURCE_LIMITS" == "true" ]] && check_resource_limits
         check_network_config
         check_volume_mounts
         check_network_traffic
