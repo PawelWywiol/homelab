@@ -81,7 +81,7 @@
           "refId": "A",
           "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
           "rawQuery": true,
-          "query": "SELECT sum(\"max_cost\") AS \"total_cost\" FROM (SELECT max(\"cost\") AS \"max_cost\" FROM \"claude_session\" WHERE $timeFilter AND \"host\" =~ /^$host$/ AND \"model\" =~ /^$model$/ AND \"project\" =~ /^$project$/ AND \"worktree\" =~ /^$worktree$/ AND \"session\" =~ /^$session$/ GROUP BY \"session\", \"host\", \"model\", \"project\", \"worktree\")",
+          "query": "SELECT sum(\"max_cost\") AS \"total_cost\" FROM (SELECT max(\"cost\") AS \"max_cost\" FROM \"claude_session\" WHERE $timeFilter AND \"host\" =~ /^$host$/ AND \"model\" =~ /^$model$/ AND \"project\" =~ /^$project$/ AND \"worktree\" =~ /^$worktree$/ AND \"session\" =~ /^$session$/ GROUP BY \"session\")",
           "resultFormat": "table"
         }
       ],
@@ -116,7 +116,7 @@
           "refId": "A",
           "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
           "rawQuery": true,
-          "query": "SELECT sum(\"max_in\") + sum(\"max_crd\") + sum(\"max_ccr\") AS \"total_tokens\" FROM (SELECT max(\"in_tok\") AS \"max_in\", max(\"cache_rd\") AS \"max_crd\", max(\"cache_cr\") AS \"max_ccr\" FROM \"claude_session\" WHERE $timeFilter AND \"host\" =~ /^$host$/ AND \"model\" =~ /^$model$/ AND \"project\" =~ /^$project$/ AND \"worktree\" =~ /^$worktree$/ AND \"session\" =~ /^$session$/ GROUP BY \"session\", \"host\", \"model\", \"project\", \"worktree\")",
+          "query": "SELECT sum(\"max_in\") + sum(\"max_crd\") + sum(\"max_ccr\") AS \"total_tokens\" FROM (SELECT max(\"in_tok\") AS \"max_in\", max(\"cache_rd\") AS \"max_crd\", max(\"cache_cr\") AS \"max_ccr\" FROM \"claude_session\" WHERE $timeFilter AND \"host\" =~ /^$host$/ AND \"model\" =~ /^$model$/ AND \"project\" =~ /^$project$/ AND \"worktree\" =~ /^$worktree$/ AND \"session\" =~ /^$session$/ GROUP BY \"session\")",
           "resultFormat": "table"
         }
       ],
@@ -151,7 +151,7 @@
           "refId": "A",
           "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
           "rawQuery": true,
-          "query": "SELECT sum(\"max_add\") + sum(\"max_rm\") AS \"total_lines\" FROM (SELECT max(\"lines_add\") AS \"max_add\", max(\"lines_rm\") AS \"max_rm\" FROM \"claude_session\" WHERE $timeFilter AND \"host\" =~ /^$host$/ AND \"model\" =~ /^$model$/ AND \"project\" =~ /^$project$/ AND \"worktree\" =~ /^$worktree$/ AND \"session\" =~ /^$session$/ GROUP BY \"session\", \"host\", \"model\", \"project\", \"worktree\")",
+          "query": "SELECT sum(\"max_add\") + sum(\"max_rm\") AS \"total_lines\" FROM (SELECT max(\"lines_add\") AS \"max_add\", max(\"lines_rm\") AS \"max_rm\" FROM \"claude_session\" WHERE $timeFilter AND \"host\" =~ /^$host$/ AND \"model\" =~ /^$model$/ AND \"project\" =~ /^$project$/ AND \"worktree\" =~ /^$worktree$/ AND \"session\" =~ /^$session$/ GROUP BY \"session\")",
           "resultFormat": "table"
         }
       ],
@@ -871,7 +871,7 @@
           "refId": "A",
           "datasource": {"type": "influxdb", "uid": "claude-influxdb"},
           "rawQuery": true,
-          "query": "SELECT last(\"ctx_pct\") AS \"ctx_pct\", last(\"cost\") AS \"cost\", last(\"five_pct\") AS \"five_pct\", last(\"week_pct\") AS \"week_pct\", last(\"lines_add\") AS \"lines_add\", last(\"lines_rm\") AS \"lines_rm\", last(\"in_tok\") AS \"in_tok\", last(\"cache_rd\") AS \"cache_rd\", last(\"cache_cr\") AS \"cache_cr\" FROM \"claude_session\" WHERE $timeFilter AND \"host\" =~ /^$host$/ AND \"model\" =~ /^$model$/ AND \"project\" =~ /^$project$/ AND \"worktree\" =~ /^$worktree$/ AND \"session\" =~ /^$session$/ GROUP BY \"session\", \"model\", \"project\", \"host\", \"worktree\"",
+          "query": "SELECT last(\"ctx_pct\") AS \"ctx_pct\", last(\"cost\") AS \"cost\", last(\"five_pct\") AS \"five_pct\", last(\"week_pct\") AS \"week_pct\", last(\"lines_add\") AS \"lines_add\", last(\"lines_rm\") AS \"lines_rm\", last(\"in_tok\") AS \"in_tok\", last(\"cache_rd\") AS \"cache_rd\", last(\"cache_cr\") AS \"cache_cr\" FROM \"claude_session\" WHERE $timeFilter AND \"host\" =~ /^$host$/ AND \"model\" =~ /^$model$/ AND \"project\" =~ /^$project$/ AND \"worktree\" =~ /^$worktree$/ AND \"session\" =~ /^$session$/ GROUP BY \"session\", \"model\", \"project\"",
           "resultFormat": "table"
         }
       ],

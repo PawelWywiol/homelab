@@ -37,12 +37,19 @@ in_tok=$(echo "$input" | jq -r '.context_window.current_usage.input_tokens // em
 cache_rd=$(echo "$input" | jq -r '.context_window.current_usage.cache_read_input_tokens // empty')
 cache_cr=$(echo "$input" | jq -r '.context_window.current_usage.cache_creation_input_tokens // empty')
 
-# Session ID from Claude session file
-_session_file="$HOME/.claude/sessions/${PPID}.json"
-if [ -f "$_session_file" ]; then
-  session_id=$(jq -r '.sessionId // empty' "$_session_file")
-fi
-session_id="${session_id:-ppid_${PPID}}"
+# Session ID: walk process tree to find Claude's session file
+session_id=""
+_pid=$$
+while [ "$_pid" -gt 1 ]; do
+  _sf="$HOME/.claude/sessions/${_pid}.json"
+  if [ -f "$_sf" ]; then
+    session_id=$(jq -r '.sessionId // empty' "$_sf")
+    break
+  fi
+  _pid=$(ps -o ppid= -p "$_pid" 2>/dev/null | tr -d ' ')
+  [ -z "$_pid" ] && break
+done
+session_id="${session_id:-unknown_$(hostname -s)}"
 
 # --- Send metrics to InfluxDB (fire-and-forget) ---
 _env_file="$HOME/.claude/statusline.env"
@@ -52,7 +59,7 @@ if [ -n "$ctx_pct" ] && [ -f "$_env_file" ]; then
   if [ -n "$INFLUXDB_URL" ]; then
     _host=$(hostname -s)
     _project=$(basename "${cwd:-unknown}")
-    _model_tag=$(echo "${model:-unknown}" | tr ' ' '_')
+    _model_tag=$(echo "${model:-unknown}" | sed 's/ *(.*//' | tr ' ' '_')
     _worktree_tag=$(echo "${worktree:-none}" | tr ' ' '_')
 
     _line="claude_session,host=${_host},model=${_model_tag},project=${_project},worktree=${_worktree_tag},session=${session_id}"
