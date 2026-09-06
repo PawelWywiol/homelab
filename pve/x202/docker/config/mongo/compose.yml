@@ -12,6 +12,11 @@ services:
     volumes:
       - mongo_db:/data/db
       - mongo_config:/data/configdb
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
     restart: unless-stopped
     networks:
       - caddy_network
