@@ -24,6 +24,14 @@ Professional reference documentation for homelab infrastructure management.
   - SSH configuration
   - Disk management and LVM
 
+### Automation
+
+- **[Automation](./automation/README.md)** - GitOps workflow
+  - Webhook routing and triggers
+  - Ansible playbooks and inventory
+  - OpenTofu / Proxmox VM management
+  - Discord notifications
+
 ### Development Environments
 
 - **[WSL](./wsl.md)** - Windows Subsystem for Linux setup

@@ -22,11 +22,15 @@ make push NAME   # Local -> Server
 
 | ID | Purpose | Services | Makefile |
 |----|---------|----------|----------|
-| x000 | Control node | caddy, webhook, portainer, cloudflared, pihole | `pve/x000/Makefile` |
-| x201 | OpenClaw | OpenClaw (standalone) | - |
-| x202 | Web/App (primary) | 16 services | `pve/x202/Makefile` |
+| x000 | Control node | 9 | `pve/x000/Makefile` |
+| x202 | Web/App (primary) | 13 | `pve/x202/Makefile` |
+| x203 | File sharing | 5 | `pve/x203/Makefile` |
+| archive | Not deployed | - | - |
 
 **Path pattern:** `pve/ENV/docker/config/SERVICE/`
+
+Makefiles discover services from `docker/config/`, so adding or removing a
+directory is all it takes — no list to update.
 
 ## Service Management
 
@@ -37,19 +41,21 @@ cd pve/x202
 make SERVICE [up|down|restart|pull|logs]
 ```
 
-| Service | Description |
-|---------|-------------|
-| portainer | Container management UI |
-| postgres | PostgreSQL + pgAdmin |
-| redis | Redis cache |
-| mongo | MongoDB + Mongo Express |
-| rabbitmq | Message broker |
-| influxdb | Time-series DB |
-| grafana | Dashboards |
-| wakapi | Coding activity tracker |
-| beszel | System monitoring |
-| glitchtip | Error tracking |
-| k6 | Load testing |
+| Service | Port | Description |
+|---------|------|-------------|
+| portainer | 9443 | Container management UI |
+| postgres | 5432, 8888 | PostgreSQL + pgAdmin |
+| redis | 6379, 8001 | Redis cache |
+| mongo | 27017, 8081 | MongoDB + Mongo Express |
+| rabbitmq | - | Message broker |
+| influxdb | 8086 | Time-series DB |
+| grafana | 3002 | Dashboards |
+| wakapi | 3003 | Coding activity tracker |
+| beszel | 8090 | System monitoring |
+| glitchtip | 8000 | Error tracking |
+| k6 | - | Load testing |
+| glances | - | Host/container metrics |
+| docker-socket-proxy | 2375 | Scoped Docker API access |
 
 **Database operations:**
 ```bash
@@ -78,11 +84,47 @@ make SERVICE [up|down|restart|pull|logs]
 | webhook | 8097 | GitHub webhook handler |
 | portainer | 9443 | Container management UI |
 | cloudflared | - | Cloudflare Tunnel |
-| pihole | 53, 5080 | DNS + ad-blocking |
+| pihole | 53, 5080, 5443 | DNS + ad-blocking |
+| homepage | 3000 | Dashboard |
+| n8n | 5678 | Workflow automation |
+| glances | - | Host/container metrics |
+| docker-socket-proxy | 2375 | Scoped Docker API access |
+
+### x203 Services
+
+```bash
+cd pve/x203
+make SERVICE [up|down|restart|pull|logs]
+```
+
+| Service | Port | Description |
+|---------|------|-------------|
+| samba | 139, 445 | SMB file sharing |
+| share | 8081, 6881, 8080 | qBittorrent + media stack |
+| portainer | 9443 | Container management UI |
+| glances | - | Host/container metrics |
+| docker-socket-proxy | 2375 | Scoped Docker API access |
+
+## Host Initialization
+
+Run on a fresh VM/LXC **as root** (aborts otherwise):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/PawelWywiol/homelab/main/scripts/init-host.sh | sudo bash
+
+# With options - `-s --` is required, otherwise bash consumes the flags
+curl -fsSL .../init-host.sh | sudo bash -s -- --install-node --disable-dns-stub
+```
+
+Installs base packages, Docker, the ZSH/oh-my-zsh + Powerlevel10k stack (with a
+versioned `~/.p10k.zsh`, so no wizard), herdr (prefix `ctrl+s`) and Claude Code.
+Re-running never overwrites a config the user or its own tool has since edited.
+
+See [scripts/README.md](scripts/README.md#init-hostsh) for options and `.env` config.
 
 ## Control Node Setup
 
-Setup control node:
+Setup control node. Runs **as a normal user** (`setup.sh` refuses root and calls sudo itself):
 
 ```bash
 # On x000
@@ -118,21 +160,25 @@ GitHub Push → webhook.wywiol.eu (Caddy: IP whitelist)
 |-------------|--------|--------------|
 | `pve/x000/docker/config/*` (add/mod) | Deploy x000 services | 📦 → ✅/❌ |
 | `pve/x202/docker/config/*` (add/mod) | Deploy x202 services | 📦 → ✅/❌ |
-| `pve/x*/docker/config/*` (removed) | Stop & remove containers | 🛑 → ✅/❌ |
+| `pve/x203/docker/config/*` (add/mod) | Deploy x203 services | 📦 → ✅/❌ |
+| `pve/x000\|x202\|x203/docker/config/*` (removed) | Stop & remove containers | 🛑 → ✅/❌ |
 | `pve/x000/infra/tofu/*` | OpenTofu plan (manual apply) | 🔧 → ✅/❌ |
+
+Only those three prefixes are routed. Anything else — `pve/archive/*` included —
+is reported as ignored and deploys nothing.
 
 **Ansible playbooks:**
 - `deploy-service.yml` - Deploy Docker Compose services
 - `stop-service.yml` - Stop and remove containers
 - `rollback-service.yml` - Rollback to previous version
 
-**Managed hosts:** x000 (control node), x202 (VM)
+**Managed hosts:** x000 (control node), x202, x203 (VMs)
 
 ## File Sync
 
 ```bash
 # Root Makefile shortcuts
-make pull NAME   # Server -> Local (NAME = x000|x202|x250)
+make pull NAME   # Server -> Local (NAME = x000|x202|x203)
 make push NAME   # Local -> Server
 
 # Direct script
@@ -163,6 +209,7 @@ Config: Copy `pve/NAME/.envrc.example` to `.envrc` and set `REMOTE_HOST`.
 ```
 ├── Makefile                  # Root sync commands (push/pull)
 ├── pve/
+│   ├── archive/              # Archived services (not deployed)
 │   ├── x000/                 # Control node
 │   │   ├── Makefile          # Service + setup commands
 │   │   ├── setup.sh          # Control node setup
@@ -187,18 +234,20 @@ Config: Copy `pve/NAME/.envrc.example` to `.envrc` and set `REMOTE_HOST`.
 │   │       ├── portainer/    # Container management
 │   │       ├── cloudflared/  # Cloudflare tunnel
 │   │       └── pihole/       # DNS + ad-blocking
-│   ├── legacy/               # Legacy services (deprecated)
 │   ├── x202/                 # Web services (primary VM)
 │   │   ├── Makefile          # Service orchestration
 │   │   └── docker/config/SERVICE/
-│   └── x250/                 # AI/ML
+│   └── x203/                 # File sharing (VM)
+│       ├── Makefile          # Service orchestration
+│       └── docker/config/SERVICE/
 ├── scripts/
 │   ├── sync-files.sh         # Bidirectional rsync
 │   ├── tests/                # Test suite
 │   ├── init-host.sh          # Universal host init (VM/LXC/RPi)
+│   ├── init-host/            # Dotfiles it installs (p10k, herdr, Makefile)
 │   ├── .env.example          # init-host.sh config template
-│   ├── init-vm.sh            # VM initialization (legacy)
-│   └── init-lxc.sh           # LXC initialization (legacy)
+│   ├── health-monitor.sh     # System/Docker health report
+│   └── claude-statusline.sh  # Terminal statusline helper
 └── docs/                     # Guides
 ```
 
@@ -218,8 +267,11 @@ Config: Copy `pve/NAME/.envrc.example` to `.envrc` and set `REMOTE_HOST`.
 - All secrets via environment variables
 
 **Documentation:**
+- [scripts/README.md](scripts/README.md) - init-host.sh, sync, health monitor
 - [pve/x000/docker/config/webhook/README.md](pve/x000/docker/config/webhook/README.md) - Webhook setup & troubleshooting
 - [pve/x000/ansible/README.md](pve/x000/ansible/README.md) - Ansible setup
 - [pve/x000/infra/README.md](pve/x000/infra/README.md) - OpenTofu/Proxmox
 - [pve/x000/README.md](pve/x000/README.md) - Control node
+- [pve/x202/README.md](pve/x202/README.md) - Web services
+- [pve/x203/README.md](pve/x203/README.md) - File sharing
 - [docs/automation/](docs/automation/) - GitOps workflow

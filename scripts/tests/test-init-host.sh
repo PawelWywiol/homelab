@@ -581,6 +581,105 @@ run_test "Fortivpn is opt-in (SKIP_FORTIVPN=true default)" \
     "found" \
     false true
 
+# =============================================================================
+echo -e "\n${YELLOW}=== herdr / Claude Code / p10k ===${NC}"
+# =============================================================================
+
+run_test "herdr is installed by default (SKIP_HERDR=false)" \
+    "grep -q 'SKIP_HERDR=false' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+run_test "Claude Code is installed by default (SKIP_CLAUDE=false)" \
+    "grep -q 'SKIP_CLAUDE=false' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+run_test "--skip-herdr is documented in help" \
+    "./scripts/init-host.sh --help" \
+    "skip-herdr" \
+    false true
+
+run_test "--skip-claude is documented in help" \
+    "./scripts/init-host.sh --help" \
+    "skip-claude" \
+    false true
+
+run_test "herdr installs from the upstream installer" \
+    "grep -q 'herdr.dev/install.sh' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+run_test "herdr goes to a system-wide bin, not root's home" \
+    "grep -q 'HERDR_INSTALL_DIR=/usr/local/bin' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+run_test "Claude Code installs as the user, not root" \
+    "grep -q \"run_as_user 'curl -fsSL https://claude.ai/install.sh\" ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+run_test "p10k config is versioned in the repo" \
+    "test -s '$REPO_ROOT/scripts/init-host/p10k.zsh' && echo found" \
+    "found" \
+    false true
+
+run_test "herdr config is versioned in the repo" \
+    "test -s '$REPO_ROOT/scripts/init-host/herdr/config.toml' && echo found" \
+    "found" \
+    false true
+
+run_test "herdr config binds prefix to ctrl+s" \
+    "grep -qxF 'prefix = \"ctrl+s\"' '$REPO_ROOT/scripts/init-host/herdr/config.toml' && echo found" \
+    "found" \
+    false true
+
+run_test "herdr config binds goto to prefix+s" \
+    "grep -qxF 'goto = \"prefix+s\"' '$REPO_ROOT/scripts/init-host/herdr/config.toml' && echo found" \
+    "found" \
+    false true
+
+run_test "zshrc gets the p10k instant prompt" \
+    "grep -q 'p10k-instant-prompt' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+run_test "zshrc sources the p10k config" \
+    "grep -q 'source ~/.p10k.zsh' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+run_test "zshrc puts ~/.local/bin on PATH for the claude launcher" \
+    "grep -q 'HOME/.local/bin:\$PATH' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+run_test "assets fall back to the repo when piped through curl" \
+    "grep -q 'ASSET_BASE_URL' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+# =============================================================================
+echo -e "\n${YELLOW}=== Re-run safety ===${NC}"
+# =============================================================================
+
+# A second run must not discard what the tools themselves wrote to these files.
+run_test "user-owned config files are installed only when absent" \
+    "grep -q 'install_asset_once()' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+run_test "version switcher Makefile is not overwritten" \
+    "grep -q 'Makefile already present, left as is' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
+run_test "theme assignment is rewritten from any value" \
+    "grep -q 's|\\^ZSH_THEME=.\\*|' ./scripts/init-host.sh && echo found" \
+    "found" \
+    false true
+
 # Test: syntax validation
 run_test "script has valid bash syntax" \
     "bash -n ./scripts/init-host.sh && echo valid" \

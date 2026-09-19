@@ -6,7 +6,8 @@ Ansible automation for homelab infrastructure management.
 
 ## Overview
 
-Manages deployment and configuration of services to x202 (primary web/app VM).
+Manages deployment and configuration of Docker Compose services on the control
+node and the managed VMs.
 
 ## Structure
 
@@ -14,14 +15,16 @@ Manages deployment and configuration of services to x202 (primary web/app VM).
 ansible/
 ├── ansible.cfg              # Ansible configuration
 ├── inventory/
-│   └── hosts.yml           # x202 host definition
+│   └── hosts.yml           # x000, x202, x203 host definitions
 ├── group_vars/
 │   └── all/
 │       ├── vars.yml            # Common variables
 │       └── vault.yml.example   # Vault template (unused)
 ├── playbooks/
 │   ├── deploy-service.yml  # Deploy Docker Compose services
-│   └── rollback-service.yml # Rollback to previous version
+│   ├── stop-service.yml    # Stop & remove containers
+│   ├── rollback-service.yml # Rollback to previous version
+│   └── _deploy_single.yml  # Helper task
 └── roles/
     └── docker_compose/
         └── tasks/
@@ -31,7 +34,11 @@ ansible/
 ## Inventory
 
 **Managed hosts:**
+- x000 (localhost, `ansible_connection: local`) - Control node
 - x202 (192.168.0.202) - Web/app services
+- x203 (192.168.0.203) - File sharing
+
+Groups: `control` (x000), `vms` (x202, x203), `docker_hosts` (both).
 
 ## Secrets Management
 
@@ -50,12 +57,12 @@ ansible all -m ping
 
 **Deploy service:**
 ```bash
-ansible-playbook playbooks/deploy-service.yml -e "target_host=x202 service=caddy"
+ansible-playbook playbooks/deploy-service.yml -e "target_host=x202 service=grafana"
 ```
 
 **Rollback service:**
 ```bash
-ansible-playbook playbooks/rollback-service.yml -e "target_host=x202 service=caddy"
+ansible-playbook playbooks/rollback-service.yml -e "target_host=x202 service=grafana"
 ```
 
 **Check syntax:**
@@ -75,7 +82,7 @@ ansible-playbook playbooks/deploy-service.yml -e "target_host=x202" --check
 Deploys Docker Compose services to target hosts.
 
 **Required variables:**
-- `target_host` - Target host/group (x202)
+- `target_host` - Target host/group (x000, x202, x203, or a group)
 - `service` - Service name (optional, deploys all if not specified)
 
 **Example:**
@@ -84,7 +91,7 @@ Deploys Docker Compose services to target hosts.
 ansible-playbook playbooks/deploy-service.yml -e "target_host=x202"
 
 # Deploy specific service
-ansible-playbook playbooks/deploy-service.yml -e "target_host=x202 service=caddy"
+ansible-playbook playbooks/deploy-service.yml -e "target_host=x202 service=grafana"
 ```
 
 ### rollback-service.yml
@@ -97,7 +104,7 @@ Rolls back service to previous version.
 
 **Example:**
 ```bash
-ansible-playbook playbooks/rollback-service.yml -e "target_host=x202 service=caddy"
+ansible-playbook playbooks/rollback-service.yml -e "target_host=x202 service=grafana"
 ```
 
 ## Roles
@@ -122,7 +129,9 @@ GitHub Push → webhook:8097 → SSH to localhost → scripts/deploy.sh → ansi
 ```
 
 **Triggers:**
+- `pve/x000/docker/config/*` → Deploy x000 services
 - `pve/x202/docker/config/*` → Deploy x202 services
+- `pve/x203/docker/config/*` → Deploy x203 services
 
 See: `pve/x000/docker/config/webhook/README.md`
 
@@ -191,7 +200,7 @@ ansible x202 -m ping
 ansible x202 -a "docker ps"
 
 # Check compose file syntax on target
-ansible x202 -a "docker compose config" -e "service=caddy"
+ansible x202 -a "docker compose config" -e "service=grafana"
 ```
 
 ## References

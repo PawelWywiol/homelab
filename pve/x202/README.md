@@ -5,13 +5,13 @@
 ## Services
 
 **Infrastructure**:
-- caddy - Reverse proxy
 - portainer - Container management UI
 - beszel - System monitoring
+- glances - Host/container metrics
+- docker-socket-proxy - Scoped Docker API access
 
 **Applications**:
 - wakapi - Activity tracker
-- ntfy - Push notifications
 
 **Databases**:
 - postgres - PostgreSQL + pgAdmin
@@ -49,10 +49,13 @@ make help                        # Show all commands
 
 **Examples**:
 ```bash
-make caddy up           # Start Caddy reverse proxy
+make grafana up         # Start Grafana
 make postgres add mydb  # Create PostgreSQL database
 make redis pull         # Pull latest Redis image
 ```
+
+The reverse proxy for this host runs on the control node, not here:
+see [pve/x000](../x000/README.md).
 
 ## Structure
 

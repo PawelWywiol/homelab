@@ -22,7 +22,14 @@ make setup
 | webhook | 8097 | GitHub webhook handler (custom image) |
 | portainer | 9443 | Container management UI |
 | cloudflared | - | Cloudflare Tunnel |
-| pihole | 53, 5080 | DNS + ad-blocking |
+| pihole | 53, 5080, 5443 | DNS + ad-blocking |
+| homepage | 3000 | Dashboard |
+| n8n | 5678 | Workflow automation |
+| glances | - | Host/container metrics |
+| docker-socket-proxy | 2375 | Scoped Docker API access |
+
+`make all up|down` covers caddy, webhook, portainer, cloudflared and pihole.
+The rest are started individually.
 
 ## Usage
 
@@ -60,6 +67,7 @@ pve/x000/
 ├── .envrc                # Sync config
 ├── scripts/              # Host scripts
 │   ├── deploy.sh         # Ansible deployment
+│   ├── stop-service.sh   # Stop & remove containers
 │   └── apply-tofu.sh     # OpenTofu plan/apply
 ├── ansible/              # Ansible configuration
 │   ├── ansible.cfg
@@ -71,13 +79,18 @@ pve/x000/
 │   ├── provider.tf
 │   ├── variables.tf
 │   ├── vms.tf
+│   ├── outputs.tf
 │   └── terraform.tfvars.example
 └── docker/config/
     ├── caddy/            # Reverse proxy
     ├── webhook/          # GitHub webhooks
     ├── portainer/        # Container management
     ├── cloudflared/      # Cloudflare tunnel
-    └── pihole/           # DNS + ad-blocking
+    ├── pihole/           # DNS + ad-blocking
+    ├── homepage/         # Dashboard
+    ├── n8n/              # Workflow automation
+    ├── glances/          # Host/container metrics
+    └── docker-socket-proxy/
 ```
 
 **On x000 (after sync):**
@@ -85,7 +98,7 @@ pve/x000/
 ~/
 ├── Makefile
 ├── setup.sh
-├── scripts/              # Host scripts (deploy.sh, apply-tofu.sh)
+├── scripts/              # Host scripts (deploy.sh, stop-service.sh, apply-tofu.sh)
 ├── ansible/
 ├── infra/tofu/
 └── docker/config/
@@ -95,7 +108,10 @@ pve/x000/
 
 | Path Change | Action |
 |-------------|--------|
+| `pve/x000/docker/config/*` | Deploy x000 services |
 | `pve/x202/docker/config/*` | Deploy x202 services |
+| `pve/x203/docker/config/*` | Deploy x203 services |
+| any of the above, removed | Stop & remove the containers |
 | `pve/x000/infra/tofu/*` | OpenTofu plan |
 
 ## Backup & Restore
@@ -134,6 +150,7 @@ make verify  # Check backup integrity
 
 ```bash
 ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.202  # x202
+ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.203  # x203
 ```
 
 See [ansible/README.md](ansible/README.md) for inventory.

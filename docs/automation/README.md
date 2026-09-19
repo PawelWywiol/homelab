@@ -1,7 +1,7 @@
 # Ansible + OpenTofu Automation
 
 **Control Node**: x000
-**Managed Host**: x202
+**Managed Hosts**: x202, x203
 **Base Domain**: wywiol.eu
 **Status**: Production-ready
 
@@ -18,14 +18,14 @@ GitHub Push (main) → webhook.wywiol.eu/hooks/homelab (Caddy: GitHub IP whiteli
                               ↓
                       trigger-homelab.sh (file routing)
                               ↓
-         ┌───────────┬────────┴────────┬───────────┐
-         ↓           ↓                 ↓           ↓
-   deploy.sh    deploy.sh      apply-tofu.sh   stop-service.sh
-         ↓           ↓                 ↓           ↓
-       x000        x202          tofu plan     Stop containers
-         ↓           ↓                 ↓           ↓
-    📦 → ✅/❌   📦 → ✅/❌      🔧 → ✅/❌     🛑 → ✅/❌
-     Discord      Discord        Discord        Discord
+         ┌───────────┬───────────┬──────┴──────┬───────────┐
+         ↓           ↓           ↓             ↓           ↓
+   deploy.sh    deploy.sh   deploy.sh   apply-tofu.sh  stop-service.sh
+         ↓           ↓           ↓             ↓           ↓
+       x000        x202        x203       tofu plan   Stop containers
+         ↓           ↓           ↓             ↓           ↓
+    📦 → ✅/❌   📦 → ✅/❌  📦 → ✅/❌    🔧 → ✅/❌     🛑 → ✅/❌
+     Discord      Discord     Discord       Discord       Discord
 ```
 
 ### Key Features
@@ -36,13 +36,14 @@ GitHub Push (main) → webhook.wywiol.eu/hooks/homelab (Caddy: GitHub IP whiteli
 - **Infrastructure as Code**: OpenTofu for Proxmox VM management
 - **Security**: Multi-layer (IP whitelist, HMAC, SSH keys, Vault)
 - **Two-Phase Notifications**: Discord notifications on start + end with status/duration
-- **Multi-Host Support**: Deploy to x000 (control node) and x202 (web services)
+- **Multi-Host Support**: Deploy to x000 (control node), x202 (web services) and x203 (file sharing)
 - **Service Lifecycle**: Auto-stop containers when folders are removed
 
 ### Managed Infrastructure
 
 - **x000**: Control node (orchestration hub)
 - **x202**: Web services (4 vCPUs, 12GB RAM) - managed by OpenTofu + Ansible
+- **x203**: File sharing - managed by Ansible (no OpenTofu definition yet)
 
 ## Quick Start
 
@@ -56,7 +57,7 @@ GitHub Push (main) → webhook.wywiol.eu/hooks/homelab (Caddy: GitHub IP whiteli
    ```
 
 2. **Proxmox API Token** (for OpenTofu):
-   See [pve/x000/infra/README.md](../pve/x000/infra/README.md#proxmox-api-token-setup) for setup instructions.
+   See [pve/x000/infra/README.md](../../pve/x000/infra/README.md#proxmox-api-token-setup) for setup instructions.
 
 3. **GitHub Personal Access Token** (for webhooks)
 
@@ -65,10 +66,13 @@ GitHub Push (main) → webhook.wywiol.eu/hooks/homelab (Caddy: GitHub IP whiteli
 **Step 1: Prepare Host**
 
 ```bash
-# On fresh VM/LXC - run init-host.sh
+# On fresh VM/LXC - run init-host.sh (requires root)
 # From local machine with access to target:
 scp scripts/init-host.sh root@x000:/tmp/
-ssh root@x000 '/tmp/init-host.sh'
+ssh root@x000 'bash /tmp/init-host.sh'
+
+# Or directly on the target host:
+curl -fsSL https://raw.githubusercontent.com/PawelWywiol/homelab/main/scripts/init-host.sh | sudo bash
 ```
 
 **Step 2: Clone Repository**
@@ -109,8 +113,9 @@ make portainer up
 **Step 5: Distribute SSH Keys**
 
 ```bash
-# Copy SSH key to x202
-ssh-copy-id -i ~/.ssh/id_ed25519.pub code@192.168.0.202
+# Copy SSH key to the managed hosts
+ssh-copy-id -i ~/.ssh/id_ed25519.pub code@192.168.0.202  # x202
+ssh-copy-id -i ~/.ssh/id_ed25519.pub code@192.168.0.203  # x203
 
 # Test connectivity (run from ansible/ directory)
 cd ansible
@@ -146,6 +151,7 @@ curl https://webhook.wywiol.eu/hooks/health
 6. Routes to appropriate host:
    - `pve/x000/docker/config/*` → Ansible deploy to x000
    - `pve/x202/docker/config/*` → Ansible deploy to x202
+   - `pve/x203/docker/config/*` → Ansible deploy to x203
    - `pve/x000/infra/tofu/*` → OpenTofu plan
 7. Two-phase Discord notifications:
    - **Start notification** → When trigger fires (with commit info)
@@ -157,7 +163,8 @@ curl https://webhook.wywiol.eu/hooks/health
 |--------------|--------|--------------|
 | `pve/x000/docker/config/*` (added/modified) | Deploy services to x000 | 📦 Start → ✅/❌ End |
 | `pve/x202/docker/config/*` (added/modified) | Deploy services to x202 | 📦 Start → ✅/❌ End |
-| `pve/x*/docker/config/*` (removed) | Stop & remove containers | 🛑 Start → ✅/❌ End |
+| `pve/x203/docker/config/*` (added/modified) | Deploy services to x203 | 📦 Start → ✅/❌ End |
+| any of the above, removed | Stop & remove containers | 🛑 Start → ✅/❌ End |
 | `pve/x000/infra/tofu/*` | OpenTofu plan (manual apply) | 🔧 Start → ✅/❌ End |
 
 ### Configuration
@@ -190,13 +197,15 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/ID/TOKEN
 ansible/
 ├── ansible.cfg              # Ansible configuration
 ├── inventory/
-│   └── hosts.yml           # x202 host definition
+│   └── hosts.yml           # x000, x202, x203 host definitions
 ├── group_vars/
 │   └── all/
 │       ├── vars.yml            # Common variables
 │       └── vault.yml.example   # Vault template (unused)
 ├── playbooks/
 │   ├── deploy-service.yml  # Main deployment playbook
+│   ├── stop-service.yml    # Stop & remove containers
+│   ├── rollback-service.yml # Roll back to previous version
 │   └── _deploy_single.yml  # Helper task
 └── roles/
     └── docker_compose/     # Docker Compose role
@@ -208,7 +217,7 @@ ansible/
 # Deploy single service
 ansible-playbook playbooks/deploy-service.yml \
   -e "target_host=x202" \
-  -e "service=caddy"
+  -e "service=grafana"
 
 # Deploy all services to host
 ansible-playbook playbooks/deploy-service.yml \
@@ -232,7 +241,7 @@ Services use `.env` files for secrets (gitignored). Ansible Vault available but 
 pve/x000/infra/tofu/       # Centralized provider config
 ├── provider.tf            # Proxmox provider
 ├── variables.tf           # Input variables
-├── vms.tf                # x202 VM definition
+├── vms.tf                # x202 VM definition (x203 not defined here)
 ├── outputs.tf            # Output values
 └── terraform.tfvars       # Secrets (not in git)
 ```
@@ -282,9 +291,9 @@ cd pve/x202
 # Individual service
 make SERVICE up|down|restart|logs
 
-# Available services:
-# caddy, portainer, postgres, redis, mongo, rabbitmq,
-# influxdb, grafana, wakapi, beszel, glitchtip
+# Available services: whatever is in docker/config/ -
+# portainer, postgres, redis, mongo, rabbitmq, influxdb,
+# grafana, wakapi, beszel, glitchtip, k6, glances, docker-socket-proxy
 ```
 
 ## Security

@@ -17,6 +17,12 @@ SKIP_USER=false
 SKIP_PHP=true
 SKIP_NODE=true
 SKIP_FORTIVPN=true
+SKIP_HERDR=false
+SKIP_CLAUDE=false
+
+# Assets installed into the user's home. Piped through curl there is no script
+# directory, so they are fetched from the repo instead.
+ASSET_BASE_URL="https://raw.githubusercontent.com/PawelWywiol/homelab/main/scripts/init-host"
 
 # Load .env if exists
 if [[ -f "$SCRIPT_DIR/.env" ]]; then
@@ -31,14 +37,19 @@ while [[ $# -gt 0 ]]; do
         --disable-dns-stub) DISABLE_DNS_STUB=true; shift ;;
         --skip-docker) SKIP_DOCKER=true; shift ;;
         --skip-user) SKIP_USER=true; shift ;;
+        --skip-herdr) SKIP_HERDR=true; shift ;;
+        --skip-claude) SKIP_CLAUDE=true; shift ;;
         --install-php) SKIP_PHP=false; shift ;;
         --install-node) SKIP_NODE=false; shift ;;
         --install-fortivpn) SKIP_FORTIVPN=false; shift ;;
         --help|-h)
-            echo "Usage: $0 [OPTIONS]"
+            echo "Usage: sudo $0 [OPTIONS]"
             echo ""
-            echo "Universal host initialization script."
+            echo "Universal host initialization script. Must be run as root."
             echo "Supports: Ubuntu, Debian, Raspberry Pi OS (VMs, LXC containers, bare metal)"
+            echo ""
+            echo "Remote one-liner (pass options after -s --):"
+            echo "  curl -fsSL https://raw.githubusercontent.com/PawelWywiol/homelab/main/scripts/init-host.sh | sudo bash -s -- --install-node"
             echo ""
             echo "Options:"
             echo "  --install-php       Install PHP stack (7.4, 8.3, composer)"
@@ -47,6 +58,8 @@ while [[ $# -gt 0 ]]; do
             echo "  --disable-dns-stub  Disable systemd-resolved DNSStubListener"
             echo "  --skip-docker       Skip Docker installation"
             echo "  --skip-user         Skip user creation (for cloud-init pre-created users)"
+            echo "  --skip-herdr        Skip herdr terminal workspace manager"
+            echo "  --skip-claude       Skip Claude Code installation"
             echo ""
             echo "Config via $SCRIPT_DIR/.env:"
             echo "  USERNAME=code              User to create"
@@ -96,7 +109,7 @@ detect_os() {
 
 run_as_root() {
     if [[ $EUID -ne 0 ]]; then
-        echo "This script must be run as root" >&2
+        echo "This script must be run as root. Re-run with sudo, or see --help." >&2
         exit 1
     fi
 }
@@ -115,6 +128,39 @@ run_as_user() {
 
 run_as_user_with_brew() {
     su - "$USERNAME" -c "eval \"\$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\" && $1"
+}
+
+user_home() {
+    eval echo "~$USERNAME"
+}
+
+# Copies scripts/init-host/<rel> into place, falling back to the repo when the
+# script was piped through curl and has no directory of its own.
+fetch_asset() {
+    local rel=$1 dest=$2
+    if [[ -r "$SCRIPT_DIR/init-host/$rel" ]]; then
+        cp "$SCRIPT_DIR/init-host/$rel" "$dest"
+    else
+        curl -fsSL "$ASSET_BASE_URL/$rel" -o "$dest"
+    fi
+}
+
+# Installs an asset only when the destination is absent. These files are edited
+# by their own tools (herdr's settings overlay, p10k configure), so a re-run
+# must never overwrite what the machine now holds.
+install_asset_once() {
+    local rel=$1 dest=$2 label=$3
+
+    if [[ -f "$dest" ]]; then
+        echo "    $label already present, left as is"
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$dest")"
+    fetch_asset "$rel" "$dest"
+    chown "$USERNAME:$USERNAME" "$dest"
+    chown "$USERNAME:$USERNAME" "$(dirname "$dest")" 2>/dev/null || true
+    echo "    $label installed"
 }
 
 # =============================================================================
@@ -406,16 +452,39 @@ setup_zshrc() {
         echo "    Backed up existing .zshrc"
     fi
 
-    # Update theme to powerlevel10k if not set
-    if grep -q 'ZSH_THEME="robbyrussell"' "$zshrc" 2>/dev/null; then
-        sed -i 's/ZSH_THEME="robbyrussell"/ZSH_THEME="powerlevel10k\/powerlevel10k"/' "$zshrc"
-        echo "    Set theme to powerlevel10k"
+    # Rewriting the whole assignment, so the wanted value is reached from any
+    # previous one and a re-run is a no-op.
+    if grep -q '^ZSH_THEME=' "$zshrc" 2>/dev/null; then
+        sed -i 's|^ZSH_THEME=.*|ZSH_THEME="powerlevel10k/powerlevel10k"|' "$zshrc"
+    else
+        echo 'ZSH_THEME="powerlevel10k/powerlevel10k"' >> "$zshrc"
     fi
+    echo "    Theme set to powerlevel10k"
 
-    # Add plugins if not already configured
-    if grep -q 'plugins=(git)' "$zshrc" 2>/dev/null; then
-        sed -i 's/plugins=(git)/plugins=(git zsh-autosuggestions zsh-syntax-highlighting)/' "$zshrc"
-        echo "    Added zsh plugins"
+    # zsh-syntax-highlighting stays last: it wraps the line editor the plugins
+    # before it install into, so anything after it is not highlighted.
+    if grep -q '^plugins=(' "$zshrc" 2>/dev/null; then
+        sed -i 's|^plugins=(.*)|plugins=(git zsh-autosuggestions zsh-syntax-highlighting)|' "$zshrc"
+    else
+        echo 'plugins=(git zsh-autosuggestions zsh-syntax-highlighting)' >> "$zshrc"
+    fi
+    echo "    Plugins set to git zsh-autosuggestions zsh-syntax-highlighting"
+
+    # Powerlevel10k's instant prompt only works ahead of anything that writes to
+    # the terminal, so it is prepended rather than appended.
+    if ! grep -q 'p10k-instant-prompt' "$zshrc" 2>/dev/null; then
+        {
+            cat <<'EOF'
+# Enable Powerlevel10k instant prompt. Should stay at the top of ~/.zshrc.
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
+EOF
+            cat "$zshrc"
+        } > "$zshrc.tmp"
+        mv "$zshrc.tmp" "$zshrc"
+        echo "    Added p10k instant prompt"
     fi
 
     # Add Homebrew to PATH if not present
@@ -428,7 +497,34 @@ EOF
         echo "    Added Homebrew to PATH"
     fi
 
+    # Where the Claude Code launcher lands; not on PATH by default under zsh.
+    if ! grep -q '.local/bin' "$zshrc" 2>/dev/null; then
+        cat >> "$zshrc" <<'EOF'
+
+export PATH="$HOME/.local/bin:$PATH"
+EOF
+        echo "    Added ~/.local/bin to PATH"
+    fi
+
+    if ! grep -q '\.p10k\.zsh' "$zshrc" 2>/dev/null; then
+        cat >> "$zshrc" <<'EOF'
+
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+EOF
+        echo "    Added p10k config source"
+    fi
+
     chown "$USERNAME:$USERNAME" "$zshrc"
+}
+
+setup_p10k() {
+    if [[ "$SKIP_USER" == true ]]; then
+        echo "==> Skipping p10k config (--skip-user)"
+        return 0
+    fi
+
+    echo "==> Installing p10k config..."
+    install_asset_once "p10k.zsh" "$(user_home)/.p10k.zsh" "p10k config"
 }
 
 setup_user() {
@@ -513,6 +609,75 @@ setup_ssh() {
     chmod 600 "$auth_file"
     chown -R "$USERNAME:$USERNAME" "$ssh_dir"
     echo "    SSH permissions set"
+}
+
+install_herdr() {
+    if [[ "$SKIP_HERDR" == true ]]; then
+        echo "==> Skipping herdr (--skip-herdr)"
+        return 0
+    fi
+
+    echo "==> Installing herdr..."
+
+    if command -v herdr &>/dev/null; then
+        echo "    herdr already installed ($(herdr --version 2>/dev/null || echo unknown))"
+        return 0
+    fi
+
+    # Upstream installer: resolves the release for this os/arch and verifies the
+    # SHA-256 from the same manifest `herdr update` uses. Defaults to
+    # ~/.local/bin, which under root would be /root/.local/bin.
+    curl -fsSL https://herdr.dev/install.sh | HERDR_INSTALL_DIR=/usr/local/bin sh
+
+    echo "    herdr installed to /usr/local/bin/herdr"
+}
+
+setup_herdr_config() {
+    if [[ "$SKIP_USER" == true ]] || [[ "$SKIP_HERDR" == true ]]; then
+        echo "==> Skipping herdr config"
+        return 0
+    fi
+
+    echo "==> Installing herdr config..."
+    install_asset_once "herdr/config.toml" \
+        "$(user_home)/.config/herdr/config.toml" "herdr config"
+
+    # herdr keeps every key the config omits at its default, and an explicit
+    # binding that collides with one silently drops an action. `config check`
+    # is the only thing that reports it.
+    if command -v herdr &>/dev/null; then
+        if run_as_user "herdr config check" >/dev/null 2>&1; then
+            echo "    herdr config check: ok"
+        else
+            echo "    WARNING: herdr config check reported issues:"
+            run_as_user "herdr config check" 2>&1 | sed 's/^/      /' || true
+        fi
+    fi
+}
+
+install_claude_code() {
+    if [[ "$SKIP_CLAUDE" == true ]]; then
+        echo "==> Skipping Claude Code (--skip-claude)"
+        return 0
+    fi
+
+    if [[ "$SKIP_USER" == true ]]; then
+        echo "==> Skipping Claude Code (--skip-user)"
+        return 0
+    fi
+
+    echo "==> Installing Claude Code..."
+
+    # Installs under $HOME, so it runs as the user: as root the launcher would
+    # land in /root/.local/bin and never be found from the user's shell.
+    if run_as_user "test -x ~/.local/bin/claude" 2>/dev/null; then
+        echo "    Claude Code already installed"
+        return 0
+    fi
+
+    run_as_user 'curl -fsSL https://claude.ai/install.sh | bash'
+
+    echo "    Claude Code installed to ~/.local/bin/claude"
 }
 
 install_fortivpn() {
@@ -668,6 +833,12 @@ setup_version_switcher() {
     user_home=$(eval echo "~$USERNAME")
     local makefile="$user_home/Makefile"
 
+    # Never overwrite: the user may have edited it since the last run.
+    if [[ -f "$makefile" ]]; then
+        echo "    Makefile already present, left as is"
+        return 0
+    fi
+
     # Copy Makefile from template
     local template_dir="$SCRIPT_DIR/init-host"
     if [[ -f "$template_dir/Makefile" ]]; then
@@ -777,9 +948,15 @@ print_summary() {
     echo "  - Homebrew (Linux)"
     echo "  - Neovim + LazyVim, lazygit, fzf, ripgrep, fd, tree-sitter"
     echo "  - tmux, jq, bat, eza, gh, delta, fnm"
-    echo "  - ZSH + Oh My Zsh + Powerlevel10k"
+    echo "  - ZSH + Oh My Zsh + Powerlevel10k (pre-configured, no wizard)"
     if [[ "$SKIP_DOCKER" != true ]]; then
         echo "  - Docker + Compose"
+    fi
+    if [[ "$SKIP_HERDR" != true ]]; then
+        echo "  - herdr + config (prefix ctrl+s, goto prefix+s)"
+    fi
+    if [[ "$SKIP_CLAUDE" != true ]]; then
+        echo "  - Claude Code (~/.local/bin/claude)"
     fi
     if [[ "$SKIP_PHP" != true ]]; then
         echo "  - PHP 7.4, 8.3 + Composer"
@@ -794,10 +971,15 @@ print_summary() {
     echo "Next steps:"
     echo "  1. Set password:  passwd $USERNAME"
     echo "  2. Switch user:   su - $USERNAME"
-    echo "  3. Configure p10k: p10k configure"
+    if [[ "$SKIP_CLAUDE" != true ]]; then
+        echo "  3. Authenticate:  claude"
+    fi
     if [[ "$SKIP_PHP" != true ]] || [[ "$SKIP_NODE" != true ]]; then
         echo "  4. Version switching: make help (in home dir)"
     fi
+    echo ""
+    echo "The p10k prompt draws with Nerd Font glyphs - the font has to be set"
+    echo "in the terminal you connect FROM, not here."
     echo ""
     if [[ "$env" == "vm" ]] || [[ "$env" == "rpi" ]]; then
         echo "Reboot recommended: sudo reboot"
@@ -826,6 +1008,8 @@ main() {
     echo "Install Node: $([[ "$SKIP_NODE" == true ]] && echo "no" || echo "yes")"
     echo "Install Fortivpn: $([[ "$SKIP_FORTIVPN" == true ]] && echo "no" || echo "yes")"
     echo "Install Docker: $([[ "$SKIP_DOCKER" == true ]] && echo "no" || echo "yes")"
+    echo "Install herdr: $([[ "$SKIP_HERDR" == true ]] && echo "no" || echo "yes")"
+    echo "Install Claude Code: $([[ "$SKIP_CLAUDE" == true ]] && echo "no" || echo "yes")"
     echo "Disable DNS stub: $DISABLE_DNS_STUB"
     echo "Skip user: $SKIP_USER"
     echo "============================================================================="
@@ -840,9 +1024,13 @@ main() {
     install_lazyvim
     install_fonts
     install_zsh_stack
+    setup_p10k
     setup_zshrc
     install_qemu_guest_agent "$env"
     install_docker
+    install_herdr
+    setup_herdr_config
+    install_claude_code
     install_fortivpn
     install_php_stack
     install_node_stack

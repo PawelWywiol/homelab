@@ -9,15 +9,16 @@ GitHub Push → webhook.wywiol.eu/hooks/homelab (Caddy) → webhook:9000 (custom
                                                                ↓
                                               trigger-homelab.sh (file routing)
                                                                ↓
-                    ┌────────────────────────┬────────────────────────┬────────────────────┐
-                    ↓                        ↓                        ↓                    ↓
-    pve/x000/docker/config/*   pve/x202/docker/config/*   pve/x000/infra/tofu/*   Folder removed
-                    ↓                        ↓                        ↓                    ↓
-        scripts/deploy.sh          scripts/deploy.sh        scripts/apply-tofu.sh   scripts/stop-service.sh
-                    ↓                        ↓                        ↓                    ↓
-            Deploy to x000            Deploy to x202            OpenTofu plan        Stop containers
-                    ↓                        ↓                        ↓                    ↓
-        📦 Start + ✅/❌ End    📦 Start + ✅/❌ End    🔧 Start + ✅/❌ End   🛑 Start + ✅/❌ End
+       ┌──────────────────┬──────────────────┬──────────────────┬──────────────┐
+       ↓                  ↓                  ↓                  ↓              ↓
+pve/x000/docker/   pve/x202/docker/   pve/x203/docker/   pve/x000/infra/   Folder removed
+    config/*           config/*           config/*          tofu/*
+       ↓                  ↓                  ↓                  ↓              ↓
+scripts/deploy.sh  scripts/deploy.sh  scripts/deploy.sh  apply-tofu.sh   stop-service.sh
+       ↓                  ↓                  ↓                  ↓              ↓
+  Deploy to x000     Deploy to x202     Deploy to x203    OpenTofu plan   Stop containers
+       ↓                  ↓                  ↓                  ↓              ↓
+ 📦 + ✅/❌          📦 + ✅/❌          📦 + ✅/❌         🔧 + ✅/❌       🛑 + ✅/❌
               Discord                  Discord                  Discord                Discord
 ```
 
@@ -59,8 +60,10 @@ secret: '{{ getenv "GITHUB_WEBHOOK_SECRET" }}'
 |--------------|--------|
 | `pve/x000/docker/config/*` | Deploy x000 services via Ansible |
 | `pve/x202/docker/config/*` | Deploy x202 services via Ansible |
+| `pve/x203/docker/config/*` | Deploy x203 services via Ansible |
 | `pve/x000/infra/tofu/*` | Run OpenTofu plan |
-| Folder removed from `pve/x*/docker/config/*` | Stop & remove containers |
+| Folder removed from any of the above | Stop & remove containers |
+| Anything else (`pve/archive/*` included) | Ignored, reported in Discord |
 
 **Two-phase notifications:**
 Each action sends two Discord notifications:
@@ -163,7 +166,7 @@ deploy.sh <target> [service]
 # Examples:
 deploy.sh x000           # Deploy all x000 services
 deploy.sh x202           # Deploy all x202 services
-deploy.sh x202 caddy     # Deploy specific service
+deploy.sh x202 grafana   # Deploy specific service
 ```
 
 ### scripts/stop-service.sh
@@ -172,8 +175,8 @@ Stops and removes containers when folder is removed:
 ```bash
 stop-service.sh <target> <service>
 # Examples:
-stop-service.sh x000 caddy   # Stop caddy on x000
-stop-service.sh x202 n8n     # Stop n8n on x202
+stop-service.sh x000 caddy      # Stop caddy on x000
+stop-service.sh x202 grafana    # Stop grafana on x202
 ```
 
 ### scripts/apply-tofu.sh
@@ -376,29 +379,30 @@ make backup
 
 ## Adding New Hosts
 
-To add automation for new hosts (e.g., x203):
+x000, x202 and x203 are already wired up; use x203 in `trigger-homelab.sh` as
+the worked example. For a new host `xNNN`:
 
 1. Edit `trigger-homelab.sh`:
-   - Add new arrays:
+   - Add the arrays:
      ```bash
-     SERVICES_TO_START_X203=()
-     SERVICES_TO_RESTART_X203=()
-     SERVICES_TO_STOP_X203=()
+     SERVICES_TO_START_XNNN=()
+     SERVICES_TO_RESTART_XNNN=()
+     SERVICES_TO_STOP_XNNN=()
      ```
-   - Add extract helper:
+   - Add the extract helper:
      ```bash
-     extract_service_x203() {
-         echo "$1" | sed -n 's|pve/x203/docker/config/\([^/]*\)/.*|\1|p'
+     extract_service_xNNN() {
+         echo "$1" | sed -n 's|pve/xNNN/docker/config/\([^/]*\)/.*|\1|p'
      }
      ```
-   - Add file pattern matching in each loop (added/modified/removed)
-   - Add DEPLOY_X203/STOP_X203 flags
+   - Add the path pattern to each loop (added/modified/removed)
+   - Add DEPLOY_XNNN/STOP_XNNN flags
    - Add execution blocks for deploy and stop
 
 2. Edit `common.sh`:
-   - Add notification types: `deploy_x203`, `stop_x203`
+   - Add notification types: `deploy_xNNN`, `stop_xNNN`
 
-3. Add Ansible inventory entry for new host
+3. Add the host to `pve/x000/ansible/inventory/hosts.yml`
 
 4. Push changes to main branch
 

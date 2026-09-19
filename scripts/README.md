@@ -22,6 +22,9 @@ Universal initialization script supporting Ubuntu, Debian, and Raspberry Pi OS a
 - Homebrew for Linux (package management)
 - CLI dev tools: neovim, lazygit, fzf, ripgrep, fd, tree-sitter, tmux, jq, bat, eza, gh, delta, fnm
 - ZSH stack: oh-my-zsh, powerlevel10k, zsh-autosuggestions, zsh-syntax-highlighting
+- Powerlevel10k pre-configured from a versioned `~/.p10k.zsh` - no wizard on first login
+- herdr terminal workspace manager, with this homelab's keybindings
+- Claude Code (native build, self-updating)
 - LazyVim (Neovim configuration)
 - Docker installation via official repository
 - User creation with SSH key setup
@@ -34,12 +37,21 @@ Universal initialization script supporting Ubuntu, Debian, and Raspberry Pi OS a
 
 ### Usage
 
-```bash
-# Basic usage (as root)
-curl -fsSL https://raw.githubusercontent.com/PawelWywiol/homelab/main/scripts/init-host.sh | bash
+**Root is required.** Without it the script aborts immediately with
+`This script must be run as root`. Only `--help` works as a regular user.
 
-# Or download and run with options
+```bash
+# One-liner, no options
+curl -fsSL https://raw.githubusercontent.com/PawelWywiol/homelab/main/scripts/init-host.sh | sudo bash
+
+# One-liner with options - note the `-s --`, without it bash eats the flags
+curl -fsSL https://raw.githubusercontent.com/PawelWywiol/homelab/main/scripts/init-host.sh | sudo bash -s -- --install-node
+
+# From a root shell (sudo -i) or as root over SSH
 ./init-host.sh [OPTIONS]
+
+# From a user shell, local copy
+sudo ./init-host.sh [OPTIONS]
 
 # Options:
 #   --install-php       Install PHP stack (7.4, 8.3, composer)
@@ -48,11 +60,13 @@ curl -fsSL https://raw.githubusercontent.com/PawelWywiol/homelab/main/scripts/in
 #   --disable-dns-stub  Disable systemd-resolved DNSStubListener
 #   --skip-docker       Skip Docker installation
 #   --skip-user         Skip user creation (for cloud-init pre-created users)
+#   --skip-herdr        Skip herdr terminal workspace manager
+#   --skip-claude       Skip Claude Code installation
 ```
 
 ### Configuration
 
-Create `.env` file in same directory (optional):
+Optional `.env`, read from the script's own directory:
 
 ```bash
 # Username to create (default: code)
@@ -64,6 +78,12 @@ AUTHORIZED_KEYS="ssh-ed25519 AAAA... user@host"
 
 See `.env.example` for template.
 
+**Piped via curl there is no script directory** - `.env` is then read from the
+current working directory instead. Either `cd` to the directory holding `.env`
+first, or download the script and run it from a local copy. Environment
+variables exported in the shell are ignored: the script assigns its own
+defaults before loading `.env`.
+
 ### What it installs
 
 | Source | Packages |
@@ -72,6 +92,69 @@ See `.env.example` for template.
 | apt (ondrej/php) | php7.4, php8.3, composer (if --install-php) |
 | brew | neovim, lazygit, fzf, ripgrep, fd, tree-sitter, tmux, jq, bat, eza, gh, delta, fnm |
 | brew cask | font-anonymous-pro |
+| herdr.dev/install.sh | herdr → `/usr/local/bin/herdr` |
+| claude.ai/install.sh | Claude Code → `~/.local/bin/claude` (per user) |
+
+### Shipped configuration
+
+`init-host/` holds the dotfiles the script installs, so a new host comes up
+configured rather than needing a wizard:
+
+| Asset | Installed as | Source of truth |
+|-------|--------------|-----------------|
+| `init-host/p10k.zsh` | `~/.p10k.zsh` | output of `p10k configure` |
+| `init-host/herdr/config.toml` | `~/.config/herdr/config.toml` | the workstation's herdr config |
+| `init-host/Makefile` | `~/Makefile` | PHP/Node version switcher |
+
+Piped through curl the script has no directory of its own, so these are fetched
+from the repo over HTTPS instead. Both paths were exercised in the test suite.
+
+### herdr
+
+Installed with the upstream installer, which resolves the release for the host's
+os/arch and checks the SHA-256 from the same manifest `herdr update` uses. It
+defaults to `~/.local/bin`, which under root means `/root/.local/bin`, so
+`HERDR_INSTALL_DIR=/usr/local/bin` is set to make it system-wide.
+
+Keybindings, carried over from the workstation:
+
+| Action | herdr default | Here |
+|--------|---------------|------|
+| prefix | `ctrl+b` | `ctrl+s` |
+| `goto` (move between workspaces and panes) | `prefix+g` | `prefix+s` |
+
+`ctrl+s` is the terminal's XOFF character, but the herdr client puts its
+terminal in raw mode with flow control off (`-ixon`), so it arrives as a
+keystroke. The cost is that a program inside a pane never sees `ctrl+s`.
+
+A config only lists overrides; every key it omits keeps herdr's default, and an
+explicit binding that collides with a default silently disables one of the two.
+The script runs `herdr config check` after installing the config and prints any
+issue it reports.
+
+### Claude Code
+
+Installed as the target user, not root: the installer puts everything under
+`$HOME`, so run as root the launcher would land in `/root/.local/bin` and never
+be found from the user's shell. `~/.local/bin` is added to `PATH` in `.zshrc`
+because the installer does not do it for zsh.
+
+Authenticate on first use with `claude`.
+
+### Re-running the script
+
+Safe by design - a second run must not discard what the tools themselves wrote:
+
+- `~/.p10k.zsh`, `~/.config/herdr/config.toml` and `~/Makefile` are installed
+  **only when absent**. `p10k configure` and herdr's settings overlay write
+  those same files, and an edit made there wins over the versioned copy.
+- `.zshrc` edits are all conditional: the theme and plugin lines are rewritten
+  from whatever they currently hold (so the result is the same from any
+  starting point), and the instant prompt, PATH and p10k source lines are
+  appended only when not already present.
+- herdr and Claude Code are skipped when already installed.
+
+To take a new version of a shipped config, delete the file and re-run.
 
 ### What it configures
 
@@ -82,6 +165,8 @@ See `.env.example` for template.
 5. **Docker** - Docker Engine + Compose plugin (official repo)
 6. **User** - Non-root user with docker group membership
 7. **SSH** - Authorized keys from config or generates new keypair
+8. **herdr** - Terminal workspace manager + keybindings
+9. **Claude Code** - Native build under the user's home
 
 ### Version Switching (PHP/Node)
 
@@ -117,7 +202,7 @@ Synchronize files between local and remote systems using rsync.
 ./scripts/sync-files.sh push NAME
 ```
 
-NAME must match a directory in `pve/` (x000, x202, x250).
+NAME must match a directory in `pve/` (x000, x202, x203).
 
 ### Configuration
 
