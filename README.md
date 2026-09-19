@@ -22,7 +22,7 @@ make pull NAME  # e.g., make pull x202
 make push NAME  # e.g., make push x202
 ```
 
-NAME must match a directory in `pve/` (x000, x202, x203).
+NAME must match a directory in `pve/` (x000, x201, x202, x203).
 
 **Direct script usage:**
 ```bash
@@ -35,6 +35,7 @@ NAME must match a directory in `pve/` (x000, x202, x203).
 ## Environments
 
 - **x000**: Control node (Ansible, webhook handler, automation)
+- **x201**: Self-hosted web apps (Proxmox VM)
 - **x202**: Web/application services (primary, Proxmox VM)
 - **x203**: File sharing (Samba, qBittorrent, Proxmox VM)
 - **archive**: Retired services and environments, not deployed
@@ -48,6 +49,7 @@ Push to `main` branch triggers automated deployments:
 ```
 GitHub Push → webhook.wywiol.eu/hooks/homelab → x000 webhook handler → {
   pve/x000/docker/config/* → Ansible deployment (x000 services)
+  pve/x201/docker/config/* → Ansible deployment (x201 services)
   pve/x202/docker/config/* → Ansible deployment (x202 services)
   pve/x203/docker/config/* → Ansible deployment (x203 services)
   pve/x000/infra/tofu/*    → OpenTofu plan (infrastructure updates)
@@ -68,6 +70,7 @@ host. Paths outside those prefixes are reported as ignored.
 
 - **[CLAUDE.md](./CLAUDE.md)** - Service management commands
 - **[docs/automation/](./docs/automation/)** - GitOps automation (Ansible + OpenTofu + webhooks)
+- **[pve/x201/README.md](./pve/x201/README.md)** - Web apps
 - **[pve/x202/README.md](./pve/x202/README.md)** - Web services
 - **[pve/x203/README.md](./pve/x203/README.md)** - File sharing
 - **[pve/x000/ansible/README.md](./pve/x000/ansible/README.md)** - Ansible playbooks + vault
@@ -88,6 +91,9 @@ host. Paths outside those prefixes are reported as ignored.
 │   │   ├── ansible/         # Ansible playbooks + vault
 │   │   ├── infra/tofu/      # OpenTofu VM management
 │   │   └── docker/config/   # Caddy, webhook, portainer, cloudflared, pihole, …
+│   ├── x201/                # Web apps (VM)
+│   │   ├── Makefile         # Service orchestration
+│   │   └── docker/config/SERVICE/
 │   ├── x202/                # Web services (primary VM)
 │   │   ├── Makefile         # Service orchestration
 │   │   └── docker/config/SERVICE/

@@ -9,16 +9,14 @@ GitHub Push → webhook.wywiol.eu/hooks/homelab (Caddy) → webhook:9000 (custom
                                                                ↓
                                               trigger-homelab.sh (file routing)
                                                                ↓
-       ┌──────────────────┬──────────────────┬──────────────────┬──────────────┐
-       ↓                  ↓                  ↓                  ↓              ↓
-pve/x000/docker/   pve/x202/docker/   pve/x203/docker/   pve/x000/infra/   Folder removed
-    config/*           config/*           config/*          tofu/*
-       ↓                  ↓                  ↓                  ↓              ↓
-scripts/deploy.sh  scripts/deploy.sh  scripts/deploy.sh  apply-tofu.sh   stop-service.sh
-       ↓                  ↓                  ↓                  ↓              ↓
-  Deploy to x000     Deploy to x202     Deploy to x203    OpenTofu plan   Stop containers
-       ↓                  ↓                  ↓                  ↓              ↓
- 📦 + ✅/❌          📦 + ✅/❌          📦 + ✅/❌         🔧 + ✅/❌       🛑 + ✅/❌
+    pve/x000 | x201 | x202 | x203 /docker/config/*
+                         ↓
+                 scripts/deploy.sh   → Deploy to that host    📦 + ✅/❌
+                 (folder removed)    → stop-service.sh        🛑 + ✅/❌
+
+    pve/x000/infra/tofu/*
+                         ↓
+                 scripts/apply-tofu.sh → OpenTofu plan        🔧 + ✅/❌
               Discord                  Discord                  Discord                Discord
 ```
 
@@ -59,6 +57,7 @@ secret: '{{ getenv "GITHUB_WEBHOOK_SECRET" }}'
 | Changed Files | Action |
 |--------------|--------|
 | `pve/x000/docker/config/*` | Deploy x000 services via Ansible |
+| `pve/x201/docker/config/*` | Deploy x201 services via Ansible |
 | `pve/x202/docker/config/*` | Deploy x202 services via Ansible |
 | `pve/x203/docker/config/*` | Deploy x203 services via Ansible |
 | `pve/x000/infra/tofu/*` | Run OpenTofu plan |
@@ -165,6 +164,7 @@ Triggers Ansible deployment:
 deploy.sh <target> [service]
 # Examples:
 deploy.sh x000           # Deploy all x000 services
+deploy.sh x201           # Deploy all x201 services
 deploy.sh x202           # Deploy all x202 services
 deploy.sh x202 grafana   # Deploy specific service
 ```
@@ -379,7 +379,7 @@ make backup
 
 ## Adding New Hosts
 
-x000, x202 and x203 are already wired up; use x203 in `trigger-homelab.sh` as
+x000, x201, x202 and x203 are already wired up; use x201 in `trigger-homelab.sh` as
 the worked example. For a new host `xNNN`:
 
 1. Edit `trigger-homelab.sh`:

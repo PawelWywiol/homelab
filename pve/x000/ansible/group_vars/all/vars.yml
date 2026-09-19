@@ -14,6 +14,7 @@ repo_url: https://github.com/PawelWywiol/homelab.git
 
 # Compose file locations relative to repo
 compose_paths:
+  "pve/x201": "{{ repo_base_path }}/pve/x201"
   "pve/x202": "{{ repo_base_path }}/pve/x202"
   "pve/x203": "{{ repo_base_path }}/pve/x203"
 

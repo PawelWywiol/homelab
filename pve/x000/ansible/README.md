@@ -35,10 +35,11 @@ ansible/
 
 **Managed hosts:**
 - x000 (localhost, `ansible_connection: local`) - Control node
+- x201 (192.168.0.201) - Web apps
 - x202 (192.168.0.202) - Web/app services
 - x203 (192.168.0.203) - File sharing
 
-Groups: `control` (x000), `vms` (x202, x203), `docker_hosts` (both).
+Groups: `control` (x000), `vms` (x201, x202, x203), `docker_hosts` (both).
 
 ## Secrets Management
 
@@ -82,7 +83,7 @@ ansible-playbook playbooks/deploy-service.yml -e "target_host=x202" --check
 Deploys Docker Compose services to target hosts.
 
 **Required variables:**
-- `target_host` - Target host/group (x000, x202, x203, or a group)
+- `target_host` - Target host/group (x000, x201, x202, x203, or a group)
 - `service` - Service name (optional, deploys all if not specified)
 
 **Example:**
@@ -130,6 +131,7 @@ GitHub Push → webhook:8097 → SSH to localhost → scripts/deploy.sh → ansi
 
 **Triggers:**
 - `pve/x000/docker/config/*` → Deploy x000 services
+- `pve/x201/docker/config/*` → Deploy x201 services
 - `pve/x202/docker/config/*` → Deploy x202 services
 - `pve/x203/docker/config/*` → Deploy x203 services
 

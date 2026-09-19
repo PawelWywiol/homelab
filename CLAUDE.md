@@ -23,6 +23,7 @@ make push NAME   # Local -> Server
 | ID | Purpose | Services | Makefile |
 |----|---------|----------|----------|
 | x000 | Control node | 9 | `pve/x000/Makefile` |
+| x201 | Web apps | 2 | `pve/x201/Makefile` |
 | x202 | Web/App (primary) | 13 | `pve/x202/Makefile` |
 | x203 | File sharing | 5 | `pve/x203/Makefile` |
 | archive | Not deployed | - | - |
@@ -89,6 +90,20 @@ make SERVICE [up|down|restart|pull|logs]
 | n8n | 5678 | Workflow automation |
 | glances | - | Host/container metrics |
 | docker-socket-proxy | 2375 | Scoped Docker API access |
+
+### x201 Services
+
+```bash
+cd pve/x201
+make SERVICE [up|down|restart|pull|logs]
+```
+
+| Service | Port | Description |
+|---------|------|-------------|
+| portainer | 9443 | Container management UI |
+| glances | - | Host/container metrics |
+
+Landing spot for self-hosted web apps; grows over time.
 
 ### x203 Services
 
@@ -159,12 +174,13 @@ GitHub Push → webhook.wywiol.eu (Caddy: IP whitelist)
 | Path Change | Action | Notification |
 |-------------|--------|--------------|
 | `pve/x000/docker/config/*` (add/mod) | Deploy x000 services | 📦 → ✅/❌ |
+| `pve/x201/docker/config/*` (add/mod) | Deploy x201 services | 📦 → ✅/❌ |
 | `pve/x202/docker/config/*` (add/mod) | Deploy x202 services | 📦 → ✅/❌ |
 | `pve/x203/docker/config/*` (add/mod) | Deploy x203 services | 📦 → ✅/❌ |
-| `pve/x000\|x202\|x203/docker/config/*` (removed) | Stop & remove containers | 🛑 → ✅/❌ |
+| any of the above, removed | Stop & remove containers | 🛑 → ✅/❌ |
 | `pve/x000/infra/tofu/*` | OpenTofu plan (manual apply) | 🔧 → ✅/❌ |
 
-Only those three prefixes are routed. Anything else — `pve/archive/*` included —
+Only those four prefixes are routed. Anything else — `pve/archive/*` included —
 is reported as ignored and deploys nothing.
 
 **Ansible playbooks:**
@@ -172,13 +188,13 @@ is reported as ignored and deploys nothing.
 - `stop-service.yml` - Stop and remove containers
 - `rollback-service.yml` - Rollback to previous version
 
-**Managed hosts:** x000 (control node), x202, x203 (VMs)
+**Managed hosts:** x000 (control node), x201, x202, x203 (VMs)
 
 ## File Sync
 
 ```bash
 # Root Makefile shortcuts
-make pull NAME   # Server -> Local (NAME = x000|x202|x203)
+make pull NAME   # Server -> Local (NAME = x000|x201|x202|x203)
 make push NAME   # Local -> Server
 
 # Direct script
@@ -234,6 +250,9 @@ Config: Copy `pve/NAME/.envrc.example` to `.envrc` and set `REMOTE_HOST`.
 │   │       ├── portainer/    # Container management
 │   │       ├── cloudflared/  # Cloudflare tunnel
 │   │       └── pihole/       # DNS + ad-blocking
+│   ├── x201/                 # Web apps (VM)
+│   │   ├── Makefile          # Service orchestration
+│   │   └── docker/config/SERVICE/
 │   ├── x202/                 # Web services (primary VM)
 │   │   ├── Makefile          # Service orchestration
 │   │   └── docker/config/SERVICE/
@@ -272,6 +291,7 @@ Config: Copy `pve/NAME/.envrc.example` to `.envrc` and set `REMOTE_HOST`.
 - [pve/x000/ansible/README.md](pve/x000/ansible/README.md) - Ansible setup
 - [pve/x000/infra/README.md](pve/x000/infra/README.md) - OpenTofu/Proxmox
 - [pve/x000/README.md](pve/x000/README.md) - Control node
+- [pve/x201/README.md](pve/x201/README.md) - Web apps
 - [pve/x202/README.md](pve/x202/README.md) - Web services
 - [pve/x203/README.md](pve/x203/README.md) - File sharing
 - [docs/automation/](docs/automation/) - GitOps workflow

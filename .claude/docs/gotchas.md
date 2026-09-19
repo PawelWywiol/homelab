@@ -66,3 +66,29 @@ what avoids it. The instant-prompt preamble must be **prepended** to `.zshrc`
 (it has to run before anything writes to the terminal), while `source
 ~/.p10k.zsh` goes at the end — two different positions, so they are two
 separate guarded edits, not one block.
+
+## 2026-09-19 — x201 already existed as a host before it had a repo folder
+
+`192.168.0.201` was serving OpenClaw (`:18789`) via a Caddy route and a homepage
+entry long before `pve/x201/` was created. The old CLAUDE.md row `x201 |
+OpenClaw` was therefore half-right: the host was real, only the managed folder
+was missing. OpenClaw itself is still standalone — not deployed from this repo.
+
+Before declaring an environment non-existent, grep `Caddyfile` and
+`homepage/config/services.yaml` for its IP, not just `pve/`.
+
+## 2026-09-19 — adding a host touches six places, not one
+
+A new `pve/xNNN/` is inert until all of these are updated:
+
+1. `ansible/inventory/hosts.yml` — host + `services_base_path`
+2. `ansible/group_vars/all/vars.yml` — `compose_paths`
+3. `webhook/scripts/trigger-homelab.sh` — arrays, `extract_service_xNNN`,
+   a case in all three loops (added/modified/removed), DEPLOY/STOP flags,
+   the early-exit guard, and the two execution blocks
+4. `webhook/scripts/common.sh` — `deploy_xNNN` / `stop_xNNN` notification titles
+5. `caddy/Caddyfile` — routes
+6. `homepage/config/docker.yaml` + `services.yaml`
+
+Miss #3's early-exit guard and the host deploys but the run reports "Ignored".
+The Makefile needs nothing — it discovers services from `docker/config/`.

@@ -174,6 +174,10 @@ send_start_notification() {
             emoji="📦"
             title="$emoji x202 Deploy Started"
             ;;
+        deploy_x201)
+            emoji="📦"
+            title="$emoji x201 Deploy Started"
+            ;;
         deploy_x203)
             emoji="📦"
             title="$emoji x203 Deploy Started"
@@ -185,6 +189,10 @@ send_start_notification() {
         stop_x202|stop)
             emoji="🛑"
             title="$emoji x202 Stop Started"
+            ;;
+        stop_x201)
+            emoji="🛑"
+            title="$emoji x201 Stop Started"
             ;;
         stop_x203)
             emoji="🛑"
@@ -267,6 +275,17 @@ send_end_notification() {
                 color="$DISCORD_COLOR_FAILURE"
             fi
             ;;
+        deploy_x201)
+            if [ "$status" = "success" ]; then
+                emoji="✅"
+                title="$emoji x201 Deploy Success"
+                color="$DISCORD_COLOR_SUCCESS"
+            else
+                emoji="❌"
+                title="$emoji x201 Deploy Failed"
+                color="$DISCORD_COLOR_FAILURE"
+            fi
+            ;;
         deploy_x203)
             if [ "$status" = "success" ]; then
                 emoji="✅"
@@ -297,6 +316,17 @@ send_end_notification() {
             else
                 emoji="❌"
                 title="$emoji x202 Stop Failed"
+                color="$DISCORD_COLOR_FAILURE"
+            fi
+            ;;
+        stop_x201)
+            if [ "$status" = "success" ]; then
+                emoji="✅"
+                title="$emoji x201 Stop Success"
+                color="$DISCORD_COLOR_SUCCESS"
+            else
+                emoji="❌"
+                title="$emoji x201 Stop Failed"
                 color="$DISCORD_COLOR_FAILURE"
             fi
             ;;

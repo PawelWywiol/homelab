@@ -109,6 +109,7 @@ pve/x000/
 | Path Change | Action |
 |-------------|--------|
 | `pve/x000/docker/config/*` | Deploy x000 services |
+| `pve/x201/docker/config/*` | Deploy x201 services |
 | `pve/x202/docker/config/*` | Deploy x202 services |
 | `pve/x203/docker/config/*` | Deploy x203 services |
 | any of the above, removed | Stop & remove the containers |
@@ -149,6 +150,7 @@ make verify  # Check backup integrity
 ## SSH Key Distribution
 
 ```bash
+ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.201  # x201
 ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.202  # x202
 ssh-copy-id -i ~/.ssh/ansible_ed25519.pub code@192.168.0.203  # x203
 ```

@@ -54,6 +54,28 @@
         server: x000
         container: cloudflared
 
+# server/container are omitted until docker-socket-proxy runs on x201;
+# add `server: x201` + `container: <name>` to each entry once it does.
+- x201 (Web Apps):
+    - Glances:
+        href: https://glances-x201.local.wywiol.eu
+        icon: glances
+        description: System stats
+        widget:
+          type: glances
+          url: http://192.168.0.201:61208
+          version: 4
+          metric: cpu
+    - Portainer:
+        href: https://portainer-x201.local.wywiol.eu
+        icon: portainer
+        description: Container management
+    - OpenClaw:
+        href: https://openclaw.local.wywiol.eu
+        icon: mdi-robot-industrial
+        description: Claw machine game
+        siteMonitor: http://192.168.0.201:18789
+
 - x202 (Primary):
     - Glances:
         href: https://glances-x202.local.wywiol.eu
@@ -191,8 +213,3 @@
         icon: mdi-speedometer
         description: Performance monitoring
         siteMonitor: https://sitespeed.local.wywiol.eu
-    - OpenClaw:
-        href: https://openclaw.local.wywiol.eu
-        icon: mdi-robot-industrial
-        description: Claw machine game
-        siteMonitor: http://192.168.0.201:18789

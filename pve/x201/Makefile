@@ -1,13 +1,13 @@
 .PHONY: help
 help:
 	@echo " "
-	@echo "Makefile for x203 file sharing"
+	@echo "Makefile for x201 web apps"
 	@echo "Available targets:"
 	@echo " "
 	@echo "- Generic app management:"
 	@echo " "
 	@echo "  make APP [up|down|restart|pull|logs] - Manage any app in docker/config/"
-	@echo "    Examples: make samba up, make share down, make portainer logs"
+	@echo "    Examples: make portainer up, make glances logs"
 	@echo " "
 
 # Prevent action words from being treated as targets

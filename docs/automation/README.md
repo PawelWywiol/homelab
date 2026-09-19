@@ -1,7 +1,7 @@
 # Ansible + OpenTofu Automation
 
 **Control Node**: x000
-**Managed Hosts**: x202, x203
+**Managed Hosts**: x201, x202, x203
 **Base Domain**: wywiol.eu
 **Status**: Production-ready
 
@@ -18,14 +18,13 @@ GitHub Push (main) → webhook.wywiol.eu/hooks/homelab (Caddy: GitHub IP whiteli
                               ↓
                       trigger-homelab.sh (file routing)
                               ↓
-         ┌───────────┬───────────┬──────┴──────┬───────────┐
-         ↓           ↓           ↓             ↓           ↓
-   deploy.sh    deploy.sh   deploy.sh   apply-tofu.sh  stop-service.sh
-         ↓           ↓           ↓             ↓           ↓
-       x000        x202        x203       tofu plan   Stop containers
-         ↓           ↓           ↓             ↓           ↓
-    📦 → ✅/❌   📦 → ✅/❌  📦 → ✅/❌    🔧 → ✅/❌     🛑 → ✅/❌
-     Discord      Discord     Discord       Discord       Discord
+              ┌───────────────┴───────────────┐
+              ↓                               ↓
+        deploy.sh / stop-service.sh     apply-tofu.sh
+       (x000 | x201 | x202 | x203)              ↓
+              ↓                            tofu plan
+   📦 → ✅/❌  or  🛑 → ✅/❌                🔧 → ✅/❌
+           Discord                          Discord
 ```
 
 ### Key Features
@@ -36,12 +35,13 @@ GitHub Push (main) → webhook.wywiol.eu/hooks/homelab (Caddy: GitHub IP whiteli
 - **Infrastructure as Code**: OpenTofu for Proxmox VM management
 - **Security**: Multi-layer (IP whitelist, HMAC, SSH keys, Vault)
 - **Two-Phase Notifications**: Discord notifications on start + end with status/duration
-- **Multi-Host Support**: Deploy to x000 (control node), x202 (web services) and x203 (file sharing)
+- **Multi-Host Support**: Deploy to x000 (control node), x201 (web apps), x202 (web services) and x203 (file sharing)
 - **Service Lifecycle**: Auto-stop containers when folders are removed
 
 ### Managed Infrastructure
 
 - **x000**: Control node (orchestration hub)
+- **x201**: Web apps - managed by Ansible (no OpenTofu definition yet)
 - **x202**: Web services (4 vCPUs, 12GB RAM) - managed by OpenTofu + Ansible
 - **x203**: File sharing - managed by Ansible (no OpenTofu definition yet)
 
@@ -114,6 +114,7 @@ make portainer up
 
 ```bash
 # Copy SSH key to the managed hosts
+ssh-copy-id -i ~/.ssh/id_ed25519.pub code@192.168.0.201  # x201
 ssh-copy-id -i ~/.ssh/id_ed25519.pub code@192.168.0.202  # x202
 ssh-copy-id -i ~/.ssh/id_ed25519.pub code@192.168.0.203  # x203
 
@@ -150,6 +151,7 @@ curl https://webhook.wywiol.eu/hooks/health
    - **Removed files** → Stop & remove containers
 6. Routes to appropriate host:
    - `pve/x000/docker/config/*` → Ansible deploy to x000
+   - `pve/x201/docker/config/*` → Ansible deploy to x201
    - `pve/x202/docker/config/*` → Ansible deploy to x202
    - `pve/x203/docker/config/*` → Ansible deploy to x203
    - `pve/x000/infra/tofu/*` → OpenTofu plan
@@ -162,6 +164,7 @@ curl https://webhook.wywiol.eu/hooks/health
 | Path Pattern | Action | Notification |
 |--------------|--------|--------------|
 | `pve/x000/docker/config/*` (added/modified) | Deploy services to x000 | 📦 Start → ✅/❌ End |
+| `pve/x201/docker/config/*` (added/modified) | Deploy services to x201 | 📦 Start → ✅/❌ End |
 | `pve/x202/docker/config/*` (added/modified) | Deploy services to x202 | 📦 Start → ✅/❌ End |
 | `pve/x203/docker/config/*` (added/modified) | Deploy services to x203 | 📦 Start → ✅/❌ End |
 | any of the above, removed | Stop & remove containers | 🛑 Start → ✅/❌ End |
@@ -197,7 +200,7 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/ID/TOKEN
 ansible/
 ├── ansible.cfg              # Ansible configuration
 ├── inventory/
-│   └── hosts.yml           # x000, x202, x203 host definitions
+│   └── hosts.yml           # x000, x201, x202, x203 host definitions
 ├── group_vars/
 │   └── all/
 │       ├── vars.yml            # Common variables
@@ -241,7 +244,7 @@ Services use `.env` files for secrets (gitignored). Ansible Vault available but 
 pve/x000/infra/tofu/       # Centralized provider config
 ├── provider.tf            # Proxmox provider
 ├── variables.tf           # Input variables
-├── vms.tf                # x202 VM definition (x203 not defined here)
+├── vms.tf                # x202 VM definition (x201, x203 not defined here)
 ├── outputs.tf            # Output values
 └── terraform.tfvars       # Secrets (not in git)
 ```

@@ -7,6 +7,7 @@
 #   $1 - Entire GitHub webhook payload (JSON)
 #
 # Routing:
+#   pve/x201/docker/config/* → Ansible deploy to x201
 #   pve/x202/docker/config/* → Ansible deploy to x202
 #   pve/x203/docker/config/* → Ansible deploy to x203
 #   pve/x000/infra/tofu/*    → OpenTofu plan (manual apply)
@@ -78,6 +79,11 @@ SERVICES_TO_START_X000=()
 SERVICES_TO_RESTART_X000=()
 SERVICES_TO_STOP_X000=()
 
+# Services by operation type - x201
+SERVICES_TO_START_X201=()
+SERVICES_TO_RESTART_X201=()
+SERVICES_TO_STOP_X201=()
+
 # Services by operation type - x203
 SERVICES_TO_START_X203=()
 SERVICES_TO_RESTART_X203=()
@@ -91,6 +97,11 @@ extract_service_x202() {
 # Helper: extract service name from x000 path
 extract_service_x000() {
     echo "$1" | sed -n 's|pve/x000/docker/config/\([^/]*\)/.*|\1|p'
+}
+
+# Helper: extract service name from x201 path
+extract_service_x201() {
+    echo "$1" | sed -n 's|pve/x201/docker/config/\([^/]*\)/.*|\1|p'
 }
 
 # Helper: extract service name from x203 path
@@ -120,6 +131,11 @@ while IFS= read -r file; do
             SERVICE=$(extract_service_x000 "$file")
             add_unique SERVICES_TO_START_X000 "$SERVICE"
             log_debug "x000 start needed: $file"
+            ;;
+        pve/x201/docker/config/*)
+            SERVICE=$(extract_service_x201 "$file")
+            add_unique SERVICES_TO_START_X201 "$SERVICE"
+            log_debug "x201 start needed: $file"
             ;;
         pve/x203/docker/config/*)
             SERVICE=$(extract_service_x203 "$file")
@@ -155,6 +171,14 @@ while IFS= read -r file; do
                 add_unique SERVICES_TO_RESTART_X000 "$SERVICE"
             fi
             log_debug "x000 restart needed: $file"
+            ;;
+        pve/x201/docker/config/*)
+            SERVICE=$(extract_service_x201 "$file")
+            # Only restart if not already in start list
+            if [[ ! " ${SERVICES_TO_START_X201[*]} " =~ " ${SERVICE} " ]]; then
+                add_unique SERVICES_TO_RESTART_X201 "$SERVICE"
+            fi
+            log_debug "x201 restart needed: $file"
             ;;
         pve/x203/docker/config/*)
             SERVICE=$(extract_service_x203 "$file")
@@ -196,6 +220,15 @@ while IFS= read -r file; do
             fi
             log_debug "x000 stop needed: $file"
             ;;
+        pve/x201/docker/config/*)
+            SERVICE=$(extract_service_x201 "$file")
+            # Only stop if not being started or restarted
+            if [[ ! " ${SERVICES_TO_START_X201[*]} " =~ " ${SERVICE} " ]] && \
+               [[ ! " ${SERVICES_TO_RESTART_X201[*]} " =~ " ${SERVICE} " ]]; then
+                add_unique SERVICES_TO_STOP_X201 "$SERVICE"
+            fi
+            log_debug "x201 stop needed: $file"
+            ;;
         pve/x203/docker/config/*)
             SERVICE=$(extract_service_x203 "$file")
             # Only stop if not being started or restarted
@@ -227,6 +260,12 @@ STOP_X202=false
 [ ${#SERVICES_TO_START_X202[@]} -gt 0 ] || [ ${#SERVICES_TO_RESTART_X202[@]} -gt 0 ] && DEPLOY_X202=true
 [ ${#SERVICES_TO_STOP_X202[@]} -gt 0 ] && STOP_X202=true
 
+# Determine if any x201 actions needed
+DEPLOY_X201=false
+STOP_X201=false
+[ ${#SERVICES_TO_START_X201[@]} -gt 0 ] || [ ${#SERVICES_TO_RESTART_X201[@]} -gt 0 ] && DEPLOY_X201=true
+[ ${#SERVICES_TO_STOP_X201[@]} -gt 0 ] && STOP_X201=true
+
 # Determine if any x203 actions needed
 DEPLOY_X203=false
 STOP_X203=false
@@ -239,6 +278,7 @@ COMMIT_INFO="**Commit:** [\`$COMMIT_SHA\`]($COMMIT_URL) $COMMIT_MSG${NL}**Author
 # If only ignored files, notify and exit
 if [ "$DEPLOY_X000" = false ] && [ "$STOP_X000" = false ] && \
    [ "$DEPLOY_X202" = false ] && [ "$STOP_X202" = false ] && \
+   [ "$DEPLOY_X201" = false ] && [ "$STOP_X201" = false ] && \
    [ "$DEPLOY_X203" = false ] && [ "$STOP_X203" = false ] && [ "$TOFU_PLAN" = false ]; then
     IGNORED_COUNT=${#IGNORED_FILES[@]}
     IGNORED_LIST=$(printf '%s\n' "${IGNORED_FILES[@]}" | head -5 | sed 's/^/• /')
@@ -327,6 +367,42 @@ if [ "$STOP_X202" = true ]; then
         ACTIONS_TAKEN+=("x202 stop")
         log_info "x202 services stopped in ${DURATION}s"
         send_end_notification "stop_x202" "$COMMIT_INFO" "success" "$DURATION" ""
+    fi
+fi
+
+# Stop removed services on x201
+if [ "$STOP_X201" = true ]; then
+    STOP_STR=$(IFS=', '; echo "${SERVICES_TO_STOP_X201[*]}")
+    log_info "Stopping removed services on x201: $STOP_STR"
+
+    START_DETAILS="**Services:** $STOP_STR${NL}**Action:** Stop & Remove"
+    send_start_notification "stop_x201" "$COMMIT_INFO" "$START_DETAILS"
+
+    START_TIME=$(date +%s)
+
+    STOP_OUTPUT=""
+    STOP_FAILED=false
+    for svc in "${SERVICES_TO_STOP_X201[@]}"; do
+        log_info "Stopping service: $svc"
+        if OUTPUT=$(run_stop "x201" "$svc" 2>&1); then
+            STOP_OUTPUT+="$svc: stopped${NL}"
+        else
+            STOP_OUTPUT+="$svc: failed - $OUTPUT${NL}"
+            STOP_FAILED=true
+        fi
+    done
+
+    END_TIME=$(date +%s)
+    DURATION=$((END_TIME - START_TIME))
+
+    if [ "$STOP_FAILED" = true ]; then
+        log_error "Some x201 services failed to stop after ${DURATION}s"
+        send_end_notification "stop_x201" "$COMMIT_INFO" "failure" "$DURATION" "$STOP_OUTPUT"
+        exit 1
+    else
+        ACTIONS_TAKEN+=("x201 stop")
+        log_info "x201 services stopped in ${DURATION}s"
+        send_end_notification "stop_x201" "$COMMIT_INFO" "success" "$DURATION" ""
     fi
 fi
 
@@ -428,6 +504,39 @@ if [ "$DEPLOY_X202" = true ]; then
         log_error "x202 deployment failed after ${DURATION}s"
 
         send_end_notification "deploy_x202" "$COMMIT_INFO" "failure" "$DURATION" "$EXEC_OUTPUT"
+        exit 1
+    fi
+fi
+
+# Deploy/restart services on x201
+if [ "$DEPLOY_X201" = true ]; then
+    ALL_DEPLOY_SERVICES_X201=("${SERVICES_TO_START_X201[@]}" "${SERVICES_TO_RESTART_X201[@]}")
+    SERVICES_STR=$(IFS=', '; echo "${ALL_DEPLOY_SERVICES_X201[*]}")
+    log_info "Deploying to x201: $SERVICES_STR"
+
+    START_DETAILS="**Target:** x201"
+    [ ${#SERVICES_TO_START_X201[@]} -gt 0 ] && START_DETAILS+="${NL}**Start:** $(IFS=', '; echo "${SERVICES_TO_START_X201[*]}")"
+    [ ${#SERVICES_TO_RESTART_X201[@]} -gt 0 ] && START_DETAILS+="${NL}**Restart:** $(IFS=', '; echo "${SERVICES_TO_RESTART_X201[*]}")"
+
+    send_start_notification "deploy_x201" "$COMMIT_INFO" "$START_DETAILS"
+
+    START_TIME=$(date +%s)
+
+    if EXEC_OUTPUT=$(run_deploy "x201" "all" 2>&1); then
+        END_TIME=$(date +%s)
+        DURATION=$((END_TIME - START_TIME))
+
+        ACTIONS_TAKEN+=("x201 deploy")
+        log_info "x201 deployment completed in ${DURATION}s"
+
+        send_end_notification "deploy_x201" "$COMMIT_INFO" "success" "$DURATION" ""
+    else
+        END_TIME=$(date +%s)
+        DURATION=$((END_TIME - START_TIME))
+
+        log_error "x201 deployment failed after ${DURATION}s"
+
+        send_end_notification "deploy_x201" "$COMMIT_INFO" "failure" "$DURATION" "$EXEC_OUTPUT"
         exit 1
     fi
 fi

@@ -6,8 +6,9 @@ OpenTofu configuration for Proxmox VM management.
 
 Manages Proxmox VMs declaratively using OpenTofu (Terraform fork). Currently managing x202 (primary web/app VM).
 
-x203 exists as an Ansible-managed host but has no resource here yet - add one
-following the x202 pattern in `vms.tf`, then `tofu import` the running VM.
+x201 and x203 exist as Ansible-managed hosts but have no resources here yet -
+add them following the x202 pattern in `vms.tf`, then `tofu import` the running
+VMs.
 
 ## Structure
 

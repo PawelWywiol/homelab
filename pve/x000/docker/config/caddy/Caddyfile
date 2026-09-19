@@ -125,6 +125,13 @@ http://*.wywiol.eu {
         }
     }
 
+    @portainer_x201 host portainer-x201.local.wywiol.eu
+    handle @portainer_x201 {
+        reverse_proxy https://192.168.0.201:9443 {
+            import insecure_proxy
+        }
+    }
+
     @sitespeed host sitespeed.local.wywiol.eu
     handle @sitespeed {
         reverse_proxy 192.168.0.107:3000
@@ -195,6 +202,11 @@ http://*.wywiol.eu {
     @glances_x203 host glances-x203.local.wywiol.eu
     handle @glances_x203 {
         reverse_proxy 192.168.0.203:61208
+    }
+
+    @glances_x201 host glances-x201.local.wywiol.eu
+    handle @glances_x201 {
+        reverse_proxy 192.168.0.201:61208
     }
 
     @openclaw host openclaw.local.wywiol.eu
