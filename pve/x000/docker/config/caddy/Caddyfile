@@ -39,6 +39,12 @@ http://*.wywiol.eu {
     handle @webhook {
         reverse_proxy webhook:9000
     }
+
+    @dom host dom.wywiol.eu
+    handle @dom {
+        reverse_proxy 192.168.0.201:3000
+    }
+
     handle {
         redir https://{host}{uri} permanent
     }
@@ -50,6 +56,11 @@ http://*.wywiol.eu {
     @webhook host webhook.wywiol.eu
     handle @webhook {
         reverse_proxy webhook:9000
+    }
+
+    @dom host dom.wywiol.eu
+    handle @dom {
+        reverse_proxy 192.168.0.201:3000
     }
 }
 

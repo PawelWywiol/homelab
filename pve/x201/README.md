@@ -12,6 +12,7 @@ not managed from this repository.
 |---------|------|-------------|
 | portainer | 9443 | Container management UI |
 | glances | - | Host/container metrics |
+| dom | 3000 | Household app, public at dom.wywiol.eu; own postgres sidecar |
 
 More will be added as applications land here.
 
@@ -32,7 +33,9 @@ Targets are discovered from `docker/config/`, so any directory with a
 3. Add an entry to [homepage services.yaml](../x000/docker/config/homepage/config/services.yaml)
 4. Push to `main` — the webhook deploys it
 
-Prefer the shared databases on x202 over running another instance here.
+Prefer the shared databases on x202 over running another instance here. `dom` is the
+documented exception: its data must stay on a backed-up volume, and x202 has no database
+backups.
 
 ## File Sync
 

@@ -75,6 +75,11 @@
         icon: mdi-robot-industrial
         description: Claw machine game
         siteMonitor: http://192.168.0.201:18789
+    - dom:
+        href: https://dom.wywiol.eu
+        icon: mdi-home-heart
+        description: Household app - food, shopping, budget
+        siteMonitor: http://192.168.0.201:3000
 
 - x202 (Primary):
     - Glances:
