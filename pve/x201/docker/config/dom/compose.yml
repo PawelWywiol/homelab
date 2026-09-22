@@ -2,7 +2,7 @@
 services:
   dom:
     container_name: dom
-    image: ghcr.io/pawelwywiol/dom:v0.4.0
+    image: ghcr.io/pawelwywiol/dom:latest
     restart: unless-stopped
     depends_on:
       dom-postgres:
