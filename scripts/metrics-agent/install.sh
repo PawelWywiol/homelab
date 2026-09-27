@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Telegraf metrics agent for the homelab: install (also updates), uninstall, status.
-# Remote: curl -fsSL <raw>/scripts/metrics-agent/install.sh | sudo -E bash -s -- install --url https://metrics.local.wywiol.eu
+# Remote: f=$(mktemp); curl -fsSL <raw>/scripts/metrics-agent/install.sh -o "$f"; sudo bash "$f" install
+# (prompts for the password on /dev/tty). Unattended: read -rs METRICS_PASSWORD; export METRICS_PASSWORD;
+# sudo --preserve-env=METRICS_PASSWORD bash "$f" install
 set -euo pipefail
 
 TELEGRAF_VERSION=1.40.1
@@ -60,8 +62,13 @@ require_platform() {
     [[ $(uname -s) == Linux ]] || die "unsupported OS: $(uname -s) (Linux with systemd only for now)"
     [[ $SKIP_RUNTIME == 1 ]] && return
     [[ $EUID -eq 0 ]] || die "run as root (sudo)"
+    command -v systemctl >/dev/null || die "systemctl not found"
+}
+
+require_download_tools() {
+    [[ $SKIP_RUNTIME == 1 ]] && return
     local cmd
-    for cmd in systemctl curl gpg tar; do
+    for cmd in curl gpg tar; do
         command -v "$cmd" >/dev/null || die "$cmd not found"
     done
 }
@@ -164,6 +171,7 @@ cmd_install() {
         esac
     done
     require_platform
+    require_download_tools
 
     local STORED_URL="" STORED_PASSWORD="" STORED_INTERVAL="" STORED_HOST="" STORED_DOCKER_ENDPOINT=""
     read_env_file
@@ -179,13 +187,14 @@ cmd_install() {
     read_password
     local os
     # shellcheck source=/dev/null
-    os=$(. /etc/os-release 2>/dev/null; echo "${ID:-linux}")
+    os=$(. "$ROOT/etc/os-release" 2>/dev/null; echo "${ID:-linux}")
 
     validate_value METRICS_URL "$url"
     validate_value METRICS_PASSWORD "$password"
     validate_value METRICS_INTERVAL "$interval"
     validate_value METRICS_HOST "$host"
     validate_value METRICS_DOCKER_ENDPOINT "$docker_endpoint"
+    validate_value METRICS_OS "$os"
 
     stage=$(mktemp -d)
     mkdir -p "$stage/telegraf.d"
@@ -225,7 +234,12 @@ cmd_install() {
     install -m 644 "$stage/telegraf.service" "$UNIT"
 
     if [[ $SKIP_RUNTIME != 1 ]]; then
-        [[ $docker_endpoint == unix://* ]] && getent group docker >/dev/null && usermod -aG docker telegraf
+        if [[ $docker_endpoint == unix://* ]]; then
+            getent group docker >/dev/null && usermod -aG docker telegraf
+        else
+            # docker group membership is root-equivalent; drop it once Docker collection is off.
+            gpasswd -d telegraf docker >/dev/null 2>&1 || true
+        fi
         systemctl daemon-reload
         systemctl enable telegraf >/dev/null 2>&1
         systemctl restart telegraf

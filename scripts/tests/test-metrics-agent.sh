@@ -72,8 +72,38 @@ check "no leftover temp dir after forced failure"   "[ -z \"\$(find '$TMPWATCH' 
 check "previous config intact after forced failure" "grep -qx 'METRICS_PASSWORD=secret2' '$ENV'"
 rm -rf "$TMPWATCH"
 
-run uninstall >/dev/null
+mkdir -p "$ROOT/etc"
+before_os=$(snapshot)
+echo 'ID="bad os"' >"$ROOT/etc/os-release"
+check "invalid os-release ID rejected" "! METRICS_PASSWORD='' run install >/dev/null 2>&1"
+rm "$ROOT/etc/os-release"
+check "rejected os ID writes nothing" "[ \"\$(snapshot)\" = '$before_os' ]"
+echo 'ID=arch' >"$ROOT/etc/os-release"
+METRICS_PASSWORD='' run install >/dev/null
+check "os ID stored" "grep -qx 'METRICS_OS=arch' '$ENV'"
+rm "$ROOT/etc/os-release"
+
+# Only guards the SKIP_RUNTIME path: the runtime path needs root, which tests never use.
+NOGPG=$(mktemp -d)
+for tool in bash uname rm dirname mkdir cat; do ln -s "$(command -v "$tool")" "$NOGPG/$tool"; done
+check "uninstall works without gpg/curl/tar on PATH" \
+    "PATH='$NOGPG' METRICS_AGENT_ROOT='$ROOT' METRICS_AGENT_SKIP_RUNTIME=1 '$NOGPG/bash' '$INSTALL' uninstall"
+rm -rf "$NOGPG"
 check "uninstall leaves no files"   "[ -z \"\$(find '$ROOT' -type f)\" ]"
+
+COMPOSE_DIR="$REPO_ROOT/pve/x202/docker/config/metrics-influxdb"
+if docker compose version >/dev/null 2>&1; then
+    E=$(mktemp)
+    printf '%s\n' METRICS_INFLUXDB_ADMIN_USER=admin METRICS_INFLUXDB_ADMIN_PASSWORD=0123abcd \
+        METRICS_INFLUXDB_WRITE_PASSWORD=4567abcd METRICS_INFLUXDB_READ_PASSWORD=89efabcd METRICS_RETENTION=90d >"$E"
+    check "metrics-influxdb compose valid with .env" \
+        "docker compose --env-file '$E' -f '$COMPOSE_DIR/compose.yml' config -q"
+    check "metrics-influxdb compose refuses to start without .env" \
+        "! env -u METRICS_INFLUXDB_ADMIN_USER -u METRICS_INFLUXDB_ADMIN_PASSWORD -u METRICS_INFLUXDB_WRITE_PASSWORD -u METRICS_INFLUXDB_READ_PASSWORD docker compose --env-file /dev/null -f '$COMPOSE_DIR/compose.yml' config -q"
+    rm -f "$E"
+else
+    echo "SKIP: docker not available"
+fi
 
 if [ -n "${TELEGRAF_BIN:-}" ]; then
     D=$(mktemp -d); cp "$REPO_ROOT"/scripts/metrics-agent/telegraf/{linux,nvidia,docker}.conf "$D"/
