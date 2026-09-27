@@ -1,0 +1,21 @@
+[Unit]
+Description=Telegraf metrics agent (homelab)
+Documentation=https://github.com/PawelWywiol/homelab/tree/main/scripts/metrics-agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+NotifyAccess=all
+EnvironmentFile=/etc/default/telegraf
+User=telegraf
+ExecStart=/usr/local/bin/telegraf -config /etc/telegraf/telegraf.conf -config-directory /etc/telegraf/telegraf.d
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartForceExitStatus=SIGPIPE
+KillMode=mixed
+LimitMEMLOCK=8M:8M
+PrivateMounts=true
+
+[Install]
+WantedBy=multi-user.target
