@@ -147,6 +147,12 @@
         description: Time-series database
         server: x202
         container: influxdb
+    - Metrics DB:
+        href: https://grafana.local.wywiol.eu/d/system-metrics
+        icon: influxdb
+        description: Host metrics store (Telegraf)
+        server: x202
+        container: metrics-influxdb
 
 - x203 (Gaming):
     - Glances:

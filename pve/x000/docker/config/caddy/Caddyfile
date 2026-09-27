@@ -185,6 +185,11 @@ http://*.wywiol.eu {
         reverse_proxy 192.168.0.202:8086
     }
 
+    @metrics host metrics.local.wywiol.eu
+    handle @metrics {
+        reverse_proxy 192.168.0.202:8087
+    }
+
     @redis host redis.local.wywiol.eu
     handle @redis {
         reverse_proxy 192.168.0.202:8001
