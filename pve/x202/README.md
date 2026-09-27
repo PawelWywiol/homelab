@@ -19,6 +19,7 @@
 - rabbitmq - Message broker
 - mongo - MongoDB + Express UI
 - influxdb - Time-series DB
+- metrics-influxdb - Host metrics (auth, 90d)
 
 **Dev Tools**:
 - grafana - Dashboards
@@ -56,6 +57,17 @@ make redis pull         # Pull latest Redis image
 
 The reverse proxy for this host runs on the control node, not here:
 see [pve/x000](../x000/README.md).
+
+**Changing `metrics-influxdb` retention** (default 90 d): retention is
+per-database and set only once, at first start, by the image's init script —
+changing `METRICS_RETENTION` in `.env` afterwards has no effect. Change it
+live as the admin user:
+```bash
+docker exec -it metrics-influxdb influx -username <admin_user> -password '' \
+  -execute 'ALTER RETENTION POLICY "metrics_rp" ON "metrics" DURATION 180d'
+```
+See [scripts/metrics-agent/README.md](../../scripts/metrics-agent/README.md)
+for the agent that writes to it.
 
 ## Structure
 

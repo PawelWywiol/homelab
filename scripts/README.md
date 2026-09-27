@@ -7,6 +7,7 @@ Initialization and utility scripts for homelab setup.
 | Script | Purpose |
 |--------|---------|
 | `init-host.sh` | Universal host initialization (VM, LXC, RPi, bare metal) |
+| `metrics-agent/install.sh` | Install/uninstall the Telegraf host metrics agent |
 | `sync-files.sh` | Bidirectional file sync (rsync wrapper) |
 | `health-monitor.sh` | Generate system/Docker health reports for AI analysis |
 
@@ -188,6 +189,13 @@ make node20
 make node22
 ```
 
+## metrics-agent
+
+Installs the Telegraf host metrics agent (systemd service, pushes to a
+central InfluxDB for the Grafana "System Metrics" dashboard). See
+[metrics-agent/README.md](metrics-agent/README.md) for install one-liner,
+flags, files installed, and changing the interval or retention.
+
 ## sync-files.sh
 
 Synchronize files between local and remote systems using rsync.
@@ -367,6 +375,9 @@ Test suite located in `scripts/tests/`:
 
 # Test init-host.sh
 ./scripts/tests/test-init-host.sh
+
+# Test metrics-agent/install.sh
+./scripts/tests/test-metrics-agent.sh
 
 # Test health-monitor.sh
 ./scripts/tests/test-health-monitor.sh

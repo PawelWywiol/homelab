@@ -24,7 +24,7 @@ make push NAME   # Local -> Server
 |----|---------|----------|----------|
 | x000 | Control node | 9 | `pve/x000/Makefile` |
 | x201 | Web apps | 2 | `pve/x201/Makefile` |
-| x202 | Web/App (primary) | 13 | `pve/x202/Makefile` |
+| x202 | Web/App (primary) | 14 | `pve/x202/Makefile` |
 | x203 | File sharing | 5 | `pve/x203/Makefile` |
 | archive | Not deployed | - | - |
 
@@ -50,6 +50,7 @@ make SERVICE [up|down|restart|pull|logs]
 | mongo | 27017, 8081 | MongoDB + Mongo Express |
 | rabbitmq | - | Message broker |
 | influxdb | 8086 | Time-series DB |
+| metrics-influxdb | 8087 | Host metrics store (Telegraf) |
 | grafana | 3002 | Dashboards |
 | wakapi | 3003 | Coding activity tracker |
 | beszel | 8090 | System monitoring |
@@ -136,6 +137,21 @@ versioned `~/.p10k.zsh`, so no wizard), herdr (prefix `ctrl+s`) and Claude Code.
 Re-running never overwrites a config the user or its own tool has since edited.
 
 See [scripts/README.md](scripts/README.md#init-hostsh) for options and `.env` config.
+
+## Host Metrics Agent
+
+Installs Telegraf as a systemd service, pushing CPU/GPU/memory/disk/network
+(and, optionally, Docker container) metrics to `metrics-influxdb` on x202 for
+the Grafana "System Metrics" dashboard:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/PawelWywiol/homelab/main/scripts/metrics-agent/install.sh -o /tmp/metrics-install.sh
+sudo METRICS_PASSWORD='…' bash /tmp/metrics-install.sh install
+```
+
+See [scripts/metrics-agent/README.md](scripts/metrics-agent/README.md) for
+flags, files installed and changing the interval/retention. Design:
+[docs/superpowers/specs/2026-09-27-system-metrics-design.md](docs/superpowers/specs/2026-09-27-system-metrics-design.md).
 
 ## Control Node Setup
 
@@ -264,6 +280,7 @@ Config: Copy `pve/NAME/.envrc.example` to `.envrc` and set `REMOTE_HOST`.
 │   ├── tests/                # Test suite
 │   ├── init-host.sh          # Universal host init (VM/LXC/RPi)
 │   ├── init-host/            # Dotfiles it installs (p10k, herdr, Makefile)
+│   ├── metrics-agent/        # Telegraf install/uninstall/status + config fragments
 │   ├── .env.example          # init-host.sh config template
 │   ├── health-monitor.sh     # System/Docker health report
 │   └── claude-statusline.sh  # Terminal statusline helper
@@ -287,6 +304,7 @@ Config: Copy `pve/NAME/.envrc.example` to `.envrc` and set `REMOTE_HOST`.
 
 **Documentation:**
 - [scripts/README.md](scripts/README.md) - init-host.sh, sync, health monitor
+- [scripts/metrics-agent/README.md](scripts/metrics-agent/README.md) - Host metrics agent (Telegraf)
 - [pve/x000/docker/config/webhook/README.md](pve/x000/docker/config/webhook/README.md) - Webhook setup & troubleshooting
 - [pve/x000/ansible/README.md](pve/x000/ansible/README.md) - Ansible setup
 - [pve/x000/infra/README.md](pve/x000/infra/README.md) - OpenTofu/Proxmox
