@@ -122,17 +122,19 @@ Live (evidence recorded in READMEs):
 
 ## Out of scope (later phases)
 
-- Claude Code token stats — blocked on fixing `scripts/claude-statusline.sh`,
+- Statusline token stats — blocked on fixing `scripts/claude-statusline.sh`,
   which re-sums values that are already totals.
 - Debian/Ubuntu/RPi apt install path, macOS launchd, Proxmox `inputs.proxmox`
   (PVEAuditor token), Fleet dashboard.
 - Firewalling the db port on x202.
 
-## Deployment (resolved)
+## Deployment
 
-1. User pushes to `main` (webhook deploys); assistant verifies afterwards.
-   Assistant never commits or pushes.
-2. Assistant generates passwords locally; user creates
-   `pve/x202/docker/config/metrics-influxdb/.env` and adds the read password to
-   grafana `.env` on x202.
-3. Port 8087 is checked free on x202 before deploy.
+1. The operator generates hex passwords (`openssl rand -hex 24`), creates
+   `pve/x202/docker/config/metrics-influxdb/.env` on x202 and adds the read
+   password to grafana's `.env`, before merging to `main` — the db creates
+   its users only on first start.
+2. Port 8087 is checked free on x202 before deploy.
+3. Merging to `main` deploys (webhook).
+4. After the deploy, `make caddy restart` on x000: the Caddyfile is mounted as
+   a single file and the running container keeps the old one otherwise.

@@ -38,7 +38,7 @@ Professional reference documentation for homelab infrastructure management.
   install, flags, and the Grafana "System Metrics" dashboard
   - Install/uninstall/status one-liners
   - Changing the interval or InfluxDB retention
-  - [Design](./superpowers/specs/2026-09-27-system-metrics-design.md)
+  - [Design](./monitoring/system-metrics-design.md)
 
 ### Development Environments
 

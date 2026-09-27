@@ -4,27 +4,36 @@ Installs [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/)
 as a systemd service that pushes CPU, memory, disk, network, GPU (NVIDIA) and,
 optionally, Docker container metrics to a central InfluxDB 1.x store every
 10 s, for the Grafana "System Metrics" dashboard. Design and rationale:
-[docs/superpowers/specs/2026-09-27-system-metrics-design.md](../../docs/superpowers/specs/2026-09-27-system-metrics-design.md).
+[docs/monitoring/system-metrics-design.md](../../docs/monitoring/system-metrics-design.md).
 
 Linux with systemd only for now (see [Roadmap](#roadmap)).
 
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/PawelWywiol/homelab/main/scripts/metrics-agent/install.sh -o /tmp/metrics-install.sh
-sudo METRICS_PASSWORD='…' bash /tmp/metrics-install.sh install            # defaults: 10s, hostname, no docker
-sudo bash /tmp/metrics-install.sh install --interval 30s --docker          # update; password kept
-sudo bash /tmp/metrics-install.sh status
-sudo bash /tmp/metrics-install.sh uninstall
+f=$(mktemp)
+curl -fsSL https://raw.githubusercontent.com/PawelWywiol/homelab/main/scripts/metrics-agent/install.sh -o "$f"
+sudo bash "$f" install                                 # prompts for the password; defaults: 10s, hostname, no docker
+sudo bash "$f" install --interval 30s --docker         # update; password kept
+sudo bash "$f" status
+sudo bash "$f" uninstall
 ```
 
-`METRICS_PASSWORD` is the `telegraf` write user's InfluxDB password (ask
-whoever deployed `metrics-influxdb`). Without it, and with no password stored
-from a previous install, the script prompts on `/dev/tty` — set the env var
-when there is no terminal to prompt on (e.g. a provisioning script). Piping
-through `curl | sudo bash -s -- install` works too (note the `-s --`, without
-it bash eats the flags); the download-then-run form above just also lets you
-re-run the local copy for `status`/`uninstall`.
+The password is the `telegraf` write user's InfluxDB password (ask whoever
+deployed `metrics-influxdb`). With no password stored from a previous install,
+the script prompts for it on `/dev/tty`. Where there is no terminal to prompt
+on (e.g. a provisioning script), pass it through the environment instead —
+never as `sudo METRICS_PASSWORD=… bash …`, which lands in shell history and
+in `sudo`'s argv (visible in `ps`):
+
+```bash
+read -rs METRICS_PASSWORD; export METRICS_PASSWORD
+sudo --preserve-env=METRICS_PASSWORD bash "$f" install
+```
+
+Piping through `curl | sudo bash -s -- install` works too (note the `-s --`,
+without it bash eats the flags); the download-then-run form above just also
+lets you re-run the local copy for `status`/`uninstall`.
 
 Re-running `install` **updates**: the binary and config fragments are
 replaced, and every setting not given again is kept from the previous install
@@ -40,16 +49,16 @@ replaced, and every setting not given again is kept from the previous install
 | `--docker` | off | Collect Docker container stats via `/var/run/docker.sock` |
 | `--docker-endpoint URL` | — | Same as `--docker` with a non-default socket/URL |
 | `--no-docker` | — | Turn Docker collection back off on an update |
-| `--ref REF` | `main` | Git ref to fetch config fragments from (piped installs only; a local checkout uses its own files) |
+| `--ref REF` | `main` | Git ref to fetch config fragments from, used only when `install.sh` has no `telegraf/` directory next to it (piped or downloaded alone); a checkout uses its own files |
 
 Every value (`--url`, the password, `--interval`, `--host`, the Docker
-endpoint) must match `^[A-Za-z0-9._~:/@+=,-]*$` — no spaces or quotes. It ends
+endpoint, the `ID` read from `/etc/os-release`) must match `^[A-Za-z0-9._~:/@+=,-]*$` — no spaces or quotes. It ends
 up in a TOML string, a systemd `EnvironmentFile` and a shell word, so this is
 enforced instead of trying to escape it in three different places. A generated
 hex password (`openssl rand -hex 24`) is always safe.
 
-`status` prints the installed Telegraf version, the stored settings (password
-redacted) and `systemctl status telegraf`. `uninstall` removes everything
+`status` prints the installed Telegraf version, the stored settings (the password
+line omitted) and `systemctl status telegraf`. `uninstall` removes everything
 `install` created, including the `telegraf` system user.
 
 ### Files installed
@@ -65,10 +74,12 @@ redacted) and `systemctl status telegraf`. `uninstall` removes everything
 A new config is checked with `telegraf --test` before it replaces the running
 one; if it fails, the previous config and service are left untouched.
 
-**Docker socket access is root-equivalent.** With `--docker` (default
-endpoint), the `telegraf` user is added to the `docker` group so it can read
-`/var/run/docker.sock` — anyone who can reach that socket can escalate to
-root on the host. Only enable it on hosts where that trade-off is acceptable.
+**Docker socket access is root-equivalent.** With `--docker` or
+`--docker-endpoint unix://…`, the `telegraf` user is added to the `docker`
+group so it can read the socket — anyone who can reach that socket can
+escalate to root on the host. Only enable it on hosts where that trade-off is
+acceptable. Turning Docker collection off (`--no-docker`, or a non-`unix://`
+endpoint) removes `telegraf` from the `docker` group again.
 
 ## Changing settings after install
 
@@ -102,7 +113,7 @@ visible to anything else able to exec into it.
 | Grafana | 12.0.0 | `pve/x202/docker/config/grafana/compose.yml` image tag |
 | OS / kernel | Arch Linux (Omarchy), `7.2.5-3-omarchy` | `uname -r` on the workstation |
 | NVIDIA driver | 610.57.04 | `nvidia-smi --query-gpu=driver_version --format=csv,noheader` |
-| Telegraf CPU / RSS over 10 min | _to be measured after deployment (Task 7)_ | — |
+| Telegraf CPU / RSS over 10 min | _pending: measured after the first deployment_ | — |
 
 ## Roadmap
 
@@ -110,5 +121,5 @@ visible to anything else able to exec into it.
 - macOS agent (launchd instead of systemd)
 - Proxmox host/VM/LXC stats (`inputs.proxmox`, `PVEAuditor` API token)
 - "Fleet" dashboard listing all hosts in one table
-- Claude Code token stats, blocked on fixing `scripts/claude-statusline.sh`
+- Statusline token stats, blocked on fixing `scripts/claude-statusline.sh`
   (it re-sums values that are already totals)

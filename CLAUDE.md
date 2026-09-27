@@ -145,13 +145,18 @@ Installs Telegraf as a systemd service, pushing CPU/GPU/memory/disk/network
 the Grafana "System Metrics" dashboard:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/PawelWywiol/homelab/main/scripts/metrics-agent/install.sh -o /tmp/metrics-install.sh
-sudo METRICS_PASSWORD='…' bash /tmp/metrics-install.sh install
+f=$(mktemp)
+curl -fsSL https://raw.githubusercontent.com/PawelWywiol/homelab/main/scripts/metrics-agent/install.sh -o "$f"
+sudo bash "$f" install    # prompts for the telegraf write password
 ```
+
+Unattended: `read -rs METRICS_PASSWORD; export METRICS_PASSWORD; sudo
+--preserve-env=METRICS_PASSWORD bash "$f" install` (never the password on the
+command line).
 
 See [scripts/metrics-agent/README.md](scripts/metrics-agent/README.md) for
 flags, files installed and changing the interval/retention. Design:
-[docs/superpowers/specs/2026-09-27-system-metrics-design.md](docs/superpowers/specs/2026-09-27-system-metrics-design.md).
+[docs/monitoring/system-metrics-design.md](docs/monitoring/system-metrics-design.md).
 
 ## Control Node Setup
 

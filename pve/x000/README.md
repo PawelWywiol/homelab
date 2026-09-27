@@ -28,6 +28,9 @@ make setup
 | glances | - | Host/container metrics |
 | docker-socket-proxy | 2375 | Scoped Docker API access |
 
+After a `Caddyfile` change, run `make caddy restart`: it is mounted as a single
+file, and `up -d` keeps the old container reading the old file.
+
 `make all up|down` covers caddy, webhook, portainer, cloudflared and pihole.
 The rest are started individually.
 

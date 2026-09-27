@@ -58,3 +58,14 @@ mappings aren't hashable, so construction fails at that line.
 
 **Action:** don't use whole-file `yaml.safe_load` to validate a
 `services.yaml` change. Extract and parse just the added/edited block instead.
+
+## 2026-09-27 — x000 Caddy keeps serving the old Caddyfile after a deploy
+
+`pve/x000/docker/config/caddy/compose.yml` mounts the Caddyfile as a single
+file (`./Caddyfile:/etc/caddy/Caddyfile:ro`). A bind mount of a file pins its
+inode; `git pull` writes a new file (new inode), and `docker compose up -d`
+does not recreate an unchanged container, so the running Caddy keeps reading
+the old file and a new route (e.g. `metrics.local.wywiol.eu`) never appears.
+
+**Action:** after any Caddyfile change, run `make caddy restart` on x000
+(`pve/x000/Makefile`: `down` then `up -d`, which recreates the container).
