@@ -9,6 +9,9 @@ INFLUXDATA_KEY_URL=https://repos.influxdata.com/influxdata-archive.key
 REPO_RAW=https://raw.githubusercontent.com/PawelWywiol/homelab
 DEFAULT_URL=https://metrics.local.wywiol.eu
 DEFAULT_DOCKER_ENDPOINT=unix:///var/run/docker.sock
+# Every stored/typed value ends up in a TOML string, a systemd EnvironmentFile and a shell
+# word; this set is safe in all three, so unsafe input is rejected instead of escaped.
+VALUE_RE='^[A-Za-z0-9._~:/@+=,-]*$'
 
 ROOT=${METRICS_AGENT_ROOT:-}
 SKIP_RUNTIME=${METRICS_AGENT_SKIP_RUNTIME:-0}
@@ -16,6 +19,21 @@ BIN=$ROOT/usr/local/bin/telegraf
 CONF_DIR=$ROOT/etc/telegraf
 ENV_FILE=$ROOT/etc/default/telegraf
 UNIT=$ROOT/etc/systemd/system/telegraf.service
+password=""
+METRICS_PASSWORD_INPUT=${METRICS_PASSWORD:-}
+
+# Staging area for a download/build in progress; cleaned up on any exit (success, error, or
+# die) so a rejected install never leaves a plaintext password or a partial binary behind.
+stage=""
+tmp=""
+STAGE_BIN=""
+cleanup() {
+    # if/fi, not &&: a no-op branch must not turn into a false exit status and clobber $?
+    # for the EXIT trap (which becomes the script's own exit code otherwise).
+    if [[ -n $stage ]]; then rm -rf "$stage"; fi
+    if [[ -n $tmp ]]; then rm -rf "$tmp"; fi
+}
+trap cleanup EXIT
 
 # Empty when piped through curl: BASH_SOURCE is unset, so fragments come from the repo instead.
 LOCAL_DIR=""
@@ -42,7 +60,10 @@ require_platform() {
     [[ $(uname -s) == Linux ]] || die "unsupported OS: $(uname -s) (Linux with systemd only for now)"
     [[ $SKIP_RUNTIME == 1 ]] && return
     [[ $EUID -eq 0 ]] || die "run as root (sudo)"
-    command -v systemctl >/dev/null || die "systemd not found"
+    local cmd
+    for cmd in systemctl curl gpg tar; do
+        command -v "$cmd" >/dev/null || die "$cmd not found"
+    done
 }
 
 telegraf_arch() {
@@ -63,11 +84,20 @@ fetch_fragment() {
     fi
 }
 
+validate_value() {
+    local name=$1 value=$2
+    [[ $value =~ $VALUE_RE ]] || die "invalid value for $name: disallowed characters"
+}
+
+# Downloads and GPG-verifies telegraf into $stage (never touching the live $BIN), or reuses
+# it unmodified if it is already the right version. Sets STAGE_BIN to the result either way,
+# so the caller always validates the exact binary it is about to install.
 install_binary() {
     if [[ -x $BIN ]] && "$BIN" --version 2>/dev/null | grep -q "Telegraf $TELEGRAF_VERSION "; then
+        STAGE_BIN=$BIN
         return
     fi
-    local arch tmp file
+    local arch file
     arch=$(telegraf_arch)
     tmp=$(mktemp -d)
     file="telegraf-${TELEGRAF_VERSION}_linux_${arch}.tar.gz"
@@ -78,10 +108,10 @@ install_binary() {
     mkdir -m 700 "$tmp/gnupg"
     GNUPGHOME="$tmp/gnupg" gpg --batch --quiet --import "$tmp/key.asc" 2>/dev/null
     GNUPGHOME="$tmp/gnupg" gpg --batch --status-fd 1 --verify "$tmp/$file.asc" "$tmp/$file" 2>/dev/null |
-        grep -q "^\[GNUPG:\] VALIDSIG .* $INFLUXDATA_FPR$" || { rm -rf "$tmp"; die "signature check failed for $file"; }
+        grep -q "^\[GNUPG:\] VALIDSIG .* $INFLUXDATA_FPR$" || die "signature check failed for $file"
     tar -xzf "$tmp/$file" -C "$tmp" "telegraf-$TELEGRAF_VERSION/usr/bin/telegraf"
-    install -D -m 755 "$tmp/telegraf-$TELEGRAF_VERSION/usr/bin/telegraf" "$BIN"
-    rm -rf "$tmp"
+    STAGE_BIN="$stage/telegraf"
+    install -D -m 755 "$tmp/telegraf-$TELEGRAF_VERSION/usr/bin/telegraf" "$STAGE_BIN"
 }
 
 ensure_user() {
@@ -98,9 +128,30 @@ read_password() {
     [[ -n $password ]] || die "empty password"
 }
 
+# Reads back only the six known keys, one assignment per line; never sourced/evaluated, so
+# a stray or hostile line in the file (extra "key=value", or no "=" at all) is inert data.
+read_env_file() {
+    [[ -f $ENV_FILE ]] || return 0
+    local key value
+    while IFS='=' read -r key value; do
+        case $key in
+            METRICS_URL) STORED_URL=$value ;;
+            METRICS_PASSWORD) STORED_PASSWORD=$value ;;
+            METRICS_INTERVAL) STORED_INTERVAL=$value ;;
+            METRICS_HOST) STORED_HOST=$value ;;
+            METRICS_DOCKER_ENDPOINT) STORED_DOCKER_ENDPOINT=$value ;;
+        esac
+    done <"$ENV_FILE"
+}
+
 cmd_install() {
     local url="" interval="" host="" docker_endpoint="" ref=main docker_flag=""
     while [[ $# -gt 0 ]]; do
+        case $1 in
+            --url | --interval | --host | --docker-endpoint | --ref)
+                [[ $# -ge 2 ]] || die "missing value for $1"
+                ;;
+        esac
         case $1 in
             --url) url=$2; shift 2 ;;
             --interval) interval=$2; shift 2 ;;
@@ -114,27 +165,28 @@ cmd_install() {
     done
     require_platform
 
-    # shellcheck disable=SC2034 # METRICS_OS: sourced for parity with the env file's key set, recomputed below
-    local METRICS_URL="" METRICS_PASSWORD="" METRICS_INTERVAL="" METRICS_HOST="" METRICS_OS="" METRICS_DOCKER_ENDPOINT=""
-    if [[ -f $ENV_FILE ]]; then
-        # shellcheck source=/dev/null
-        . "$ENV_FILE"
-    fi
-    url=${url:-${METRICS_URL:-$DEFAULT_URL}}
-    interval=${interval:-${METRICS_INTERVAL:-10s}}
-    host=${host:-${METRICS_HOST:-$(hostname)}}
+    local STORED_URL="" STORED_PASSWORD="" STORED_INTERVAL="" STORED_HOST="" STORED_DOCKER_ENDPOINT=""
+    read_env_file
+    url=${url:-${STORED_URL:-$DEFAULT_URL}}
+    interval=${interval:-${STORED_INTERVAL:-10s}}
+    host=${host:-${STORED_HOST:-$(hostname)}}
     case $docker_flag in
         on) docker_endpoint=${docker_endpoint:-$DEFAULT_DOCKER_ENDPOINT} ;;
         off) docker_endpoint="" ;;
-        "") docker_endpoint=$METRICS_DOCKER_ENDPOINT ;;
+        "") docker_endpoint=$STORED_DOCKER_ENDPOINT ;;
     esac
-    password=${METRICS_PASSWORD_INPUT:-$METRICS_PASSWORD}
+    password=${METRICS_PASSWORD_INPUT:-$STORED_PASSWORD}
     read_password
     local os
     # shellcheck source=/dev/null
     os=$(. /etc/os-release 2>/dev/null; echo "${ID:-linux}")
 
-    local stage
+    validate_value METRICS_URL "$url"
+    validate_value METRICS_PASSWORD "$password"
+    validate_value METRICS_INTERVAL "$interval"
+    validate_value METRICS_HOST "$host"
+    validate_value METRICS_DOCKER_ENDPOINT "$docker_endpoint"
+
     stage=$(mktemp -d)
     mkdir -p "$stage/telegraf.d"
     fetch_fragment base.conf "$ref" "$stage/telegraf.conf"
@@ -147,24 +199,30 @@ cmd_install() {
 
     if [[ $SKIP_RUNTIME != 1 ]]; then
         install_binary
-        ensure_user
         log "validating configuration"
         (
-            set -a
-            # shellcheck source=/dev/null
-            . "$stage/env"
-            "$BIN" --config "$stage/telegraf.conf" --config-directory "$stage/telegraf.d" --test >/dev/null
-        ) || { rm -rf "$stage"; die "new configuration rejected by telegraf; previous one left in place"; }
+            export METRICS_URL="$url" METRICS_PASSWORD="$password" METRICS_INTERVAL="$interval" \
+                METRICS_HOST="$host" METRICS_OS="$os" METRICS_DOCKER_ENDPOINT="$docker_endpoint"
+            "$STAGE_BIN" --config "$stage/telegraf.conf" --config-directory "$stage/telegraf.d" --test >/dev/null
+        ) || die "new configuration rejected by telegraf; previous one left in place"
+        ensure_user
     fi
 
     mkdir -p "$CONF_DIR" "$(dirname "$ENV_FILE")" "$(dirname "$UNIT")"
+    [[ $SKIP_RUNTIME == 1 || $STAGE_BIN == "$BIN" ]] || install -D -m 755 "$STAGE_BIN" "$BIN"
     install -m 644 "$stage/telegraf.conf" "$CONF_DIR/telegraf.conf"
-    rm -rf "$CONF_DIR/telegraf.d"
-    cp -r "$stage/telegraf.d" "$CONF_DIR/telegraf.d"
-    chmod 755 "$CONF_DIR/telegraf.d"; chmod 644 "$CONF_DIR"/telegraf.d/*.conf
+    # rename() refuses to replace a non-empty directory in one step, so the old telegraf.d
+    # (if any) is renamed out of the way first; each rename is still near-instant, unlike
+    # the previous rm -rf + cp which left telegraf.d absent for the whole copy.
+    rm -rf "$CONF_DIR/telegraf.d.new" "$CONF_DIR/telegraf.d.old"
+    cp -r "$stage/telegraf.d" "$CONF_DIR/telegraf.d.new"
+    chmod 755 "$CONF_DIR/telegraf.d.new"
+    chmod 644 "$CONF_DIR"/telegraf.d.new/*.conf 2>/dev/null || true
+    [[ -e $CONF_DIR/telegraf.d ]] && mv -T "$CONF_DIR/telegraf.d" "$CONF_DIR/telegraf.d.old"
+    mv -T "$CONF_DIR/telegraf.d.new" "$CONF_DIR/telegraf.d"
+    rm -rf "$CONF_DIR/telegraf.d.old"
     install -m 600 "$stage/env" "$ENV_FILE"
     install -m 644 "$stage/telegraf.service" "$UNIT"
-    rm -rf "$stage"
 
     if [[ $SKIP_RUNTIME != 1 ]]; then
         [[ $docker_endpoint == unix://* ]] && getent group docker >/dev/null && usermod -aG docker telegraf
@@ -195,8 +253,6 @@ cmd_status() {
     systemctl status telegraf --no-pager --lines 5
 }
 
-password=""
-METRICS_PASSWORD_INPUT=${METRICS_PASSWORD:-}
 case ${1:-} in
     install) shift; cmd_install "$@" ;;
     uninstall) cmd_uninstall ;;
