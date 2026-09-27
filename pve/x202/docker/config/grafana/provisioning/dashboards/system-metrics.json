@@ -1,0 +1,2355 @@
+{
+  "uid": "system-metrics",
+  "title": "System Metrics",
+  "tags": [
+    "system",
+    "telegraf"
+  ],
+  "schemaVersion": 39,
+  "editable": true,
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "host",
+        "type": "query",
+        "label": "Host",
+        "datasource": {
+          "type": "influxdb",
+          "uid": "metrics-influxdb"
+        },
+        "query": "SHOW TAG VALUES FROM \"system\" WITH KEY = \"host\"",
+        "refresh": 2,
+        "sort": 1,
+        "includeAll": false,
+        "multi": false
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 43,
+      "type": "row",
+      "title": "Overview",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Uptime",
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT last(\"uptime\") FROM \"system\" WHERE \"host\" =~ /^$host$/ AND $timeFilter",
+          "alias": "uptime",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "CPU",
+      "gridPos": {
+        "x": 4,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT mean(\"usage_active\") FROM \"cpu\" WHERE \"host\" =~ /^$host$/ AND $timeFilter AND \"cpu\"='cpu-total' GROUP BY time($__interval) fill(null)",
+          "alias": "cpu",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Load / core",
+      "gridPos": {
+        "x": 8,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.7
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT mean(\"load1\") / mean(\"n_cpus\") FROM \"system\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval) fill(null)",
+          "alias": "load / core",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "RAM",
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 92
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT mean(\"used_percent\") FROM \"mem\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval) fill(null)",
+          "alias": "ram",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Swap",
+      "gridPos": {
+        "x": 16,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT mean(\"used_percent\") FROM \"swap\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval) fill(null)",
+          "alias": "swap",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Disk /",
+      "gridPos": {
+        "x": 20,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT last(\"used_percent\") FROM \"disk\" WHERE \"host\" =~ /^$host$/ AND $timeFilter AND \"path\"='/' GROUP BY time($__interval) fill(null)",
+          "alias": "/",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "CPU temp",
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 75
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT max(\"temp\") FROM \"temp\" WHERE \"host\" =~ /^$host$/ AND $timeFilter AND \"sensor\" =~ /^(coretemp_package_id_0|k10temp_tctl|cpu_thermal)$/ GROUP BY time($__interval) fill(null)",
+          "alias": "cpu",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "GPU",
+      "gridPos": {
+        "x": 4,
+        "y": 5,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT mean(\"utilization_gpu\") FROM \"nvidia_smi\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval) fill(null)",
+          "alias": "gpu",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "GPU temp",
+      "gridPos": {
+        "x": 8,
+        "y": 5,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 75
+              },
+              {
+                "color": "red",
+                "value": 85
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT max(\"temperature_gpu\") FROM \"nvidia_smi\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval) fill(null)",
+          "alias": "gpu",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "VRAM",
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 92
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT mean(\"memory_used\") / mean(\"memory_total\") * 100 FROM \"nvidia_smi\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval) fill(null)",
+          "alias": "vram",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Net ↓",
+      "gridPos": {
+        "x": 16,
+        "y": 5,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT sum(\"rx\") FROM (SELECT non_negative_derivative(mean(\"bytes_recv\"), 1s) AS \"rx\" FROM \"net\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval), \"interface\" fill(null)) WHERE $timeFilter GROUP BY time($__interval) fill(null)",
+          "alias": "rx",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Net ↑",
+      "gridPos": {
+        "x": 20,
+        "y": 5,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT sum(\"tx\") FROM (SELECT non_negative_derivative(mean(\"bytes_sent\"), 1s) AS \"tx\" FROM \"net\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval), \"interface\" fill(null)) WHERE $timeFilter GROUP BY time($__interval) fill(null)",
+          "alias": "tx",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "row",
+      "title": "CPU",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "CPU usage by mode",
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "min",
+            "max",
+            "mean",
+            "lastNotNull"
+          ],
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT mean(\"usage_user\") FROM \"cpu\" WHERE \"host\" =~ /^$host$/ AND $timeFilter AND \"cpu\"='cpu-total' GROUP BY time($__interval) fill(null)",
+          "alias": "user",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        },
+        {
+          "refId": "B",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT mean(\"usage_system\") FROM \"cpu\" WHERE \"host\" =~ /^$host$/ AND $timeFilter AND \"cpu\"='cpu-total' GROUP BY time($__interval) fill(null)",
+          "alias": "system",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        },
+        {
+          "refId": "C",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT mean(\"usage_iowait\") FROM \"cpu\" WHERE \"host\" =~ /^$host$/ AND $timeFilter AND \"cpu\"='cpu-total' GROUP BY time($__interval) fill(null)",
+          "alias": "iowait",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        },
+        {
+          "refId": "D",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT mean(\"usage_steal\") FROM \"cpu\" WHERE \"host\" =~ /^$host$/ AND $timeFilter AND \"cpu\"='cpu-total' GROUP BY time($__interval) fill(null)",
+          "alias": "steal",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "CPU per core",
+      "gridPos": {
+        "x": 12,
+        "y": 10,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "min",
+            "max",
+            "mean",
+            "lastNotNull"
+          ],
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT mean(\"usage_active\") FROM \"cpu\" WHERE \"host\" =~ /^$host$/ AND $timeFilter AND \"cpu\" != 'cpu-total' GROUP BY time($__interval), \"cpu\" fill(null)",
+          "alias": "$tag_cpu",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "Load average",
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "min",
+            "max",
+            "mean",
+            "lastNotNull"
+          ],
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT mean(\"load1\") AS \"1m\", mean(\"load5\") AS \"5m\", mean(\"load15\") AS \"15m\" FROM \"system\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval) fill(null)",
+          "alias": "$col",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "timeseries",
+      "title": "Temperatures",
+      "gridPos": {
+        "x": 12,
+        "y": 18,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "min",
+            "max",
+            "mean",
+            "lastNotNull"
+          ],
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT max(\"temp\") FROM \"temp\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval), \"sensor\" fill(null)",
+          "alias": "$tag_sensor",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "type": "row",
+      "title": "Memory",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 26,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 19,
+      "type": "timeseries",
+      "title": "Memory",
+      "gridPos": {
+        "x": 0,
+        "y": 27,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "min",
+            "max",
+            "mean",
+            "lastNotNull"
+          ],
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT mean(\"used\") AS \"used\", mean(\"cached\") AS \"cached\", mean(\"buffered\") AS \"buffered\", mean(\"available\") AS \"available\" FROM \"mem\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval) fill(null)",
+          "alias": "$col",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "Swap",
+      "gridPos": {
+        "x": 12,
+        "y": 27,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "min",
+            "max",
+            "mean",
+            "lastNotNull"
+          ],
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT mean(\"used\") AS \"used\" FROM \"swap\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval) fill(null)",
+          "alias": "$col",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "type": "row",
+      "title": "GPU",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 35,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 22,
+      "type": "timeseries",
+      "title": "GPU utilization",
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "min",
+            "max",
+            "mean",
+            "lastNotNull"
+          ],
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT mean(\"utilization_gpu\") AS \"gpu\", mean(\"utilization_memory\") AS \"memory controller\" FROM \"nvidia_smi\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval) fill(null)",
+          "alias": "$col",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "type": "timeseries",
+      "title": "VRAM",
+      "gridPos": {
+        "x": 12,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "mbytes",
+          "min": 0,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "min",
+            "max",
+            "mean",
+            "lastNotNull"
+          ],
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT mean(\"memory_used\") AS \"used\", mean(\"memory_total\") AS \"total\" FROM \"nvidia_smi\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval) fill(null)",
+          "alias": "$col",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "type": "timeseries",
+      "title": "GPU temperature",
+      "gridPos": {
+        "x": 0,
+        "y": 44,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "min": 0,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "min",
+            "max",
+            "mean",
+            "lastNotNull"
+          ],
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT mean(\"temperature_gpu\") AS \"gpu\" FROM \"nvidia_smi\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval) fill(null)",
+          "alias": "$col",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "type": "timeseries",
+      "title": "GPU power",
+      "gridPos": {
+        "x": 8,
+        "y": 44,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "watt",
+          "min": 0,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "min",
+            "max",
+            "mean",
+            "lastNotNull"
+          ],
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT mean(\"power_draw\") AS \"draw\", mean(\"power_limit\") AS \"limit\" FROM \"nvidia_smi\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval) fill(null)",
+          "alias": "$col",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "type": "timeseries",
+      "title": "GPU fan",
+      "gridPos": {
+        "x": 16,
+        "y": 44,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "min",
+            "max",
+            "mean",
+            "lastNotNull"
+          ],
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT mean(\"fan_speed\") AS \"fan\" FROM \"nvidia_smi\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval) fill(null)",
+          "alias": "$col",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "type": "row",
+      "title": "Disk",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 52,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 28,
+      "type": "bargauge",
+      "title": "Filesystem usage",
+      "gridPos": {
+        "x": 0,
+        "y": 53,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT last(\"used_percent\") FROM \"disk\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY \"path\"",
+          "alias": "$tag_path",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "type": "timeseries",
+      "title": "Disk throughput",
+      "gridPos": {
+        "x": 8,
+        "y": 53,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "min": 0,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "min",
+            "max",
+            "mean",
+            "lastNotNull"
+          ],
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT non_negative_derivative(mean(\"read_bytes\"), 1s) AS \"read\", non_negative_derivative(mean(\"write_bytes\"), 1s) AS \"write\" FROM \"diskio\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval), \"name\" fill(null)",
+          "alias": "$tag_name $col",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "type": "timeseries",
+      "title": "Disk IOPS",
+      "gridPos": {
+        "x": 16,
+        "y": 53,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "iops",
+          "min": 0,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "min",
+            "max",
+            "mean",
+            "lastNotNull"
+          ],
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT non_negative_derivative(mean(\"reads\"), 1s) AS \"reads\", non_negative_derivative(mean(\"writes\"), 1s) AS \"writes\" FROM \"diskio\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval), \"name\" fill(null)",
+          "alias": "$tag_name $col",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "type": "timeseries",
+      "title": "Disk busy",
+      "gridPos": {
+        "x": 0,
+        "y": 61,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "min",
+            "max",
+            "mean",
+            "lastNotNull"
+          ],
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT non_negative_derivative(mean(\"io_time\"), 1s) / 10 FROM \"diskio\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval), \"name\" fill(null)",
+          "alias": "$tag_name",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "type": "row",
+      "title": "Network",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 69,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 33,
+      "type": "timeseries",
+      "title": "Traffic",
+      "gridPos": {
+        "x": 0,
+        "y": 70,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/ tx$/"
+            },
+            "properties": [
+              {
+                "id": "custom.transform",
+                "value": "negative-Y"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/ rx$/"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "min",
+            "max",
+            "mean",
+            "lastNotNull"
+          ],
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT non_negative_derivative(mean(\"bytes_recv\"), 1s) AS \"rx\", non_negative_derivative(mean(\"bytes_sent\"), 1s) AS \"tx\" FROM \"net\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval), \"interface\" fill(null)",
+          "alias": "$tag_interface $col",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 34,
+      "type": "timeseries",
+      "title": "Errors & drops",
+      "gridPos": {
+        "x": 12,
+        "y": 70,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "pps",
+          "min": 0,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "min",
+            "max",
+            "mean",
+            "lastNotNull"
+          ],
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT non_negative_derivative(mean(\"err_in\"),1s) AS \"err in\", non_negative_derivative(mean(\"err_out\"),1s) AS \"err out\", non_negative_derivative(mean(\"drop_in\"),1s) AS \"drop in\", non_negative_derivative(mean(\"drop_out\"),1s) AS \"drop out\" FROM \"net\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval), \"interface\" fill(null)",
+          "alias": "$tag_interface $col",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 35,
+      "type": "timeseries",
+      "title": "TCP connections",
+      "gridPos": {
+        "x": 0,
+        "y": 78,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "metrics-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "min",
+            "max",
+            "mean",
+            "lastNotNull"
+          ],
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "resultFormat": "time_series",
+          "query": "SELECT mean(\"tcp_established\") AS \"established\", mean(\"tcp_time_wait\") AS \"time_wait\", mean(\"tcp_close_wait\") AS \"close_wait\", mean(\"tcp_listen\") AS \"listen\" FROM \"netstat\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval) fill(null)",
+          "alias": "$col",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          }
+        }
+      ]
+    },
+    {
+      "id": 36,
+      "type": "row",
+      "title": "System",
+      "collapsed": true,
+      "gridPos": {
+        "x": 0,
+        "y": 86,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [
+        {
+          "id": 37,
+          "type": "timeseries",
+          "title": "Processes",
+          "gridPos": {
+            "x": 0,
+            "y": 87,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "min": 0,
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10,
+                "showPoints": "never",
+                "spanNulls": true
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom",
+              "calcs": [
+                "min",
+                "max",
+                "mean",
+                "lastNotNull"
+              ],
+              "sortBy": "Mean",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "rawQuery": true,
+              "resultFormat": "time_series",
+              "query": "SELECT mean(\"running\") AS \"running\", mean(\"sleeping\") AS \"sleeping\", mean(\"blocked\") AS \"blocked\", mean(\"zombies\") AS \"zombies\" FROM \"processes\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval) fill(null)",
+              "alias": "$col",
+              "datasource": {
+                "type": "influxdb",
+                "uid": "metrics-influxdb"
+              }
+            }
+          ]
+        },
+        {
+          "id": 38,
+          "type": "timeseries",
+          "title": "Kernel activity",
+          "gridPos": {
+            "x": 12,
+            "y": 87,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "min": 0,
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10,
+                "showPoints": "never",
+                "spanNulls": true
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom",
+              "calcs": [
+                "min",
+                "max",
+                "mean",
+                "lastNotNull"
+              ],
+              "sortBy": "Mean",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "rawQuery": true,
+              "resultFormat": "time_series",
+              "query": "SELECT non_negative_derivative(mean(\"context_switches\"), 1s) AS \"context switches/s\", non_negative_derivative(mean(\"interrupts\"), 1s) AS \"interrupts/s\" FROM \"kernel\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval) fill(null)",
+              "alias": "$col",
+              "datasource": {
+                "type": "influxdb",
+                "uid": "metrics-influxdb"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 39,
+      "type": "row",
+      "title": "Docker",
+      "collapsed": true,
+      "gridPos": {
+        "x": 0,
+        "y": 95,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [
+        {
+          "id": 40,
+          "type": "timeseries",
+          "title": "Container CPU",
+          "gridPos": {
+            "x": 0,
+            "y": 96,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10,
+                "showPoints": "never",
+                "spanNulls": true
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom",
+              "calcs": [
+                "min",
+                "max",
+                "mean",
+                "lastNotNull"
+              ],
+              "sortBy": "Mean",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "rawQuery": true,
+              "resultFormat": "time_series",
+              "query": "SELECT mean(\"usage_percent\") FROM \"docker_container_cpu\" WHERE \"host\" =~ /^$host$/ AND $timeFilter AND \"cpu\"='cpu-total' GROUP BY time($__interval), \"container_name\" fill(null)",
+              "alias": "$tag_container_name",
+              "datasource": {
+                "type": "influxdb",
+                "uid": "metrics-influxdb"
+              }
+            }
+          ]
+        },
+        {
+          "id": 41,
+          "type": "timeseries",
+          "title": "Container memory",
+          "gridPos": {
+            "x": 12,
+            "y": 96,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "min": 0,
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10,
+                "showPoints": "never",
+                "spanNulls": true
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom",
+              "calcs": [
+                "min",
+                "max",
+                "mean",
+                "lastNotNull"
+              ],
+              "sortBy": "Mean",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "rawQuery": true,
+              "resultFormat": "time_series",
+              "query": "SELECT mean(\"usage\") FROM \"docker_container_mem\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval), \"container_name\" fill(null)",
+              "alias": "$tag_container_name",
+              "datasource": {
+                "type": "influxdb",
+                "uid": "metrics-influxdb"
+              }
+            }
+          ]
+        },
+        {
+          "id": 42,
+          "type": "timeseries",
+          "title": "Container network",
+          "gridPos": {
+            "x": 0,
+            "y": 104,
+            "w": 24,
+            "h": 8
+          },
+          "datasource": {
+            "type": "influxdb",
+            "uid": "metrics-influxdb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Bps",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10,
+                "showPoints": "never",
+                "spanNulls": true
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "/ tx$/"
+                },
+                "properties": [
+                  {
+                    "id": "custom.transform",
+                    "value": "negative-Y"
+                  },
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "blue"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "/ rx$/"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "green"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom",
+              "calcs": [
+                "min",
+                "max",
+                "mean",
+                "lastNotNull"
+              ],
+              "sortBy": "Mean",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "rawQuery": true,
+              "resultFormat": "time_series",
+              "query": "SELECT non_negative_derivative(mean(\"rx_bytes\"), 1s) AS \"rx\", non_negative_derivative(mean(\"tx_bytes\"), 1s) AS \"tx\" FROM \"docker_container_net\" WHERE \"host\" =~ /^$host$/ AND $timeFilter GROUP BY time($__interval), \"container_name\" fill(null)",
+              "alias": "$tag_container_name $col",
+              "datasource": {
+                "type": "influxdb",
+                "uid": "metrics-influxdb"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

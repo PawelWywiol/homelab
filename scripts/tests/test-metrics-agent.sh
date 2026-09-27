@@ -58,5 +58,14 @@ else
     echo "SKIP: telegraf config check (set TELEGRAF_BIN)"
 fi
 
+DASH="$REPO_ROOT/pve/x202/docker/config/grafana/provisioning/dashboards/system-metrics.json"
+check "dashboard is valid JSON" "jq -e . '$DASH'"
+check "dashboard uid" "[ \"\$(jq -r .uid '$DASH')\" = system-metrics ]"
+check "every panel uses metrics-influxdb" \
+    "[ -z \"\$(jq -r '[.panels[], (.panels[].panels // [])[]] | .[] | select(.type != \"row\") | select(.datasource.uid != \"metrics-influxdb\") | .title' '$DASH')\" ]"
+check "queries only use produced measurements" \
+    "[ -z \"\$(jq -r '.. | .query? // empty' '$DASH' | grep -oE 'FROM \"[a-z_]+\"' | sort -u | grep -vE '\"(system|cpu|mem|swap|disk|diskio|net|netstat|processes|kernel|temp|nvidia_smi|docker_container_cpu|docker_container_mem|docker_container_net)\"')\" ]"
+check "no dangling W placeholder" "! grep -q 'WHERE W' '$DASH'"
+
 echo "passed=$PASS failed=$FAIL"
 [ "$FAIL" -eq 0 ]

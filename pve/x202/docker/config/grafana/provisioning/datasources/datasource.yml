@@ -22,3 +22,15 @@ datasources:
     jsonData:
       httpMode: GET
       tlsSkipVerify: true
+
+  - name: metrics-influxdb
+    uid: metrics-influxdb
+    type: influxdb
+    url: http://metrics-influxdb:8086
+    isDefault: false
+    user: grafana
+    jsonData:
+      dbName: metrics
+      httpMode: GET
+    secureJsonData:
+      password: $METRICS_INFLUXDB_READ_PASSWORD
