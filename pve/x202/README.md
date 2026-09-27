@@ -58,6 +58,16 @@ make redis pull         # Pull latest Redis image
 The reverse proxy for this host runs on the control node, not here:
 see [pve/x000](../x000/README.md).
 
+**Before the first `metrics-influxdb` deploy**, create its `.env` on x202
+(the db creates its users only once, on first start with an empty volume;
+compose refuses to start without it):
+```bash
+cd docker/config/metrics-influxdb
+cp .env.example .env    # fill in; passwords: openssl rand -hex 24
+chmod 600 .env
+```
+Put the same read password in grafana's `.env` (`METRICS_INFLUXDB_READ_PASSWORD`).
+
 **Changing `metrics-influxdb` retention** (default 90 d): retention is
 per-database and set only once, at first start, by the image's init script —
 changing `METRICS_RETENTION` in `.env` afterwards has no effect. Change it
