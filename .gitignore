@@ -29,3 +29,6 @@ repomix-output.xml
 repomix.xml
 
 node_modules/
+
+# Local knowledge base, never published
+.claude/docs/
