@@ -113,7 +113,8 @@ visible to anything else able to exec into it.
 | Grafana | 12.0.0 | `pve/x202/docker/config/grafana/compose.yml` image tag |
 | OS / kernel | Arch Linux (Omarchy), `7.2.5-3-omarchy` | `uname -r` on the workstation |
 | NVIDIA driver | 610.57.04 | `nvidia-smi --query-gpu=driver_version --format=csv,noheader` |
-| Telegraf CPU / RSS over 10 min | _pending: measured after the first deployment_ | — |
+| Telegraf CPU over 10 min | 1.75% of one core (0.12% of 14 cores), incl. `nvidia-smi` calls | `CPUUsageNSec` delta of the unit, 10 s interval, `--docker`, 2026-09-28 |
+| Telegraf memory | 70 MiB current, 93 MiB peak | unit `MemoryCurrent` / `MemoryPeak`; process RSS reads 234 MiB because it counts the shared pages of the all-plugins binary |
 
 ## Roadmap
 
