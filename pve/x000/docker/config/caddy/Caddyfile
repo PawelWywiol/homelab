@@ -236,6 +236,11 @@ http://*.wywiol.eu {
         }
     }
 
+    @knowledge host knowledge.local.wywiol.eu
+    handle @knowledge {
+        reverse_proxy 192.168.0.100:8180
+    }
+
     # Fallback for undefined subdomains
     handle {
         respond "x000 Control Node" 200
