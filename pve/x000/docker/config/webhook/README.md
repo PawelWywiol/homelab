@@ -226,7 +226,7 @@ docker exec webhook ssh -i /home/webhook/.ssh/id_ed25519 code@host.docker.intern
 Load key "/home/webhook/.ssh/id_ed25519": Is a directory
 ```
 
-**Cause**: Container started before SSH key existed. Docker creates directories for missing bind-mount sources.
+**Cause**: Container started before SSH key existed, or `SSH_DIR` points to a dir without the key. Docker creates directories for missing bind-mount sources. Check the source with `docker inspect webhook --format '{{range .Mounts}}{{.Source}}{{println}}{{end}}'`.
 
 **Fix**:
 ```bash
