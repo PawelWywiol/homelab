@@ -154,59 +154,19 @@
         server: x202
         container: metrics-influxdb
 
-- x203 (Gaming):
-    - Glances:
-        href: https://glances-x203.local.wywiol.eu
-        icon: glances
-        description: System stats
-        server: x203
-        container: glances
-        widget:
-          type: glances
-          url: http://192.168.0.203:61208
-          version: 4
-          metric: cpu
-    - Portainer:
-        href: https://portainer-x203.local.wywiol.eu
-        icon: portainer
-        description: Container management
-        server: x203
-        container: portainer
+- x250 (Gaming):
     - RomM:
         href: https://romm.local.wywiol.eu
         icon: mdi-gamepad-variant
         description: Game library manager
-        server: x203
-        container: romm
-    - Romifleur:
-        href: https://roms.local.wywiol.eu
+    - Minerva Helper:
+        href: https://minerva.local.wywiol.eu
         icon: mdi-disc
-        description: ROM downloader
-        server: x203
-        container: romifleur
-    - Filebrowser:
-        href: https://files.local.wywiol.eu
-        icon: filebrowser
-        description: File manager
-        server: x203
-        container: filebrowser
-    - qBittorrent:
-        href: https://qt.local.wywiol.eu
-        icon: qbittorrent
-        description: Torrent client
-        server: x203
-        container: qt
-    - Chromium:
-        href: https://browser.local.wywiol.eu
-        icon: chromium
-        description: Browser via VPN
-        server: x203
-        container: chromium
-    - Samba:
-        icon: mdi-folder-network
-        description: Network file share
-        server: x203
-        container: samba
+        description: ROM manager
+    - Sunshine:
+        href: https://sunshine.local.wywiol.eu
+        icon: mdi-weather-sunny
+        description: Game streaming host
 
 - Infrastructure:
     - Proxmox:

@@ -12,7 +12,7 @@ layout:
   x202 (Primary):
     icon: mdi-database
     style: column
-  x203 (Gaming):
+  x250 (Gaming):
     icon: mdi-gamepad-variant
     style: column
   Infrastructure:

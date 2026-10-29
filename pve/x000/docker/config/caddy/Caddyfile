@@ -104,34 +104,17 @@ http://*.wywiol.eu {
 
     @romm host romm.local.wywiol.eu
     handle @romm {
-        reverse_proxy 192.168.0.203:80
+        reverse_proxy 192.168.0.250:8080
     }
 
-    @roms host roms.local.wywiol.eu
-    handle @roms {
-        reverse_proxy 192.168.0.203:8080
+    @minerva host minerva.local.wywiol.eu
+    handle @minerva {
+        reverse_proxy 192.168.0.250:8090
     }
 
-    @files host files.local.wywiol.eu
-    handle @files {
-        reverse_proxy 192.168.0.203:8083
-    }
-
-    @qt host qt.local.wywiol.eu
-    handle @qt {
-        reverse_proxy 192.168.0.203:8081
-    }
-
-    @browser host browser.local.wywiol.eu
-    handle @browser {
-        reverse_proxy https://192.168.0.203:3001 {
-            import insecure_proxy
-        }
-    }
-
-    @portainer_x203 host portainer-x203.local.wywiol.eu
-    handle @portainer_x203 {
-        reverse_proxy https://192.168.0.203:9443 {
+    @sunshine host sunshine.local.wywiol.eu
+    handle @sunshine {
+        reverse_proxy https://192.168.0.250:47990 {
             import insecure_proxy
         }
     }
@@ -213,11 +196,6 @@ http://*.wywiol.eu {
     @glances_x202 host glances-x202.local.wywiol.eu
     handle @glances_x202 {
         reverse_proxy 192.168.0.202:61208
-    }
-
-    @glances_x203 host glances-x203.local.wywiol.eu
-    handle @glances_x203 {
-        reverse_proxy 192.168.0.203:61208
     }
 
     @glances_x201 host glances-x201.local.wywiol.eu
