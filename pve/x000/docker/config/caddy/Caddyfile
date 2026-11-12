@@ -50,7 +50,7 @@ http://*.wywiol.eu {
         reverse_proxy 192.168.0.250:8070
     }
 
-    @retro host retro.local.wywiol.eu
+    @retro host retro.wywiol.eu
     handle @retro {
         reverse_proxy 192.168.0.250:8080
     }
@@ -78,7 +78,7 @@ http://*.wywiol.eu {
         reverse_proxy 192.168.0.250:8070
     }
 
-    @retro host retro.local.wywiol.eu
+    @retro host retro.wywiol.eu
     handle @retro {
         reverse_proxy 192.168.0.250:8080
     }
