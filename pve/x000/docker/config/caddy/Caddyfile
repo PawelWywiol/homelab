@@ -50,6 +50,11 @@ http://*.wywiol.eu {
         reverse_proxy 192.168.0.250:8070
     }
 
+    @retro host retro.local.wywiol.eu
+    handle @retro {
+        reverse_proxy 192.168.0.250:8080
+    }
+
     handle {
         redir https://{host}{uri} permanent
     }
@@ -71,6 +76,11 @@ http://*.wywiol.eu {
     @roms host roms.wywiol.eu
     handle @roms {
         reverse_proxy 192.168.0.250:8070
+    }
+
+    @retro host retro.local.wywiol.eu
+    handle @retro {
+        reverse_proxy 192.168.0.250:8080
     }
 }
 
