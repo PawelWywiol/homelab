@@ -45,6 +45,11 @@ http://*.wywiol.eu {
         reverse_proxy 192.168.0.201:3000
     }
 
+    @roms host roms.wywiol.eu
+    handle @roms {
+        reverse_proxy 192.168.0.250:8070
+    }
+
     handle {
         redir https://{host}{uri} permanent
     }
