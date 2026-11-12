@@ -102,6 +102,11 @@ http://*.wywiol.eu {
         }
     }
 
+    @roms host roms.local.wywiol.eu
+    handle @roms {
+        reverse_proxy 192.168.0.250:8070
+    }
+
     @romm host romm.local.wywiol.eu
     handle @romm {
         reverse_proxy 192.168.0.250:8080
